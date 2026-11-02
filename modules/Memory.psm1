@@ -1,4 +1,4 @@
-# SysPilot - Memory: RAM freigeben (ehrlich, mit Messung statt Cleaner-Magie)
+﻿# SysPilot - Memory: RAM freigeben (ehrlich, mit Messung statt Cleaner-Magie)
 #Requires -Version 5.1
 
 Add-Type -TypeDefinition @"

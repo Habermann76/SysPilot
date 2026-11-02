@@ -1,4 +1,4 @@
-# Gaming-Modus - volle Leistung, Hintergrund bremsen, RAM frei
+﻿# Gaming-Modus - volle Leistung, Hintergrund bremsen, RAM frei
 Write-Host "Aktiviere Gaming-Modus..." -ForegroundColor Magenta
 
 # 1. Volle Leistung

@@ -1,4 +1,4 @@
-# Kuehl-Modus - leise & kuehl, Ballast schliessen
+﻿# Kuehl-Modus - leise & kuehl, Ballast schliessen
 Write-Host "Aktiviere Kuehl-Modus..." -ForegroundColor Blue
 
 # 1. Kuehl-Plan

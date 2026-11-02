@@ -1,4 +1,4 @@
-# SysPilot - Localization: Sprachen + Einheiten (de/en, C/F)
+﻿# SysPilot - Localization: Sprachen + Einheiten (de/en, C/F)
 #Requires -Version 5.1
 
 $script:Strings = @{

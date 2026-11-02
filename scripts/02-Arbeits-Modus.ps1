@@ -1,4 +1,4 @@
-# Arbeits-Modus - VS Code, Compiler & Co. bevorzugen
+﻿# Arbeits-Modus - VS Code, Compiler & Co. bevorzugen
 Write-Host "Aktiviere Arbeits-Modus..." -ForegroundColor Cyan
 
 # 1. Ausgewogene Leistung (Kuehl reicht meist, Autopilot schaltet bei Last hoch)

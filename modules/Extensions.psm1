@@ -1,4 +1,4 @@
-# SysPilot - Extensions: Browser-Erweiterungen finden, kategorisieren, Duplikate aufdecken
+﻿# SysPilot - Extensions: Browser-Erweiterungen finden, kategorisieren, Duplikate aufdecken
 #Requires -Version 5.1
 
 function Get-SysPilotBrowserProfiles {

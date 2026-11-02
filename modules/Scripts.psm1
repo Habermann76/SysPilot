@@ -1,4 +1,4 @@
-# SysPilot - Scripts: Vorgefertigte, anpassbare Skripte (ohne KI)
+﻿# SysPilot - Scripts: Vorgefertigte, anpassbare Skripte (ohne KI)
 #Requires -Version 5.1
 
 function Get-SysPilotScriptsDir {

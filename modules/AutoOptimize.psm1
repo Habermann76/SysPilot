@@ -1,4 +1,4 @@
-# SysPilot - AutoOptimize: Ein-Klick-Optimierung (mit Backup, rueckgaengig machbar)
+﻿# SysPilot - AutoOptimize: Ein-Klick-Optimierung (mit Backup, rueckgaengig machbar)
 #Requires -Version 5.1
 
 function Invoke-SysPilotAutoOptimize {

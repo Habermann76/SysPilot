@@ -1,4 +1,4 @@
-# SysPilot - Temperature: CPU-Temperatur aus mehreren Quellen (mit Fallback)
+﻿# SysPilot - Temperature: CPU-Temperatur aus mehreren Quellen (mit Fallback)
 #Requires -Version 5.1
 
 function Get-SysPilotCpuTemperature {

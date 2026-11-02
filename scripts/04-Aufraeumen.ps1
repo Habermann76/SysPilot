@@ -1,4 +1,4 @@
-# Aufraeumen - Temp leeren, RAM frei, kurze Analyse
+﻿# Aufraeumen - Temp leeren, RAM frei, kurze Analyse
 Write-Host "Raeume auf..." -ForegroundColor Yellow
 
 # 1. RAM freigeben

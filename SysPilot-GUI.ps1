@@ -1,4 +1,4 @@
-# SysPilot GUI - schlanke WPF-Oberflaeche (kein Electron, ~40-60 MB RAM)
+﻿# SysPilot GUI - schlanke WPF-Oberflaeche (kein Electron, ~40-60 MB RAM)
 #Requires -Version 5.1
 param([switch]$AsAdmin)
 

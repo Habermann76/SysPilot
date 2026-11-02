@@ -1,4 +1,4 @@
-# Nacht-Modus - alles Unnoetige schliessen, maximal kuehl & leise
+﻿# Nacht-Modus - alles Unnoetige schliessen, maximal kuehl & leise
 Write-Host "Aktiviere Nacht-Modus..." -ForegroundColor DarkBlue
 
 # 1. Kuehl-Plan

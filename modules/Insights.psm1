@@ -1,4 +1,4 @@
-# SysPilot - Insights: Ressourcen-Fresser erkennen, Statistiken, Massnahmen
+﻿# SysPilot - Insights: Ressourcen-Fresser erkennen, Statistiken, Massnahmen
 #Requires -Version 5.1
 
 function Get-SysPilotHogs {
