@@ -1,0 +1,40 @@
+09:20:58 [INFO] Prioritaeten: ASCTray(30164)->BelowNormal, Bright VPN(2552)->BelowNormal, Bright VPN(3980)->BelowNormal, Bright VPN(10748)->BelowNormal, brightdata(16944)->BelowNormal, Code(368)->AboveNormal, Code(7032)->AboveNormal, Code(8064)->AboveNormal, Code(10824)->AboveNormal, Code(27888)->AboveNormal, Code(38624)->AboveNormal, Code(40316)->AboveNormal, Code(40720)->AboveNormal, Code(42272)->AboveNormal, Code(42460)->AboveNormal, earnapp(16356)->BelowNormal, GOG Galaxy Notifications Renderer(2372)->AboveNormal, Honeygain(12792)->BelowNormal, node(19280)->AboveNormal, node(30528)->AboveNormal, node(33692)->AboveNormal, node(37468)->AboveNormal, node(39148)->AboveNormal, node(42772)->AboveNormal, OneDrive(16976)->BelowNormal, python(12708)->AboveNormal, python(19396)->AboveNormal, python(39712)->AboveNormal, python(39880)->AboveNormal, terabox(25400)->BelowNormal, teraboxhost(34676)->BelowNormal, teraboxunite(16632)->BelowNormal, teraboxunite(19304)->BelowNormal, teraboxunite(25160)->BelowNormal, teraboxunite(29140)->BelowNormal, teraboxunite(30224)->BelowNormal, teraboxunite(31660)->BelowNormal, UniGetUI(11360)->BelowNormal, UpdateHub(2824)->BelowNormal, UpdateHub(11324)->BelowNormal, UpdateHub(14808)->BelowNormal, UpdateHub(21792)->BelowNormal
+10:16:39 [INFO] RAM freigegeben: WorkingSets 4945 MB, Standby geleert: False, frei vorher/nachher: 3,63/3,73 GB
+10:22:00 [INFO] Visuelle Effekte: Huebsch
+11:17:39 [INFO] Prioritaeten: Code(37364)->AboveNormal, teraboxunite(19304)->BelowNormal
+11:33:35 [INFO] Prioritaeten: teraboxunite(19304)->BelowNormal
+11:42:01 [INFO] Energieplaene installiert: Kuehl=d66d8d10-bd58-4b8d-ad48-da9bfa8d6dc5 Leistung=d21f761f-543a-4e19-a3f3-3289ce506771
+12:12:49 [INFO] Prioritaeten: ASCService(2316)->BelowNormal, BootTime(12324)->BelowNormal, GUBootService(7140)->BelowNormal, OneDriveUpdaterService(8116)->BelowNormal, SearchIndexer(12356)->BelowNormal, wslservice(12560)->AboveNormal
+12:14:19 [INFO] Backup erstellt: C:\Users\haber\SysPilot\backup\20261102-121417-services
+12:14:19 [INFO] Dienst dmwappushservice -> Manual
+12:14:19 [INFO] Dienst WSearch -> Manual
+12:14:19 [INFO] Dienst SysMain -> Manual
+12:14:19 [INFO] Dienst CscService -> Manual
+12:14:19 [INFO] Dienst WdiServiceHost -> Manual
+12:14:20 [INFO] Dienst DPS -> Manual
+12:14:20 [INFO] Dienst edgeupdate -> Manual
+12:14:20 [INFO] Dienst edgeupdatem -> Manual
+12:14:20 [INFO] Dienst HPPrintScanDoctorService -> Manual
+12:14:20 [INFO] Dienst TeamViewer -> Manual
+12:14:20 [INFO] Dienst WiseBootAssistant -> Disabled
+12:14:20 [INFO] Dienst GUBootService -> Disabled
+12:14:20 [INFO] Dienst GUMemfilesService -> Disabled
+12:14:20 [INFO] Dienst AdvancedSystemCareService20 -> Manual
+12:14:21 [INFO] Dienst luminati_net_updater_win_brightvpn_com -> Disabled
+12:14:21 [INFO] Dienst luminati_net_updater_win_earnapp_com -> Disabled
+12:14:21 [INFO] Dienst FoxitReaderUpdateService -> Manual
+12:14:21 [INFO] Dienst 0store-service -> Manual
+12:14:36 [INFO] Autopilot-Task installiert
+12:16:18 [INFO] Bereinigung: 1076 MB freigegeben
+12:26:04 [INFO] Energieplaene installiert: Kuehl=d66d8d10-bd58-4b8d-ad48-da9bfa8d6dc5 Leistung=d21f761f-543a-4e19-a3f3-3289ce506771
+12:27:28 [INFO] RAM freigegeben: WorkingSets 6888 MB, Standby geleert: True, frei vorher/nachher: 3,43/4,37 GB
+12:28:59 [INFO] Backup erstellt: C:\Users\haber\SysPilot\backup\20261102-122858-autooptimize
+12:30:33 [INFO] Game Mode aktiviert
+12:30:33 [INFO] Microsoft-Eigenwerbung deaktiviert
+12:30:33 [INFO] Personalisierte Werbung deaktiviert
+12:30:34 [INFO] Visuelle Effekte: Huebsch
+12:30:34 [INFO] Prioritaeten: teraboxunite(19304)->BelowNormal
+12:30:34 [INFO] Auto-Optimierung: 0 Dienste, 1 Features, Tweaks angewendet (Backup: C:\Users\haber\SysPilot\backup\20261102-122858-autooptimize)
+12:32:39 [INFO] UWP entfernt: BytedancePte.Ltd.TikTok
+12:33:37 [INFO] UWP entfernt: FACEBOOK.FACEBOOK
+12:34:00 [INFO] UWP entfernt: FACEBOOK.317180B0BB486
