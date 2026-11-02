@@ -568,139 +568,179 @@
         "Name": "Ferdium",
         "Why": "Jeder Dienst = eigener Chromium-Prozess. 24 Dienste = ~2-3 GB RAM.",
         "Fix": "Dienste reduzieren oder Hibernation aggressiver (Menue 5/6)",
-        "HowTo": "Ferdium oeffnen > Einstellungen > Hibernation: Hibernate on startup AN, Hibernation strategy auf 5 Min. Oder: Dienste loeschen die du nicht brauchst (Rechtsklick auf Dienst > Remove)."
+        "HowTo": "Ferdium oeffnen > Einstellungen > Hibernation: Hibernate on startup AN, Hibernation strategy auf 5 Min. Oder: Dienste loeschen die du nicht brauchst (Rechtsklick auf Dienst > Remove).",
+        "Link": "https://ferdium.org"
       },
       {
         "Name": "chrome",
         "Why": "Viele Tabs/Erweiterungen = viele Prozesse.",
         "Fix": "Tabs schliessen, Erweiterungen pruefen",
-        "HowTo": "chrome://extensions oeffnen > unnoetige Erweiterungen entfernen. Tabs schliessen oder Tab Suspender nutzen. SysPilot Menue 21 zeigt Duplikate."
+        "HowTo": "chrome://extensions oeffnen > unnoetige Erweiterungen entfernen. Tabs schliessen oder Tab Suspender nutzen. SysPilot Menue 21 zeigt Duplikate.",
+        "Link": "https://support.google.com/chrome_webstore/answer/2664769"
       },
       {
         "Name": "msedge",
         "Why": "Edge laeuft oft im Hintergrund weiter.",
         "Fix": "Edge: Einstellungen > System > Hintergrund-Apps aus",
-        "HowTo": "Edge oeffnen > Einstellungen > System und Leistung > Starten von Hintergrund-Apps AUS + Edge weiter ausfuehren AUS."
+        "HowTo": "Edge oeffnen > Einstellungen > System und Leistung > Starten von Hintergrund-Apps AUS + Edge weiter ausfuehren AUS.",
+        "Link": "https://support.microsoft.com/en-us/edge/stop-microsoft-edge-from-starting-automatically"
       },
       {
         "Name": "MsMpEng",
         "Why": "Windows Defender Echtzeit-Scan, CPU-Spitzen bei Kompilieren/Downloads.",
         "Fix": "Ausnahmen fuer Dev-Ordner (src, node_modules) in Defender",
-        "HowTo": "Windows-Sicherheit > Viren- & Bedrohungsschutz > Einstellungen verwalten > Ausschluesse > Ordner hinzufuegen: source, node_modules, .git"
+        "HowTo": "Windows-Sicherheit > Viren- & Bedrohungsschutz > Einstellungen verwalten > Ausschluesse > Ordner hinzufuegen: source, node_modules, .git",
+        "Link": "https://learn.microsoft.com/en-us/defender-endpoint/microsoft-defender-antivirus-exclusions-configure"
       },
       {
         "Name": "SearchIndexer",
         "Why": "Windows-Suchindex, CPU/Platte im Hintergrund.",
         "Fix": "Dienst WSearch auf Manuell (Menue 9) - du hast Everything",
-        "HowTo": "SysPilot Menue 9 > WSearch > Manuell. Oder: services.msc > Windows Search > Starttyp: Manuell."
+        "HowTo": "SysPilot Menue 9 > WSearch > Manuell. Oder: services.msc > Windows Search > Starttyp: Manuell.",
+        "Link": "https://support.microsoft.com/en-us/outlook/why-is-desktop-search-service-unavailable",
+        "Action": "DisableService"
       },
       {
         "Name": "SysMain",
         "Why": "SuperFetch, CPU/Platten-Spitzen.",
         "Fix": "Dienst SysMain auf Manuell (Menue 9)",
-        "HowTo": "SysPilot Menue 9 > SysMain > Manuell. Oder: services.msc > SysMain > Starttyp: Manuell."
+        "HowTo": "SysPilot Menue 9 > SysMain > Manuell. Oder: services.msc > SysMain > Starttyp: Manuell.",
+        "Link": "https://support.microsoft.com/en-us/outlook/why-is-desktop-search-service-unavailable",
+        "Action": "DisableService"
       },
       {
         "Name": "GalaxyClient",
         "Why": "GOG Galaxy laeuft staendig mit.",
         "Fix": "Autostart aus (Menue 5), nur bei Bedarf starten",
-        "HowTo": "SysPilot Menue 5 > GogGalaxy > Enter (aus). Oder: GOG Galaxy > Einstellungen > Beim Start von Windows ausfuehren AUS."
+        "HowTo": "SysPilot Menue 5 > GogGalaxy > Enter (aus). Oder: GOG Galaxy > Einstellungen > Beim Start von Windows ausfuehren AUS.",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows",
+        "Action": "DisableStartup"
       },
       {
         "Name": "EpicGamesLauncher",
         "Why": "Epic Launcher im Hintergrund.",
         "Fix": "Autostart aus (Menue 5)",
-        "HowTo": "SysPilot Menue 5 > EpicGamesLauncher > Enter (aus). Oder: Epic > Einstellungen > Beim Systemstart ausfuehren AUS."
+        "HowTo": "SysPilot Menue 5 > EpicGamesLauncher > Enter (aus). Oder: Epic > Einstellungen > Beim Systemstart ausfuehren AUS.",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows",
+        "Action": "DisableStartup"
       },
       {
         "Name": "steamwebhelper",
         "Why": "Steam-Helper-Prozesse.",
         "Fix": "Steam nur bei Bedarf starten",
-        "HowTo": "SysPilot Menue 5 > Steam > Enter (aus). Oder: Steam > Einstellungen > Interface > Steam beim Start ausfuehren AUS."
+        "HowTo": "SysPilot Menue 5 > Steam > Enter (aus). Oder: Steam > Einstellungen > Interface > Steam beim Start ausfuehren AUS.",
+        "Link": "https://help.steampowered.com/en/",
+        "Action": "DisableStartup"
       },
       {
         "Name": "Honeygain",
         "Why": "Bandbreiten-Sharing (verkauft deine IP!).",
         "Fix": "DEINSTALLIEREN (Menue 6)",
-        "HowTo": "SysPilot Menue 6 > Honeygain > Enter > Ja. Oder: Windows Einstellungen > Apps > Honeygain > Deinstallieren."
+        "HowTo": "SysPilot Menue 6 > Honeygain > Enter > Ja. Oder: Windows Einstellungen > Apps > Honeygain > Deinstallieren.",
+        "Link": "https://support.microsoft.com/en-us/windows/uninstall-or-remove-apps-and-programs-in-windows-4b55f974-2cc6-2d2b-d092-5905080eaf98",
+        "Action": "Uninstall"
       },
       {
         "Name": "earnapp",
         "Why": "Bandbreiten-Sharing (verkauft deine IP!).",
         "Fix": "DEINSTALLIEREN (Menue 6)",
-        "HowTo": "SysPilot Menue 6 > EarnApp > Enter > Ja. Oder: Windows Einstellungen > Apps > EarnApp > Deinstallieren."
+        "HowTo": "SysPilot Menue 6 > EarnApp > Enter > Ja. Oder: Windows Einstellungen > Apps > EarnApp > Deinstallieren.",
+        "Link": "https://support.microsoft.com/en-us/windows/uninstall-or-remove-apps-and-programs-in-windows-4b55f974-2cc6-2d2b-d092-5905080eaf98",
+        "Action": "Uninstall"
       },
       {
         "Name": "Bright VPN",
         "Why": "Bandbreiten-Sharing (verkauft deine IP!).",
         "Fix": "DEINSTALLIEREN (Menue 6)",
-        "HowTo": "SysPilot Menue 6 > Bright VPN > Enter > Ja. Oder: Windows Einstellungen > Apps > Bright VPN > Deinstallieren."
+        "HowTo": "SysPilot Menue 6 > Bright VPN > Enter > Ja. Oder: Windows Einstellungen > Apps > Bright VPN > Deinstallieren.",
+        "Link": "https://support.microsoft.com/en-us/windows/uninstall-or-remove-apps-and-programs-in-windows-4b55f974-2cc6-2d2b-d092-5905080eaf98",
+        "Action": "Uninstall"
       },
       {
         "Name": "TeraBox",
         "Why": "Cloud-Sync im Hintergrund.",
         "Fix": "Autostart aus (Menue 5)",
-        "HowTo": "SysPilot Menue 5 > TeraBox > Enter (aus). Oder: TeraBox > Einstellungen > Autostart AUS."
+        "HowTo": "SysPilot Menue 5 > TeraBox > Enter (aus). Oder: TeraBox > Einstellungen > Autostart AUS.",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows",
+        "Action": "DisableStartup"
       },
       {
         "Name": "OneDrive",
         "Why": "Cloud-Sync im Hintergrund.",
         "Fix": "Autostart aus (Menue 5) falls ungenutzt",
-        "HowTo": "SysPilot Menue 5 > OneDrive > Enter (aus). Oder: OneDrive > Einstellungen > OneDrive beim Anmelden starten AUS."
+        "HowTo": "SysPilot Menue 5 > OneDrive > Enter (aus). Oder: OneDrive > Einstellungen > OneDrive beim Anmelden starten AUS.",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows",
+        "Action": "DisableStartup"
       },
       {
         "Name": "Discord",
         "Why": "Electron-App, laeuft im Hintergrund.",
         "Fix": "Autostart aus (Menue 5)",
-        "HowTo": "SysPilot Menue 5 > Discord > Enter (aus). Oder: Discord > Benutzereinstellungen > Windows-Einstellungen > Discord beim Start oeffnen AUS."
+        "HowTo": "SysPilot Menue 5 > Discord > Enter (aus). Oder: Discord > Benutzereinstellungen > Windows-Einstellungen > Discord beim Start oeffnen AUS.",
+        "Link": "https://support.discord.com/hc/en-us/articles/211339918-How-do-I-disable-auto-start-on-launch",
+        "Action": "DisableStartup"
       },
       {
         "Name": "Fireflies",
         "Why": "Electron-App, laeuft im Hintergrund.",
         "Fix": "Autostart aus (Menue 5)",
-        "HowTo": "SysPilot Menue 5 > Fireflies > Enter (aus)."
+        "HowTo": "SysPilot Menue 5 > Fireflies > Enter (aus).",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows",
+        "Action": "DisableStartup"
       },
       {
         "Name": "LM Studio",
         "Why": "Lokale KI-Modelle, viel RAM wenn geladen.",
         "Fix": "Nur bei Bedarf starten",
-        "HowTo": "SysPilot Menue 5 > LM Studio > Enter (aus). Modelle entladen wenn nicht genutzt."
+        "HowTo": "SysPilot Menue 5 > LM Studio > Enter (aus). Modelle entladen wenn nicht genutzt.",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows",
+        "Action": "DisableStartup"
       },
       {
         "Name": "ollama",
         "Why": "Lokale KI-Modelle, viel RAM wenn geladen.",
         "Fix": "Nur bei Bedarf starten",
-        "HowTo": "SysPilot Menue 5 > Ollama > Enter (aus). Oder: ollama stop <model> zum Entladen."
+        "HowTo": "SysPilot Menue 5 > Ollama > Enter (aus). Oder: ollama stop <model> zum Entladen.",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows",
+        "Action": "DisableStartup"
       },
       {
         "Name": "vmmem",
         "Why": "WSL2/Docker virtuelle Maschine.",
         "Fix": "WSL: wsl --shutdown wenn ungenutzt",
-        "HowTo": "PowerShell: wsl --shutdown  (beendet WSL2/Docker VM und gibt RAM frei)"
+        "HowTo": "PowerShell: wsl --shutdown  (beendet WSL2/Docker VM und gibt RAM frei)",
+        "Link": "https://learn.microsoft.com/en-us/windows/wsl/basic-commands",
+        "Action": "WslShutdown"
       },
       {
         "Name": "docker",
         "Why": "Docker Desktop VM.",
         "Fix": "Docker Desktop beenden wenn ungenutzt",
-        "HowTo": "Docker Desktop > Tray-Icon > Quit Docker Desktop. Oder: wsl --shutdown"
+        "HowTo": "Docker Desktop > Tray-Icon > Quit Docker Desktop. Oder: wsl --shutdown",
+        "Link": "https://learn.microsoft.com/en-us/windows/wsl/basic-commands",
+        "Action": "WslShutdown"
       },
       {
         "Name": "MuMuPlayerGlobal",
         "Why": "Android-Emulator, sehr hungrig.",
         "Fix": "Nur bei Bedarf starten",
-        "HowTo": "SysPilot Menue 5 > MuMuPlayerGlobal > Enter (aus)."
+        "HowTo": "SysPilot Menue 5 > MuMuPlayerGlobal > Enter (aus).",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows",
+        "Action": "DisableStartup"
       },
       {
         "Name": "CrossDeviceService",
         "Why": "Phone Link / Smartphone-Verknuepfung.",
         "Fix": "Deinstallieren falls ungenutzt (Menue 6)",
-        "HowTo": "SysPilot Menue 6 > UWP > MicrosoftWindows.CrossDevice > Enter. Oder: Einstellungen > Apps > Phone Link > Deinstallieren."
+        "HowTo": "SysPilot Menue 6 > UWP > MicrosoftWindows.CrossDevice > Enter. Oder: Einstellungen > Apps > Phone Link > Deinstallieren.",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/why-can-t-i-uninstall-phone-link"
       },
       {
         "Name": "PhoneExperienceHost",
         "Why": "Phone Link / Smartphone-Verknuepfung.",
         "Fix": "Deinstallieren falls ungenutzt (Menue 6)",
-        "HowTo": "SysPilot Menue 6 > UWP > Microsoft.YourPhone > Enter. Oder: Einstellungen > Apps > Phone Link > Deinstallieren."
+        "HowTo": "SysPilot Menue 6 > UWP > Microsoft.YourPhone > Enter. Oder: Einstellungen > Apps > Phone Link > Deinstallieren.",
+        "Link": "https://support.microsoft.com/en-us/windows/experience/why-can-t-i-uninstall-phone-link"
       }
     ]
   },

@@ -103,7 +103,7 @@ $xaml = @"
               <GridViewColumn Header="RAM MB" Width="90"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding RAM_MB}" Foreground="#FFBA68C8"/></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
               <GridViewColumn Header="CPU s" Width="80"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding CPU_s}" Foreground="#FF4FC3F7"/></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
               <GridViewColumn Header="x" Width="40"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Instanzen}" Foreground="#FF9E9E9E"/></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
-              <GridViewColumn Header="Massnahme" Width="280"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Massnahme}" Foreground="#FF81C784" TextWrapping="Wrap"/></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
+              <GridViewColumn Header="Massnahme" Width="280"><GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Massnahme}" Foreground="#FF81C784" TextWrapping="Wrap" ToolTip="{Binding HowTo}"/></DataTemplate></GridViewColumn.CellTemplate></GridViewColumn>
             </GridView>
           </ListView.View>
         </ListView>
@@ -229,7 +229,13 @@ function Update-SysPilotGui {
         $known = (Get-SysPilotConfig).Hogs.KnownHogs
         foreach ($h in $hogs) {
             foreach ($k in $known) {
-                if ($h.Programm -like "*$($k.Name)*" -or $k.Name -like "*$($h.Programm)*") { $h.Massnahme = $k.Fix; break }
+                if ($h.Programm -like "*$($k.Name)*" -or $k.Name -like "*$($h.Programm)*") {
+                    $h.Massnahme = $k.Fix
+                    $h | Add-Member -NotePropertyName HowTo -NotePropertyValue $k.HowTo -Force
+                    $h | Add-Member -NotePropertyName Link -NotePropertyValue $k.Link -Force
+                    $h | Add-Member -NotePropertyName Action -NotePropertyValue $k.Action -Force
+                    break
+                }
             }
         }
         $ctrl.HogList.ItemsSource = $hogs
@@ -319,6 +325,39 @@ $ctrl.BtnLHM.Add_Click({
 })
 $ctrl.BtnMenu.Add_Click({
     Start-Process powershell.exe -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $script:Root 'SysPilot.ps1')
+})
+
+# Doppelklick auf Fresser -> Details + Aktion/Howto
+$ctrl.HogList.Add_MouseDoubleClick({
+    $hog = $ctrl.HogList.SelectedItem
+    if (-not $hog) { return }
+    Show-SysPilotWindow
+    $msg = "$($hog.Programm)`n`nRAM: $($hog.RAM_MB) MB  |  CPU: $($hog.CPU_s)s  |  Instanzen: $($hog.Instanzen)`n"
+    if ($hog.Massnahme) { $msg += "`nMassnahme: $($hog.Massnahme)" }
+    if ($hog.HowTo) { $msg += "`n`nWie geht das?`n$($hog.HowTo)" }
+    if ($hog.Link) { $msg += "`n`nAnleitung: $($hog.Link)" }
+
+    if ($hog.Action) {
+        $actionText = switch ($hog.Action) {
+            'DisableStartup' { 'Autostart deaktivieren' }
+            'Uninstall'      { 'Programm deinstallieren' }
+            'DisableService' { 'Dienst auf Manuell stellen' }
+            'WslShutdown'    { 'WSL/Docker herunterfahren' }
+            default { $hog.Action }
+        }
+        $msg += "`n`nSoll SysPilot das jetzt fuer dich tun? ($actionText)"
+        $ans = [System.Windows.MessageBox]::Show($msg, $hog.Programm, 'YesNo', 'Question')
+        if ($ans -eq 'Yes') {
+            Invoke-SysPilotHogAction -Hog $hog
+            Update-SysPilotGui
+        }
+    } else {
+        [System.Windows.MessageBox]::Show($msg, $hog.Programm, 'OK', 'Information') | Out-Null
+        if ($hog.Link) {
+            $ans = [System.Windows.MessageBox]::Show("Anleitung im Browser oeffnen?", $hog.Programm, 'YesNo', 'Question')
+            if ($ans -eq 'Yes') { Start-Process $hog.Link }
+        }
+    }
 })
 
 # --- Tray-Icon (ausgeblendete Symbole) ---

@@ -30,6 +30,8 @@ function Get-SysPilotHogs {
             Warum     = if ($known) { $known.Why } else { '' }
             Massnahme = if ($known) { $known.Fix } else { 'Pruefen ob dauerhaft noetig' }
             HowTo     = if ($known -and $known.HowTo) { $known.HowTo } else { '' }
+            Link      = if ($known -and $known.Link) { $known.Link } else { '' }
+            Action    = if ($known -and $known.Action) { $known.Action } else { '' }
         }
     }
     return ($rows | Sort-Object RAM_MB -Descending)
@@ -61,13 +63,68 @@ function Show-SysPilotHogs {
         Write-Host ""
         if ($hog.Warum)     { Write-Host "  Warum:     $($hog.Warum)" -ForegroundColor Yellow }
         if ($hog.Massnahme) { Write-Host "  Massnahme: $($hog.Massnahme)" -ForegroundColor Magenta }
+
+        # Einfache Aktion? -> direkt ausfuehren (Ja/Nein)
+        if ($hog.Action) {
+            Write-Host ""
+            $actionText = switch ($hog.Action) {
+                'DisableStartup' { "Autostart deaktivieren" }
+                'Uninstall'      { "Programm deinstallieren" }
+                'DisableService' { "Dienst auf Manuell stellen" }
+                'WslShutdown'    { "WSL/Docker herunterfahren (gibt RAM frei)" }
+                default { $hog.Action }
+            }
+            if (Confirm-SysPilot "Soll SysPilot das jetzt fuer dich tun? ($actionText)") {
+                Invoke-SysPilotHogAction -Hog $hog
+            }
+        }
+
+        # Howto + Link
         if ($hog.HowTo) {
             Write-Host ""
             Write-Host "  Wie geht das? (Howto):" -ForegroundColor Green
             $hog.HowTo -split '\. ' | ForEach-Object { Write-Host "    - $_" -ForegroundColor White }
         }
+        if ($hog.Link) {
+            Write-Host ""
+            Write-Host "  Offizielle Anleitung: $($hog.Link)" -ForegroundColor Cyan
+            if (Confirm-SysPilot "Im Browser oeffnen?") {
+                Start-Process $hog.Link
+            }
+        }
         Write-Host ""
         Read-SysPilotChoice "Weiter mit Enter" | Out-Null
+    }
+}
+
+function Invoke-SysPilotHogAction {
+    <# Fuehrt eine einfache Massnahme direkt aus #>
+    param([Parameter(Mandatory)]$Hog)
+    $name = $Hog.Programm
+    switch ($Hog.Action) {
+        'DisableStartup' {
+            Set-SysPilotStartupItem -Name $name -Enable $false
+        }
+        'Uninstall' {
+            $app = Get-SysPilotInstalled | Where-Object { $_.DisplayName -like "*$name*" } | Select-Object -First 1
+            if ($app) { Uninstall-SysPilotProgram -App $app }
+            else { Write-Host "  [!] '$name' nicht in der Programmliste gefunden." -ForegroundColor Yellow }
+        }
+        'DisableService' {
+            $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+            if ($svc) {
+                if (Assert-SysPilotAdmin) {
+                    Set-Service -Name $name -StartupType Manual -ErrorAction SilentlyContinue
+                    Write-Host "  [OK] Dienst '$name' auf Manuell gestellt." -ForegroundColor Green
+                    Write-SysPilotLog "Dienst '$name' auf Manuell (via Fresser-Aktion)"
+                }
+            } else { Write-Host "  [!] Dienst '$name' nicht gefunden." -ForegroundColor Yellow }
+        }
+        'WslShutdown' {
+            & wsl.exe --shutdown 2>$null
+            Write-Host "  [OK] WSL/Docker heruntergefahren - RAM freigegeben." -ForegroundColor Green
+            Write-SysPilotLog "WSL heruntergefahren (via Fresser-Aktion)"
+        }
     }
 }
 
@@ -131,4 +188,4 @@ function Show-SysPilotStats {
     $data | Select-Object -Last 10 | Format-Table Zeit, CPU_Pct, RAM_Pct, RAM_FreiMB, Prozesse, TopProzess, Plan -AutoSize
 }
 
-Export-ModuleMember -Function Get-SysPilotHogs, Show-SysPilotHogs, Write-SysPilotStatSample, Show-SysPilotStats
+Export-ModuleMember -Function Get-SysPilotHogs, Show-SysPilotHogs, Write-SysPilotStatSample, Show-SysPilotStats, Invoke-SysPilotHogAction
