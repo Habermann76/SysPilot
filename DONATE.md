@@ -1,5 +1,9 @@
 # 💛 Spenden / Donate
 
+<p align="center">
+  <img src="assets/profile.jpg" alt="Profilbild" width="120" style="border-radius: 50%;">
+</p>
+
 ---
 
 ## 🇩🇪 Deutsch
@@ -25,7 +29,17 @@ Dinge schaffe.
 spendest oder nicht. Aber wenn dir gefällt, was ich mache, und du mir eine
 Freude machen willst — dann spende, was du willst. Jeder Euro hilft.
 
-**[💛 Spenden über Stripe](DEIN-STRIPE-LINK)** · [QR-Code](QR-CODE-BILD)
+<p align="center">
+  <a href="https://buy.stripe.com/00waEYchZ9wmcHl2Zv2Ji02">
+    <img src="https://img.shields.io/badge/💛_Spenden-Stripe-blueviolet?style=for-the-badge&logo=stripe" alt="Spenden über Stripe">
+  </a>
+</p>
+
+<p align="center">
+  <img src="assets/qr-code.png" alt="QR-Code zum Spenden" width="200">
+  <br>
+  <sub>QR-Code scannen zum Spenden</sub>
+</p>
 
 ---
 
@@ -49,4 +63,14 @@ I build software because I enjoy it and like making useful things.
 not. But if you like what I do and want to make my day — donate whatever you
 want. Every euro helps.
 
-**[💛 Donate via Stripe](YOUR-STRIPE-LINK)** · [QR code](QR-CODE-IMAGE)
+<p align="center">
+  <a href="https://buy.stripe.com/00waEYchZ9wmcHl2Zv2Ji02">
+    <img src="https://img.shields.io/badge/💛_Donate-Stripe-blueviolet?style=for-the-badge&logo=stripe" alt="Donate via Stripe">
+  </a>
+</p>
+
+<p align="center">
+  <img src="assets/qr-code.png" alt="QR code for donations" width="200">
+  <br>
+  <sub>Scan QR code to donate</sub>
+</p>

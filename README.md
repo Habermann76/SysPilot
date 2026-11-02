@@ -7,17 +7,31 @@ Reines PowerShell, keine Installation, keine Telemetrie, alles bleibt auf deinem
 
 ## 💛 Spenden / Donate
 
+<p align="center">
+  <img src="assets/profile.jpg" alt="Profilbild" width="100" style="border-radius: 50%;">
+</p>
+
 **🇩🇪** Meine Software ist Hobby & Donationware. Kostenlos, Open Source, ohne
 Werbung. Wenn sie dir gefällt: spende, was du willst — für Pizza, Döner,
 Kaffee und gelegentlich VS Code + Copilot. Du musst nicht spenden — aber wenn
 du mir eine Freude machen willst, freue ich mich. 💛
-→ [Mehr / Spenden](DONATE.md)
 
 **🇬🇧** My software is hobby & donationware. Free, open source, no ads. If you
 like it: donate what you want — for pizza, döner, coffee, and occasionally
 VS Code + Copilot. You don't have to donate — but if you want to make my day,
 I'd appreciate it. 💛
-→ [More / Donate](DONATE.md)
+
+<p align="center">
+  <a href="https://buy.stripe.com/00waEYchZ9wmcHl2Zv2Ji02">
+    <img src="https://img.shields.io/badge/💛_Spenden_/_Donate-Stripe-blueviolet?style=for-the-badge&logo=stripe" alt="Spenden über Stripe">
+  </a>
+  <br>
+  <img src="assets/qr-code.png" alt="QR-Code zum Spenden" width="150">
+</p>
+
+<p align="center">
+  <a href="DONATE.md">Mehr erfahren / Learn more</a>
+</p>
 
 ---
 
