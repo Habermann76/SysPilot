@@ -3,6 +3,12 @@
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
 Reines PowerShell, keine Installation, keine Telemetrie, alles bleibt auf deinem PC.
 
+<p align="center">
+  <img src="assets/screenshot-gui.png" alt="SysPilot GUI — Live-Dashboard mit CPU-Temperatur, RAM, Disk und Top-Ressourcen-Fressern" width="800">
+  <br>
+  <sub>Live-Dashboard: CPU-Temperatur (groß), CPU/RAM/Disk-Balken, Top-Ressourcen-Fresser mit Maßnahmen, Ein-Klick-Aktionen</sub>
+</p>
+
 ---
 
 ## 💛 Spenden / Donate
