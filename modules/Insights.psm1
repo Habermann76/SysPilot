@@ -29,29 +29,46 @@ function Get-SysPilotHogs {
             CPU_s     = $cpuS
             Warum     = if ($known) { $known.Why } else { '' }
             Massnahme = if ($known) { $known.Fix } else { 'Pruefen ob dauerhaft noetig' }
+            HowTo     = if ($known -and $known.HowTo) { $known.HowTo } else { '' }
         }
     }
     return ($rows | Sort-Object RAM_MB -Descending)
 }
 
 function Show-SysPilotHogs {
-    Write-SysPilotHeader "Ressourcen-Fresser & Massnahmen"
-    $hogs = Get-SysPilotHogs
-    if ($hogs.Count -eq 0) {
-        Write-Host "  Keine Auffaelligkeiten - System laeuft schlank." -ForegroundColor Green
-        return
+    while ($true) {
+        $hogs = @(Get-SysPilotHogs)
+        if ($hogs.Count -eq 0) {
+            Write-SysPilotHeader "Ressourcen-Fresser & Massnahmen"
+            Write-Host "  Keine Auffaelligkeiten - System laeuft schlank." -ForegroundColor Green
+            Read-SysPilotChoice "Weiter mit Enter" | Out-Null
+            return
+        }
+        $items = @()
+        foreach ($h in $hogs) {
+            $color = if ($h.Massnahme -match 'DEINSTALLIEREN') { 'Red' } elseif ($h.RAM_MB -ge 800) { 'Yellow' } else { 'White' }
+            $label = "{0,-24} {1,5} MB RAM  {2,5}s CPU  ({3}x)" -f $h.Programm, $h.RAM_MB, $h.CPU_s, $h.Instanzen
+            $items += @{ Label = $label; Color = $color; Tag = $h }
+        }
+        $items += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
+
+        $sel = Show-SysPilotArrowMenu -Items $items -Title 'Ressourcen-Fresser & Massnahmen' -Footer 'Pfeiltasten, Enter = Details + Howto, Esc = zurueck'
+        if ($null -eq $sel) { return }
+
+        $hog = $sel
+        Write-SysPilotHeader $hog.Programm
+        Write-Host ("  RAM: {0} MB  |  CPU: {1}s  |  Instanzen: {2}" -f $hog.RAM_MB, $hog.CPU_s, $hog.Instanzen) -ForegroundColor Cyan
+        Write-Host ""
+        if ($hog.Warum)     { Write-Host "  Warum:     $($hog.Warum)" -ForegroundColor Yellow }
+        if ($hog.Massnahme) { Write-Host "  Massnahme: $($hog.Massnahme)" -ForegroundColor Magenta }
+        if ($hog.HowTo) {
+            Write-Host ""
+            Write-Host "  Wie geht das? (Howto):" -ForegroundColor Green
+            $hog.HowTo -split '\. ' | ForEach-Object { Write-Host "    - $_" -ForegroundColor White }
+        }
+        Write-Host ""
+        Read-SysPilotChoice "Weiter mit Enter" | Out-Null
     }
-    $i = 0
-    foreach ($h in $hogs) {
-        $i++
-        $color = if ($h.Massnahme -match 'DEINSTALLIEREN') { 'Red' } elseif ($h.RAM_MB -ge 800) { 'Yellow' } else { 'White' }
-        Write-Host ("  [{0,2}] {1,-24} {2,5} MB RAM  {3,5}s CPU  ({4}x)" -f $i, $h.Programm, $h.RAM_MB, $h.CPU_s, $h.Instanzen) -ForegroundColor $color
-        if ($h.Warum)     { Write-Host ("       Warum:    $($h.Warum)") -ForegroundColor DarkGray }
-        if ($h.Massnahme) { Write-Host ("       Massnahme: $($h.Massnahme)") -ForegroundColor DarkCyan }
-    }
-    Write-Host ""
-    Write-Host "  Tipp: Viele davon laufen nur manchmal - Autostart aus (Menue 5) haelt sie fern," -ForegroundColor DarkGray
-    Write-Host "  bis du sie wirklich brauchst. Statistik ueber Zeit: Menue 18." -ForegroundColor DarkGray
 }
 
 function Write-SysPilotStatSample {

@@ -567,117 +567,140 @@
       {
         "Name": "Ferdium",
         "Why": "Jeder Dienst = eigener Chromium-Prozess. 24 Dienste = ~2-3 GB RAM.",
-        "Fix": "Dienste reduzieren oder Hibernation aggressiver (Menue 5/6)"
+        "Fix": "Dienste reduzieren oder Hibernation aggressiver (Menue 5/6)",
+        "HowTo": "Ferdium oeffnen > Einstellungen > Hibernation: Hibernate on startup AN, Hibernation strategy auf 5 Min. Oder: Dienste loeschen die du nicht brauchst (Rechtsklick auf Dienst > Remove)."
       },
       {
         "Name": "chrome",
         "Why": "Viele Tabs/Erweiterungen = viele Prozesse.",
-        "Fix": "Tabs schliessen, Erweiterungen pruefen"
+        "Fix": "Tabs schliessen, Erweiterungen pruefen",
+        "HowTo": "chrome://extensions oeffnen > unnoetige Erweiterungen entfernen. Tabs schliessen oder Tab Suspender nutzen. SysPilot Menue 21 zeigt Duplikate."
       },
       {
         "Name": "msedge",
         "Why": "Edge laeuft oft im Hintergrund weiter.",
-        "Fix": "Edge: Einstellungen > System > Hintergrund-Apps aus"
+        "Fix": "Edge: Einstellungen > System > Hintergrund-Apps aus",
+        "HowTo": "Edge oeffnen > Einstellungen > System und Leistung > Starten von Hintergrund-Apps AUS + Edge weiter ausfuehren AUS."
       },
       {
         "Name": "MsMpEng",
         "Why": "Windows Defender Echtzeit-Scan, CPU-Spitzen bei Kompilieren/Downloads.",
-        "Fix": "Ausnahmen fuer Dev-Ordner (src, node_modules) in Defender"
+        "Fix": "Ausnahmen fuer Dev-Ordner (src, node_modules) in Defender",
+        "HowTo": "Windows-Sicherheit > Viren- & Bedrohungsschutz > Einstellungen verwalten > Ausschluesse > Ordner hinzufuegen: source, node_modules, .git"
       },
       {
         "Name": "SearchIndexer",
         "Why": "Windows-Suchindex, CPU/Platte im Hintergrund.",
-        "Fix": "Dienst WSearch auf Manuell (Menue 9) - du hast Everything"
+        "Fix": "Dienst WSearch auf Manuell (Menue 9) - du hast Everything",
+        "HowTo": "SysPilot Menue 9 > WSearch > Manuell. Oder: services.msc > Windows Search > Starttyp: Manuell."
       },
       {
         "Name": "SysMain",
         "Why": "SuperFetch, CPU/Platten-Spitzen.",
-        "Fix": "Dienst SysMain auf Manuell (Menue 9)"
+        "Fix": "Dienst SysMain auf Manuell (Menue 9)",
+        "HowTo": "SysPilot Menue 9 > SysMain > Manuell. Oder: services.msc > SysMain > Starttyp: Manuell."
       },
       {
         "Name": "GalaxyClient",
         "Why": "GOG Galaxy laeuft staendig mit.",
-        "Fix": "Autostart aus (Menue 5), nur bei Bedarf starten"
+        "Fix": "Autostart aus (Menue 5), nur bei Bedarf starten",
+        "HowTo": "SysPilot Menue 5 > GogGalaxy > Enter (aus). Oder: GOG Galaxy > Einstellungen > Beim Start von Windows ausfuehren AUS."
       },
       {
         "Name": "EpicGamesLauncher",
         "Why": "Epic Launcher im Hintergrund.",
-        "Fix": "Autostart aus (Menue 5)"
+        "Fix": "Autostart aus (Menue 5)",
+        "HowTo": "SysPilot Menue 5 > EpicGamesLauncher > Enter (aus). Oder: Epic > Einstellungen > Beim Systemstart ausfuehren AUS."
       },
       {
         "Name": "steamwebhelper",
         "Why": "Steam-Helper-Prozesse.",
-        "Fix": "Steam nur bei Bedarf starten"
+        "Fix": "Steam nur bei Bedarf starten",
+        "HowTo": "SysPilot Menue 5 > Steam > Enter (aus). Oder: Steam > Einstellungen > Interface > Steam beim Start ausfuehren AUS."
       },
       {
         "Name": "Honeygain",
         "Why": "Bandbreiten-Sharing (verkauft deine IP!).",
-        "Fix": "DEINSTALLIEREN (Menue 6)"
+        "Fix": "DEINSTALLIEREN (Menue 6)",
+        "HowTo": "SysPilot Menue 6 > Honeygain > Enter > Ja. Oder: Windows Einstellungen > Apps > Honeygain > Deinstallieren."
       },
       {
         "Name": "earnapp",
         "Why": "Bandbreiten-Sharing (verkauft deine IP!).",
-        "Fix": "DEINSTALLIEREN (Menue 6)"
+        "Fix": "DEINSTALLIEREN (Menue 6)",
+        "HowTo": "SysPilot Menue 6 > EarnApp > Enter > Ja. Oder: Windows Einstellungen > Apps > EarnApp > Deinstallieren."
       },
       {
         "Name": "Bright VPN",
         "Why": "Bandbreiten-Sharing (verkauft deine IP!).",
-        "Fix": "DEINSTALLIEREN (Menue 6)"
+        "Fix": "DEINSTALLIEREN (Menue 6)",
+        "HowTo": "SysPilot Menue 6 > Bright VPN > Enter > Ja. Oder: Windows Einstellungen > Apps > Bright VPN > Deinstallieren."
       },
       {
         "Name": "TeraBox",
         "Why": "Cloud-Sync im Hintergrund.",
-        "Fix": "Autostart aus (Menue 5)"
+        "Fix": "Autostart aus (Menue 5)",
+        "HowTo": "SysPilot Menue 5 > TeraBox > Enter (aus). Oder: TeraBox > Einstellungen > Autostart AUS."
       },
       {
         "Name": "OneDrive",
         "Why": "Cloud-Sync im Hintergrund.",
-        "Fix": "Autostart aus (Menue 5) falls ungenutzt"
+        "Fix": "Autostart aus (Menue 5) falls ungenutzt",
+        "HowTo": "SysPilot Menue 5 > OneDrive > Enter (aus). Oder: OneDrive > Einstellungen > OneDrive beim Anmelden starten AUS."
       },
       {
         "Name": "Discord",
         "Why": "Electron-App, laeuft im Hintergrund.",
-        "Fix": "Autostart aus (Menue 5)"
+        "Fix": "Autostart aus (Menue 5)",
+        "HowTo": "SysPilot Menue 5 > Discord > Enter (aus). Oder: Discord > Benutzereinstellungen > Windows-Einstellungen > Discord beim Start oeffnen AUS."
       },
       {
         "Name": "Fireflies",
         "Why": "Electron-App, laeuft im Hintergrund.",
-        "Fix": "Autostart aus (Menue 5)"
+        "Fix": "Autostart aus (Menue 5)",
+        "HowTo": "SysPilot Menue 5 > Fireflies > Enter (aus)."
       },
       {
         "Name": "LM Studio",
         "Why": "Lokale KI-Modelle, viel RAM wenn geladen.",
-        "Fix": "Nur bei Bedarf starten"
+        "Fix": "Nur bei Bedarf starten",
+        "HowTo": "SysPilot Menue 5 > LM Studio > Enter (aus). Modelle entladen wenn nicht genutzt."
       },
       {
         "Name": "ollama",
         "Why": "Lokale KI-Modelle, viel RAM wenn geladen.",
-        "Fix": "Nur bei Bedarf starten"
+        "Fix": "Nur bei Bedarf starten",
+        "HowTo": "SysPilot Menue 5 > Ollama > Enter (aus). Oder: ollama stop <model> zum Entladen."
       },
       {
         "Name": "vmmem",
         "Why": "WSL2/Docker virtuelle Maschine.",
-        "Fix": "WSL: wsl --shutdown wenn ungenutzt"
+        "Fix": "WSL: wsl --shutdown wenn ungenutzt",
+        "HowTo": "PowerShell: wsl --shutdown  (beendet WSL2/Docker VM und gibt RAM frei)"
       },
       {
         "Name": "docker",
         "Why": "Docker Desktop VM.",
-        "Fix": "Docker Desktop beenden wenn ungenutzt"
+        "Fix": "Docker Desktop beenden wenn ungenutzt",
+        "HowTo": "Docker Desktop > Tray-Icon > Quit Docker Desktop. Oder: wsl --shutdown"
       },
       {
         "Name": "MuMuPlayerGlobal",
         "Why": "Android-Emulator, sehr hungrig.",
-        "Fix": "Nur bei Bedarf starten"
+        "Fix": "Nur bei Bedarf starten",
+        "HowTo": "SysPilot Menue 5 > MuMuPlayerGlobal > Enter (aus)."
       },
       {
         "Name": "CrossDeviceService",
         "Why": "Phone Link / Smartphone-Verknuepfung.",
-        "Fix": "Deinstallieren falls ungenutzt (Menue 6)"
+        "Fix": "Deinstallieren falls ungenutzt (Menue 6)",
+        "HowTo": "SysPilot Menue 6 > UWP > MicrosoftWindows.CrossDevice > Enter. Oder: Einstellungen > Apps > Phone Link > Deinstallieren."
       },
       {
         "Name": "PhoneExperienceHost",
         "Why": "Phone Link / Smartphone-Verknuepfung.",
-        "Fix": "Deinstallieren falls ungenutzt (Menue 6)"
+        "Fix": "Deinstallieren falls ungenutzt (Menue 6)",
+        "HowTo": "SysPilot Menue 6 > UWP > Microsoft.YourPhone > Enter. Oder: Einstellungen > Apps > Phone Link > Deinstallieren."
       }
     ]
   },

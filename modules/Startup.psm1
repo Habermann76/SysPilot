@@ -135,34 +135,29 @@ function Set-SysPilotStartupItem {
 
 function Show-SysPilotStartupManager {
     while ($true) {
-        Write-SysPilotHeader "Autostart-Manager"
         $items = Get-SysPilotStartupItems
-        $i = 0
-        $list = @()
+        $menuItems = @()
         foreach ($it in ($items | Sort-Object @{e='Aktiv'; Descending=$true}, Name)) {
-            $i++
-            $list += $it
-            $state = if ($it.Aktiv) { "AN " } else { "aus" }
-            $color = if ($it.Aktiv) { "White" } else { "DarkGray" }
+            $state = if ($it.Aktiv) { "[AN ]" } else { "[aus]" }
             $hint = if ($it.Hinweis) { "  <<< $($it.Hinweis)" } else { "" }
-            Write-Host ("  [{0,2}] {1} {2,-38} {3}{4}" -f $i, $state, $it.Name, $it.Typ, $hint) -ForegroundColor $color
+            $color = if ($it.Aktiv) { "White" } else { "DarkGray" }
+            $menuItems += @{ Label = ("{0} {1,-38} {2}{3}" -f $state, $it.Name, $it.Typ, $hint); Color = $color; Tag = $it }
         }
-        Write-Host ""
-        Write-Host "  Befehle: <Nr> = umschalten (an/aus) | 0 = zurueck" -ForegroundColor Yellow
-        $c = Read-SysPilotChoice "Nr."
-        if ($c -eq '0' -or $c -eq '') { return }
-        $n = 0
-        if ([int]::TryParse($c, [ref]$n) -and $n -ge 1 -and $n -le $list.Count) {
-            $item = $list[$n - 1]
-            if ($item.Aktiv) {
-                if ($item.Hinweis) {
-                    Write-Host "  Hinweis: $($item.Hinweis)" -ForegroundColor Magenta
-                }
-                Set-SysPilotStartupItem -Name $item.Name -Enable $false
-            } else {
-                Set-SysPilotStartupItem -Name $item.Name -Enable $true
+        $menuItems += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
+
+        $sel = Show-SysPilotArrowMenu -Items $menuItems -Title 'Autostart-Manager' -Footer 'Pfeiltasten, Enter = an/aus schalten, Esc = zurueck'
+        if ($null -eq $sel) { return }
+
+        $item = $sel
+        if ($item.Aktiv) {
+            if ($item.Hinweis) {
+                Write-Host "  Hinweis: $($item.Hinweis)" -ForegroundColor Magenta
             }
+            Set-SysPilotStartupItem -Name $item.Name -Enable $false
+        } else {
+            Set-SysPilotStartupItem -Name $item.Name -Enable $true
         }
+        Start-Sleep -Milliseconds 800
     }
 }
 
