@@ -29,9 +29,16 @@ function Restart-SysPilotElevated {
     if (Test-SysPilotAdmin) { return }
     $exe = "powershell.exe"
     if ($PSVersionTable.PSEdition -eq 'Core') { $exe = "pwsh.exe" }
-    $current = $PSCommandPath
+    # Aufrufendes Skript ermitteln ($PSCommandPath zeigt innerhalb eines Moduls auf die .psm1, nicht auf das Skript)
+    $caller = Get-PSCallStack | Where-Object { $_.ScriptName -and $_.ScriptName -like '*.ps1' } | Select-Object -First 1
+    $current = if ($caller) { $caller.ScriptName } else { $null }
     if (-not $current) { $current = Join-Path $script:SysPilotRoot "SysPilot.ps1" }
-    Start-Process $exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$current`""
+    $argList = "-NoProfile -ExecutionPolicy Bypass"
+    # Nur die GUI laeuft ohne Konsolenfenster (sie versteckt es selbst). Das Text-Menue (SysPilot.ps1)
+    # braucht sein Fenster - versteckt waere es unsichtbar und die App wirkt "nicht gestartet".
+    if ((Split-Path $current -Leaf) -ieq 'SysPilot-GUI.ps1') { $argList += " -WindowStyle Hidden" }
+    $argList += " -File `"$current`""
+    Start-Process $exe -Verb RunAs -ArgumentList $argList
     if (-not $NoExit) { exit }
 }
 
