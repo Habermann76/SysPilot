@@ -256,6 +256,24 @@ AdBlock, VPN, Passwort-Manager, Tab-Manager, Preisvergleich u. v. m.
 läuft dann **im Hintergrund weiter** und sitzt in den **ausgeblendeten
 Symbolen** (Pfeil nach oben in der Taskleiste). Es drängelt sich **nicht**
 in den Vordergrund — Spiele und Programme haben immer Vorrang.
+Auch **"Beenden" im Text-Menü** beendet SysPilot nicht wirklich: Die GUI
+läuft im Tray weiter (abschaltbar: Einstellungen → "Beim Beenden im
+Hintergrund weiterlaufen").
+
+**Komfort-Details:**
+
+- **Nur eine GUI:** Doppelstarts werden abgefangen — statt einer zweiten
+  Instanz kommt das vorhandene Fenster nach vorne.
+- **Kein Konsolen-Fenster:** Die GUI versteckt ihr PowerShell-Fenster
+  selbst — kein Fenster-Chaos, nichts wirkt verdächtig.
+- **"Als Admin starten"-Button** im GUI-Kopf (nur sichtbar, wenn nötig).
+- **Immer als Administrator:** Einstellungen → "Immer als Administrator
+  starten" setzt zusätzlich das "Als Administrator ausführen"-Flag auf
+  allen SysPilot-Verknüpfungen (wie Rechtsklick → Eigenschaften →
+  Kompatibilität, nur automatisch).
+- **Installer-Häkchen:** Bei der Installation wählst du per Häkchen
+  (standardmäßig an): Autopilot bei Anmeldung, Smart Boost (RAM automatisch
+  freigeben), Immer als Administrator.
 
 - **Doppelklick** aufs Symbol → Fenster zeigen
 - **Rechtsklick** → Menü: Anzeigen / Kühl / Leistung / RAM freigeben / **Beenden**

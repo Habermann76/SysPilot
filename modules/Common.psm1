@@ -158,6 +158,60 @@ function Confirm-SysPilot {
     return ($a -match '^(j|ja|y|yes)$')
 }
 
+function Set-SysPilotConfigValue {
+    <# Setzt einen Config-Wert (z.B. -Section Start -Key AlwaysAdmin -Value $true) und speichert config.json. #>
+    param([string]$Section, [Parameter(Mandatory)][string]$Key, $Value)
+    $path = Join-Path $script:SysPilotRoot 'config.json'
+    $json = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($Section) {
+        if (-not $json.$Section) { $json | Add-Member -NotePropertyName $Section -NotePropertyValue ([PSCustomObject]@{}) -Force }
+        if ($json.$Section.PSObject.Properties[$Key]) { $json.$Section.$Key = $Value }
+        else { $json.$Section | Add-Member -NotePropertyName $Key -NotePropertyValue $Value -Force }
+    } else {
+        if ($json.PSObject.Properties[$Key]) { $json.$Key = $Value }
+        else { $json | Add-Member -NotePropertyName $Key -NotePropertyValue $Value -Force }
+    }
+    $json | ConvertTo-Json -Depth 10 | Set-Content $path -Encoding UTF8
+    Reset-SysPilotConfig
+}
+
+function Get-SysPilotShortcutPaths {
+    <# Alle SysPilot-Verknuepfungen (Desktop, Startmenue) - User + All Users. #>
+    $dirs = @(
+        [Environment]::GetFolderPath('Desktop'),
+        [Environment]::GetFolderPath('CommonDesktopDirectory'),
+        [Environment]::GetFolderPath('StartMenu'),
+        [Environment]::GetFolderPath('CommonStartMenu')
+    ) | Select-Object -Unique
+    $found = @()
+    foreach ($d in $dirs) {
+        if (-not (Test-Path $d)) { continue }
+        $found += Get-ChildItem $d -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue |
+            Where-Object { $_.BaseName -like 'SysPilot*' } | Select-Object -ExpandProperty FullName
+    }
+    return $found
+}
+
+function Set-SysPilotShortcutRunAs {
+    <# Setzt/entfernt "Als Administrator ausfuehren" auf allen SysPilot-Verknuepfungen.
+       Trick: Byte 21 im .lnk (LinkFlags) mit 0x20 verodern = RunAsAdministrator. #>
+    param([bool]$RunAs)
+    $links = Get-SysPilotShortcutPaths
+    $changed = 0
+    foreach ($l in $links) {
+        try {
+            $bytes = [System.IO.File]::ReadAllBytes($l)
+            if ($bytes.Length -lt 0x16) { continue }
+            if ($RunAs) { $bytes[0x15] = $bytes[0x15] -bor 0x20 }
+            else { $bytes[0x15] = $bytes[0x15] -band (-bnot 0x20) }
+            [System.IO.File]::WriteAllBytes($l, $bytes)
+            $changed++
+        } catch { }
+    }
+    Write-SysPilotLog "Verknuepfungen 'Als Administrator ausfuehren' = $RunAs ($changed Links)"
+    return $changed
+}
+
 function Write-SysPilotProgress {
     <# Fortschrittsanzeige in Prozent (einheitlich) #>
     param(
@@ -214,7 +268,7 @@ function Show-SysPilotArrowMenu {
 }
 
 Export-ModuleMember -Function Test-SysPilotAdmin, Assert-SysPilotAdmin, Restart-SysPilotElevated,
-    Write-SysPilotLog, Get-SysPilotConfig, Reset-SysPilotConfig, Test-NameMatch,
+    Write-SysPilotLog, Get-SysPilotConfig, Reset-SysPilotConfig, Set-SysPilotConfigValue, Test-NameMatch,
     Get-SysPilotProcessByName, New-SysPilotBackup, Get-SysPilotBackups, Restore-SysPilotServices,
     Write-SysPilotHeader, Read-SysPilotChoice, Confirm-SysPilot, Show-SysPilotArrowMenu,
-    Write-SysPilotProgress, Complete-SysPilotProgress
+    Write-SysPilotProgress, Complete-SysPilotProgress, Get-SysPilotShortcutPaths, Set-SysPilotShortcutRunAs

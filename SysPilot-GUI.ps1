@@ -1,6 +1,6 @@
 ﻿# SysPilot GUI - schlanke WPF-Oberflaeche (kein Electron, ~40-60 MB RAM)
 #Requires -Version 5.1
-param([switch]$AsAdmin)
+param([switch]$AsAdmin, [switch]$StartHidden)
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
 # DPI-aware: scharfe Darstellung und korrektes Layout bei 125%/150% Bildschirmskalierung
@@ -8,12 +8,60 @@ Add-Type '[System.Runtime.InteropServices.DllImport("user32.dll")] public static
 [SysPilotGui.DpiAware]::SetProcessDPIAware() | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Eigenes Konsolen-Fenster verstecken (kein zusaetzliches PowerShell-Fenster neben der GUI)
+Add-Type @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class SysPilotWin {
+    [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder sb, int max);
+    [DllImport("user32.dll")] public static extern int GetClassName(IntPtr hWnd, StringBuilder sb, int max);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    public static IntPtr FindGuiWindow() {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((h, l) => {
+            if (!IsWindowVisible(h)) return true;
+            var t = new StringBuilder(256); GetWindowText(h, t, 256);
+            if (t.ToString() != "SysPilot") return true;
+            var c = new StringBuilder(256); GetClassName(h, c, 256);
+            if (c.ToString().StartsWith("HwndWrapper")) { found = h; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+}
+'@
+$con = [SysPilotWin]::GetConsoleWindow()
+if ($con -ne [IntPtr]::Zero) { [SysPilotWin]::ShowWindow($con, 0) | Out-Null }  # SW_HIDE
+
+# Nur EINE GUI-Instanz: laeuft sie schon, vorhandenes Fenster nach vorne holen und beenden
+$script:guiMutex = New-Object System.Threading.Mutex($true, 'Local\SysPilotGUI-SingleInstance')
+if (-not $script:guiMutex.WaitOne(0)) {
+    $existing = [SysPilotWin]::FindGuiWindow()
+    if ($existing -ne [IntPtr]::Zero) {
+        [SysPilotWin]::ShowWindow($existing, 9) | Out-Null   # SW_RESTORE
+        [SysPilotWin]::SetForegroundWindow($existing) | Out-Null
+    }
+    exit
+}
+
 $script:Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $script:Root) { $script:Root = $PSScriptRoot }
 if (-not $script:Root) { $script:Root = Split-Path -Parent $PSCommandPath }
 if (-not $script:Root) { $script:Root = (Get-Location).Path }
 Get-ChildItem (Join-Path $script:Root 'modules') -Filter '*.psm1' | ForEach-Object {
     Import-Module $_.FullName -Force -Global -WarningAction SilentlyContinue
+}
+
+# Option "Immer als Administrator": ohne Rueckfrage erhoeht neu starten
+$startCfg = (Get-SysPilotConfig).Start
+if (-not (Test-SysPilotAdmin) -and $startCfg -and $startCfg.AlwaysAdmin) {
+    Restart-SysPilotElevated
 }
 
 $xaml = @"
@@ -123,6 +171,7 @@ $xaml = @"
       <WrapPanel HorizontalAlignment="Center">
         <Button x:Name="BtnCheckup" Content="CHECKUP" FontWeight="Bold" ToolTip="Automatic Checkup: Komplett-Scan mit Erklaerungen und Reparatur"/>
         <Button x:Name="BtnToolbox" Content="Toolbox" ToolTip="Alle Werkzeuge nach Kategorien"/>
+        <Button x:Name="BtnAuto" Content="Vollautomatik" FontWeight="Bold" ToolTip="Auto-Optimierung: Backup, Dienste, Features, Tweaks, Prioritaeten - alles in einem Rutsch (Admin)"/>
         <Button x:Name="BtnCool" Content="Kuehl"/>
         <Button x:Name="BtnPerf" Content="Leistung"/>
         <Button x:Name="BtnFreeRam" Content="RAM freigeben"/>
@@ -155,7 +204,7 @@ $ctrl = @{}
 foreach ($n in 'CpuText','CpuSpeed','CpuBar','RamText','RamDetail','RamBar','DiskText','DiskDetail','DiskBar',
                  'SysCpu','SysProcs','SysBattery','SysUptime','HogList','AdminBadge','PlanBadge','WatchBadge',
                  'TempBig','TempStatus','TempSource','TempUnitLabel',
-                 'BtnCheckup','BtnToolbox','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin') {
+                 'BtnCheckup','BtnToolbox','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin') {
     $ctrl[$n] = $win.FindName($n)
 }
 
@@ -556,6 +605,18 @@ $ctrl.BtnAdmin.Add_Click({
 })
 $ctrl.BtnCheckup.Add_Click({ Show-SysPilotCheckupWindow })
 $ctrl.BtnToolbox.Add_Click({ Show-SysPilotToolboxWindow })
+$ctrl.BtnAuto.Add_Click({
+    $msg = "VOLLAUTOMATIK (Auto-Optimierung)`n`n1. Backup (Dienste, Registry, Energieplaene)`n2. Dienste optimieren (nur gepruefte Empfehlungen)`n3. Sicher unnoetige Windows-Features aus`n4. Tweaks: Game Mode an, Werbung aus, Optik bleibt huebsch`n5. Prozess-Prioritaeten anwenden`n`nBraucht Admin. Jetzt starten?"
+    $ans = [System.Windows.MessageBox]::Show($msg, 'Vollautomatik', 'YesNo', 'Question')
+    if ($ans -ne 'Yes') { return }
+    $root = $script:Root
+    $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $root 'SysPilot.ps1'), '-Tool', 'autooptimize')
+    if (Test-SysPilotAdmin) {
+        Start-Process powershell.exe -ArgumentList $argList
+    } else {
+        Start-Process powershell.exe -Verb RunAs -ArgumentList $argList
+    }
+})
 $ctrl.BtnCool.Add_Click({ Set-PlanWithFeedback -Mode Cool -Label 'KUEHL'; Update-SysPilotGui })
 $ctrl.BtnPerf.Add_Click({ Set-PlanWithFeedback -Mode Performance -Label 'LEISTUNG'; Update-SysPilotGui })
 $ctrl.BtnFreeRam.Add_Click({
@@ -695,7 +756,7 @@ $win.Add_KeyDown({
     param($s, $e)
     if ($e.Key -eq 'Escape') { $win.Close(); return }
     if ($e.Key -eq 'Left' -or $e.Key -eq 'Right' -or $e.Key -eq 'Up' -or $e.Key -eq 'Down') {
-        $buttons = @($ctrl.BtnCheckup, $ctrl.BtnToolbox, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
+        $buttons = @($ctrl.BtnCheckup, $ctrl.BtnToolbox, $ctrl.BtnAuto, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
         if ($ctrl.BtnAdmin.Visibility -eq 'Visible') { $buttons = @($ctrl.BtnAdmin) + $buttons }
         $focused = [System.Windows.Input.Keyboard]::FocusedElement
         $idx = [Array]::IndexOf($buttons, $focused)
@@ -714,7 +775,17 @@ $timer.Add_Tick({ Update-SysPilotGui })
 $timer.Start()
 
 Update-SysPilotGui
+if ($StartHidden) {
+    # Direkt in den Tray starten (z.B. wenn das Text-Menue beim Beenden die GUI uebergibt)
+    $win.WindowState = 'Minimized'
+    $win.ShowInTaskbar = $false
+    $script:notifyIcon.Visible = $true
+    $win.Add_ContentRendered({
+        $script:notifyIcon.ShowBalloonTip(2500, 'SysPilot', 'Laeuft im Hintergrund weiter. Doppelklick aufs Tray-Symbol oeffnet das Dashboard.', 'Info')
+    })
+}
 $win.ShowDialog() | Out-Null
 $timer.Stop()
 $script:notifyIcon.Visible = $false
 $script:notifyIcon.Dispose()
+if ($script:guiMutex) { $script:guiMutex.ReleaseMutex() | Out-Null; $script:guiMutex.Dispose() }

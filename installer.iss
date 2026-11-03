@@ -36,12 +36,15 @@ Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "startupicon"; Description: "Bei Windows-Anmeldung starten (Autopilot)"; GroupDescription: "Zusaetzlich:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "autopilot"; Description: "Autopilot bei Windows-Anmeldung starten (empfohlen)"; GroupDescription: "Automatiken (Haeckchen nach Wunsch entfernen):"
+Name: "smartboost"; Description: "Smart Boost: RAM automatisch freigeben, wenn er knapp wird (empfohlen)"; GroupDescription: "Automatiken (Haeckchen nach Wunsch entfernen):"
+Name: "runasadmin"; Description: "SysPilot immer als Administrator ausfuehren (empfohlen - sonst funktionieren Plaene/Dienste nicht)"; GroupDescription: "Automatiken (Haeckchen nach Wunsch entfernen):"
 
 [Files]
 Source: "SysPilot.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "SysPilot-GUI.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "setup-automation.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "INSTALL.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -57,27 +60,20 @@ Name: "{app}\logs"
 Name: "{app}\tools"
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\SysPilot-GUI.ps1"""; Comment: "SysPilot GUI starten"
+Name: "{group}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Comment: "SysPilot GUI starten"
 Name: "{group}\{#MyAppName} (Text-Menue)"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\SysPilot.ps1"""; Comment: "SysPilot Text-Menue starten"
 Name: "{group}\{#MyAppName} Dokumentation"; Filename: "{app}\README.md"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\SysPilot-GUI.ps1"""; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Tasks: desktopicon
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\SysPilot-GUI.ps1"""; Description: "SysPilot jetzt starten"; Flags: nowait postinstall skipifsilent
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -Autopilot"; Tasks: autopilot; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -SmartBoost"; Tasks: smartboost; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -RunAsAdmin"; Tasks: runasadmin; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Description: "SysPilot jetzt starten"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -Undo"; Flags: runhidden waituntilterminated; RunOnceId: "syspilot-cleanup"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\tools"
-
-[Code]
-// Autostart-Einrichtung (optional)
-procedure CurStepChanged(CurStep: TSetupStep);
-begin
-  if CurStep = ssPostInstall then
-  begin
-    if WizardIsTaskSelected('startupicon') then
-    begin
-      // Autopilot-Task wird beim ersten Start von SysPilot eingerichtet (Menue 4)
-    end;
-  end;
-end;

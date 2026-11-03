@@ -50,16 +50,58 @@ if ($Tool) {
         'hogs'         { Show-SysPilotHogs; Read-SysPilotChoice 'Weiter' | Out-Null }
         'stats'        { Show-SysPilotStats; Read-SysPilotChoice 'Weiter' | Out-Null }
         'sysinfo'      { Show-SysPilotSystemInfo; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'autooptimize' { Invoke-SysPilotAutoOptimize; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'autopilottask' {
+            $t = Get-ScheduledTask -TaskName 'SysPilot Autopilot' -ErrorAction SilentlyContinue
+            if ($t) { Remove-SysPilotAutopilotTask } else { Install-SysPilotAutopilotTask }
+            Read-SysPilotChoice 'Weiter' | Out-Null
+        }
+        'smartboost'   {
+            $cur = [bool](Get-SysPilotConfig).Autopilot.AutoFreeRam
+            Set-SysPilotConfigValue -Section 'Autopilot' -Key 'AutoFreeRam' -Value (-not $cur)
+            $new = -not $cur
+            Write-Host ""
+            Write-Host ("  Smart Boost (RAM automatisch freigeben im Autopilot): " + $(if ($new) { 'AN' } else { 'AUS' })) -ForegroundColor $(if ($new) { 'Green' } else { 'Yellow' })
+            if ($new) {
+                Write-Host '  Der Autopilot gibt RAM automatisch frei, wenn er knapp wird.' -ForegroundColor DarkGray
+                $t = Get-ScheduledTask -TaskName 'SysPilot Autopilot' -ErrorAction SilentlyContinue
+                if (-not $t) {
+                    Write-Host '  Tipp: Autopilot bei Anmeldung starten (Toolbox: "Autopilot bei Anmeldung").' -ForegroundColor DarkGray
+                }
+            }
+            Read-SysPilotChoice 'Weiter' | Out-Null
+        }
         default        { Write-Host "  Unbekanntes Werkzeug: $Tool" -ForegroundColor Red }
     }
     return
 }
 
 # Admin nur als Menue-Option (16), keine Start-Frage.
-# Optional wieder aktivierbar: config.json -> Start.AskForAdmin = true
+# Optional: config.json -> Start.AskForAdmin = true (fragt) oder Start.AlwaysAdmin = true (automatisch)
 $startCfg = (Get-SysPilotConfig).Start
-if (-not (Test-SysPilotAdmin) -and $startCfg -and $startCfg.AskForAdmin) {
+if (-not (Test-SysPilotAdmin) -and $startCfg -and ($startCfg.AskForAdmin -or $startCfg.AlwaysAdmin)) {
     Restart-SysPilotElevated
+}
+
+function Close-SysPilotToTray {
+    <# "Beenden" = SysPilot laeuft im Hintergrund weiter: GUI im Tray starten (falls nicht schon offen). #>
+    $cfg = (Get-SysPilotConfig).Start
+    if ($cfg -and $cfg.PSObject.Properties['GuiOnExit'] -and -not $cfg.GuiOnExit) { return }
+
+    # Laeuft die GUI schon? (Mutex ist prozess-lokal pruefbar - stattdessen Fenster suchen)
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+    $guiRunning = Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match 'SysPilot-GUI\.ps1' -and $_.ProcessId -ne $PID }
+    if ($guiRunning) {
+        Write-Host '  SysPilot laeuft bereits im Hintergrund (Tray-Symbol).' -ForegroundColor DarkGray
+        return
+    }
+    $gui = Join-Path $script:Root 'SysPilot-GUI.ps1'
+    Write-Host ''
+    Write-Host '  SysPilot laeuft im Hintergrund weiter (Tray-Symbol neben der Uhr).' -ForegroundColor DarkCyan
+    Write-Host '  Doppelklick aufs Symbol = Dashboard. Rechtsklick = Beenden.' -ForegroundColor DarkGray
+    Write-Host '  (Abschalten: Einstellungen -> "Beim Beenden im Hintergrund weiterlaufen")' -ForegroundColor DarkGray
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',$gui,'-StartHidden'
 }
 
 function Edit-SysPilotConfig {
@@ -103,15 +145,43 @@ function Show-SysPilotSettingsMenu {
         $langTxt = if ($lang -eq 'de') { 'Deutsch' } else { 'English' }
         $unitTxt = if ($unit -eq 'C') { 'Celsius (°C)' } else { 'Fahrenheit (°F)' }
 
+        $startCfg = (Get-SysPilotConfig).Start
+        $alwaysAdmin = [bool]$startCfg.AlwaysAdmin
+        $guiOnExit = if ($null -ne $startCfg.GuiOnExit) { [bool]$startCfg.GuiOnExit } else { $true }
+        $aaTxt = if ($alwaysAdmin) { 'AN' } else { 'AUS' }
+        $geTxt = if ($guiOnExit) { 'AN' } else { 'AUS' }
+
         $items = @(
             @{ Label = "Sprache / Language: $langTxt"; Color = 'White'; Tag = 'lang' },
             @{ Label = "Temperatureinheit: $unitTxt"; Color = 'White'; Tag = 'unit' },
+            @{ Label = "Immer als Administrator starten: $aaTxt"; Color = 'White'; Tag = 'alwaysadmin' },
+            @{ Label = "Beim Beenden im Hintergrund weiterlaufen (Tray): $geTxt"; Color = 'White'; Tag = 'guionexit' },
             @{ Label = "Konfiguration (Programme, Spiele, Ballast)"; Color = 'White'; Tag = 'config' },
             @{ Label = "Zurueck"; Color = 'DarkGray'; Tag = $null }
         )
         $sel = Show-SysPilotArrowMenu -Items $items -Title 'Einstellungen'
         if ($null -eq $sel) { return }
         switch ($sel) {
+            'alwaysadmin' {
+                $new = -not $alwaysAdmin
+                Set-SysPilotConfigValue -Section 'Start' -Key 'AlwaysAdmin' -Value $new
+                if ($new) {
+                    $n = Set-SysPilotShortcutRunAs -RunAs $true
+                    Write-Host "  [OK] Immer als Administrator: AN (ab naechstem Start)." -ForegroundColor Green
+                    if ($n -gt 0) { Write-Host "  [OK] $n Verknuepfung(en) auf 'Als Administrator ausfuehren' gesetzt." -ForegroundColor Green }
+                    else { Write-Host "  [i] Keine Verknuepfungen gefunden - gilt trotzdem beim Start von SysPilot." -ForegroundColor DarkGray }
+                } else {
+                    $n = Set-SysPilotShortcutRunAs -RunAs $false
+                    Write-Host "  [OK] Immer als Administrator: AUS." -ForegroundColor Green
+                }
+                Read-SysPilotChoice "Weiter" | Out-Null
+            }
+            'guionexit' {
+                $new = -not $guiOnExit
+                Set-SysPilotConfigValue -Section 'Start' -Key 'GuiOnExit' -Value $new
+                Write-Host ("  [OK] Beim Beenden im Hintergrund weiterlaufen: " + $(if ($new) { 'AN' } else { 'AUS' })) -ForegroundColor Green
+                Read-SysPilotChoice "Weiter" | Out-Null
+            }
             'lang' {
                 $new = if ($lang -eq 'de') { 'en' } else { 'de' }
                 Set-SysPilotLanguage -Lang $new
@@ -193,7 +263,7 @@ function Show-SysPilotMenu {
         switch ($key.VirtualKeyCode) {
             38 { $sel = ($sel - 1 + $items.Count) % $items.Count }   # hoch
             40 { $sel = ($sel + 1) % $items.Count }                  # runter
-            27 { return }                                            # Esc
+            27 { Close-SysPilotToTray; return }                      # Esc
             13 {                                                     # Enter
                 $c = $items[$sel].Key
                 switch ($c) {
@@ -249,7 +319,7 @@ function Show-SysPilotMenu {
                     '23' { Show-SysPilotNetworkAdapters }
                     '24' { Show-SysPilotCheckup }
                     '25' { Show-SysPilotToolbox }
-                    '0'  { return }
+                    '0'  { Close-SysPilotToTray; return }
                 }
             }
         }

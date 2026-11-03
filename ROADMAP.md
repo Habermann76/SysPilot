@@ -15,12 +15,22 @@
 - ✅ Statistiken, Ressourcen-Fresser, Skripte (anpassbar)
 - ✅ Hitzeschutz (Notaus bei 95 °C, Ruhezustand)
 - ✅ Installer (x64 EXE) + portable ZIP
+- ✅ Automatic Checkup (15 Bereiche, ehrlich erklärt, Fixes abwählbar) — Konsole + GUI
+- ✅ Toolbox (27 Werkzeuge in 4 Kategorien, mit Erklärungen) — Konsole + GUI
+- ✅ Netzwerk-Reparatur (NETREPAIR, 14 Reparaturen) + Adapter-Identifikation
+- ✅ Vollautomatik (Auto-Optimierung) in Menü, Toolbox und GUI
+- ✅ Smart Boost (RAM automatisch freigeben), Autopilot-Autostart per Installer-Häkchen
+- ✅ GUI: Single-Instance, versteckte Konsole, "Als Admin starten"-Button, DPI-scharf
+- ✅ "Beenden" = weiter im Hintergrund (Tray), abschaltbar in den Einstellungen
+- ✅ Option "Immer als Administrator starten" (Config + Verknüpfungs-Flag)
 
 ## Geplant (nach Beta)
 
 ### Version 1.0
 - ⬜ **Electron-Version** (komplett grafisch, mehr RAM ~150-200 MB, aber
   hübscher + plattformübergreifend) — *vorgemerkt auf Nutzerwunsch*
+- ⬜ **Windows-Dienst** (SysPilot dauerhaft im Hintergrund, auch ohne Anmeldung) —
+  *vorgemerkt auf Nutzerwunsch, verschoben: Aufwand aktuell zu hoch*
 - ⬜ Installer für **ARM64** und **x86 (32-bit)**
 - ⬜ **MSI-Installer** (für Unternehmen/Gruppenrichtlinien)
 - ⬜ **Auto-Update** (SysPilot aktualisiert sich selbst)

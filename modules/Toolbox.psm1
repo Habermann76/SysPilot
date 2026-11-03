@@ -218,12 +218,30 @@ function Get-SysPilotToolbox {
     $tools = @()
 
     # --- System optimieren ---
+    $tools += @{ Category = 'System optimieren'; Key = 'autooptimize'; Name = 'VOLLAUTOMATIK (Auto-Optimierung)'
+        Desc = 'Alles in einem Rutsch: Backup, Dienste, sicher unnoetige Features aus, Tweaks (Game Mode, Werbung aus), Prioritaeten.'
+        NeedsAdmin = $true; Action = { Invoke-SysPilotAutoOptimize; Read-SysPilotChoice 'Weiter' | Out-Null } }
     $tools += @{ Category = 'System optimieren'; Key = 'plans'; Name = 'Energieplaene einrichten'
         Desc = 'Installiert die SysPilot-Plaene "Kuehl & Leise" und "Leistung" - die Basis fuer alles andere.'
         NeedsAdmin = $true; Action = { Install-SysPilotPlans; Read-SysPilotChoice 'Weiter' | Out-Null } }
     $tools += @{ Category = 'System optimieren'; Key = 'autopilot'; Name = 'Autopilot starten'
         Desc = 'Live-Umschaltung der Energieplaene + Prozess-Prioritaeten, erkennt Spiele/Entwicklung/Browser, Hitzeschutz.'
         NeedsAdmin = $false; Action = { Start-SysPilotAutopilot } }
+    $tools += @{ Category = 'System optimieren'; Key = 'autopilottask'; Name = 'Autopilot bei Anmeldung'
+        Desc = 'Startet den Autopilot automatisch bei jeder Windows-Anmeldung (oder entfernt den Autostart wieder).'
+        NeedsAdmin = $true; Action = {
+            $t = Get-ScheduledTask -TaskName 'SysPilot Autopilot' -ErrorAction SilentlyContinue
+            if ($t) { Remove-SysPilotAutopilotTask } else { Install-SysPilotAutopilotTask }
+            Read-SysPilotChoice 'Weiter' | Out-Null
+        } }
+    $tools += @{ Category = 'System optimieren'; Key = 'smartboost'; Name = 'Smart Boost an/aus'
+        Desc = 'Der Autopilot gibt RAM automatisch frei, sobald er knapp wird (ueber 85% belegt). Einmal einschalten, nie wieder dran denken.'
+        NeedsAdmin = $false; Action = {
+            $cur = [bool](Get-SysPilotConfig).Autopilot.AutoFreeRam
+            Set-SysPilotConfigValue -Section 'Autopilot' -Key 'AutoFreeRam' -Value (-not $cur)
+            Write-Host ('  Smart Boost: ' + $(if (-not $cur) { 'AN' } else { 'AUS' })) -ForegroundColor $(if (-not $cur) { 'Green' } else { 'Yellow' })
+            Read-SysPilotChoice 'Weiter' | Out-Null
+        } }
     $tools += @{ Category = 'System optimieren'; Key = 'startup'; Name = 'Autostart-Manager'
         Desc = 'Zeigt alle Autostart-Eintraege, deaktiviert ohne zu loeschen (rueckgaengig moeglich).'
         NeedsAdmin = $false; Action = { Show-SysPilotStartupManager } }
