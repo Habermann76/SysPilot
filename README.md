@@ -300,6 +300,39 @@ Zwei unabhängige Schalter (beide mit Pfeiltasten, Enter = umschalten):
 - **Temperatureinheit**: Celsius / Fahrenheit (GUI zeigt °C oder °F)
 - **Konfiguration**: Programme, Spiele, Ballast
 
+## Netzwerk / Internet reparieren (Menüpunkt 22)
+
+Alle 14 Reparaturen aus **Complete Internet Repair** (Open Source, recherchiert):
+
+1. TCP/IP zurücksetzen (IPv4/IPv6)
+2. Winsock reparieren (Katalog zurücksetzen)
+3. IP-Adresse erneuern (DHCP release/renew)
+4. DNS-Cache leeren (flushdns/registerdns)
+5. ARP-Cache leeren
+6. Windows Update Verlauf löschen
+7. Windows Update reparieren (Dienste + DLLs)
+8. SSL / HTTPS / Kryptografie reparieren
+9. Proxy-Einstellungen zurücksetzen
+10. Windows-Firewall zurücksetzen
+11. Hosts-Datei wiederherstellen (mit Backup)
+12. WINS-Client-Registrierung erneuern
+13. Netzwerk-Computer sichtbar machen (Explorer)
+
+Pfeiltasten, Enter = reparieren, „ALLE" = alle auf einmal. Manche brauchen
+einen Neustart (markiert).
+
+## Netzwerkadapter identifizieren (Menüpunkt 23)
+
+Zeigt alle Netzwerkadapter und identifiziert das zugehörige Programm:
+- **vgate0** → OPPO Connect (Handy-Verbindung) — falls du kein OPPO hast: deinstallieren
+- **TAP-Windows** → OpenVPN / generischer VPN-Treiber
+- **vEthernet** → Hyper-V / WSL2 / Docker
+- **Bluetooth** → Bluetooth-Netzwerk (PAN)
+- Unbekannte → Google-Suche anbieten
+
+Bei bekannten Adaptern mit „deinstallieren"-Hinweis: Enter → SysPilot bietet
+die Deinstallation des zugehörigen Programms an.
+
 ## Sicherheit
 
 - **Backup** vor jeder Dienste-Änderung (Menü 12 erstellt manuell eins)
