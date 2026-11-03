@@ -200,6 +200,8 @@ function Show-SysPilotMenu {
         @{ Key = '19'; Label = 'SKRIPTE (Gaming/Arbeit/Kuehl/Nacht - anpassbar)'; Color = 'Green' },
         @{ Key = '20'; Label = 'GRAFISCHE OBERFLAECHE (Live-Dashboard)'; Color = 'Cyan' },
         @{ Key = '21'; Label = 'BROWSER-ERWEITERUNGEN (Duplikate finden)'; Color = 'Yellow' },
+        @{ Key = '22'; Label = 'NETZWERK / INTERNET reparieren'; Color = 'Cyan' },
+        @{ Key = '23'; Label = 'NETZWERKADAPTER identifizieren (was ist vgate0?)'; Color = 'Cyan' },
         @{ Key = '0';  Label = 'Beenden'; Color = 'DarkGray' }
     )
 
@@ -284,6 +286,8 @@ function Show-SysPilotMenu {
                         }
                     }
                     '21' { Show-SysPilotExtensionManager }
+                    '22' { Show-SysPilotNetworkRepair }
+                    '23' { Show-SysPilotNetworkAdapters }
                     '0'  { return }
                 }
             }

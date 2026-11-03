@@ -79,21 +79,25 @@ function Show-SysPilotHogs {
             }
         }
 
-        # Howto + Link
+        # Howto + 3 Links (offiziell + Google + KI-Suche)
         if ($hog.HowTo) {
             Write-Host ""
             Write-Host "  Wie geht das? (Howto):" -ForegroundColor Green
             $hog.HowTo -split '\. ' | ForEach-Object { Write-Host "    - $_" -ForegroundColor White }
         }
-        if ($hog.Link) {
-            Write-Host ""
-            Write-Host "  Offizielle Anleitung: $($hog.Link)" -ForegroundColor Cyan
-            if (Confirm-SysPilot "Im Browser oeffnen?") {
-                Start-Process $hog.Link
-            }
-        }
         Write-Host ""
-        Read-SysPilotChoice "Weiter mit Enter" | Out-Null
+        Write-Host "  Anleitungen:" -ForegroundColor Cyan
+        $linkItems = @()
+        if ($hog.Link) {
+            $linkItems += @{ Label = "Offizielle Anleitung (Hersteller/Microsoft)"; Color = 'White'; Tag = $hog.Link }
+        }
+        $linkItems += @{ Label = "Google-Suche: '$($hog.Programm) Howto'"; Color = 'White'; Tag = "https://www.google.com/search?q=$($hog.Programm)+howto+deutsch" }
+        $linkItems += @{ Label = "KI-Suche (Gemini): '$($hog.Programm) optimieren'"; Color = 'White'; Tag = "https://gemini.google.com/app?q=$($hog.Programm)+optimieren+howto+deutsch" }
+        $linkItems += @{ Label = "Funktion erbeten / Fehler melden (GitHub)"; Color = 'Yellow'; Tag = "https://github.com/Habermann76/SysPilot/issues/new" }
+        $linkItems += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
+
+        $linkSel = Show-SysPilotArrowMenu -Items $linkItems -Title "Anleitung fuer $($hog.Programm)" -Footer 'Pfeiltasten, Enter = oeffnen, Esc = zurueck'
+        if ($linkSel) { Start-Process $linkSel }
     }
 }
 
