@@ -3,6 +3,10 @@
 # und eine echte Reparatur - keine erfundenen "Probleme" als Verkaufsdruck.
 #Requires -Version 5.1
 
+# Wurzelordner von SysPilot (modules\..). Jedes Modul hat seinen eigenen $script:-Bereich -
+# die Variable aus Common.psm1 ist hier NICHT sichtbar (war die Ursache von "Path ... NULL").
+$script:SysPilotRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+
 # ---------- Hilfsfunktionen ----------
 
 function Get-SysPilotFolderSizeMB {
@@ -260,22 +264,33 @@ function Get-SysPilotCheckupItems {
             if ($orphans.Count -eq 0) { Write-Host '  Nichts zu entfernen.' -ForegroundColor Green; return }
             $backupDir = Join-Path $script:SysPilotRoot 'backup'
             if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Force -Path $backupDir | Out-Null }
-            $regBackup = Join-Path $backupDir ("registry-orphans-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.reg')
-            "Windows Registry Editor Version 5.00`r`n" | Out-File $regBackup -Encoding unicode
-            $removed = 0
-            foreach ($o in $orphans) {
-                try {
-                    $regPath = $o.Schluessel -replace '^HKCU:\\', 'HKEY_CURRENT_USER\' -replace '^HKLM:\\', 'HKEY_LOCAL_MACHINE\'
-                    if ($o.Typ -eq 'Value') {
-                        & reg.exe delete $regPath /v $o.Name /f 2>$null | Out-Null
-                    } else {
-                        & reg.exe delete $regPath /f 2>$null | Out-Null
-                    }
-                    $removed++
-                } catch { }
+            # PSPath ("Microsoft.PowerShell.Core\Registry::HKEY_...") bzw. "HKLM:\..." -> Pfad fuer reg.exe
+            $toReg = {
+                param([string]$p)
+                $p -replace '^Microsoft\.PowerShell\.Core\\Registry::', '' -replace '^HKCU:\\', 'HKEY_CURRENT_USER\' -replace '^HKLM:\\', 'HKEY_LOCAL_MACHINE\'
             }
-            Write-Host "  [OK] $removed verwaiste Eintraege entfernt (Backup: $regBackup)" -ForegroundColor Green
-            Write-SysPilotLog "Checkup: $removed Registry-Waisen entfernt"
+            # Echtes Backup: betroffene Schluessel als .reg exportieren (bei Werten der uebergeordnete Schluessel)
+            $regDir = Join-Path $backupDir ("registry-orphans-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+            New-Item -ItemType Directory -Force -Path $regDir | Out-Null
+            $exportKeys = @($orphans | ForEach-Object { & $toReg $_.Schluessel } | Select-Object -Unique)
+            $n = 0
+            foreach ($k in $exportKeys) {
+                $n++
+                & reg.exe export $k (Join-Path $regDir ('{0:D3}.reg' -f $n)) /y 2>$null | Out-Null
+            }
+            $removed = 0; $failed = 0
+            foreach ($o in $orphans) {
+                $regPath = & $toReg $o.Schluessel
+                if ($o.Typ -eq 'Value') {
+                    & reg.exe delete $regPath /v $o.Name /f 2>$null | Out-Null
+                } else {
+                    & reg.exe delete $regPath /f 2>$null | Out-Null
+                }
+                if ($LASTEXITCODE -eq 0) { $removed++ } else { $failed++ }
+            }
+            Write-Host "  [OK] $removed verwaiste Eintraege entfernt (Backup: $regDir)" -ForegroundColor Green
+            if ($failed -gt 0) { Write-Host "  [i] $failed Eintraege konnten nicht entfernt werden (Rechte? Dann SysPilot als Administrator starten)." -ForegroundColor DarkYellow }
+            Write-SysPilotLog "Checkup: $removed Registry-Waisen entfernt, $failed fehlgeschlagen"
         }
     }
 

@@ -42,6 +42,19 @@ function Restart-SysPilotElevated {
     if (-not $NoExit) { exit }
 }
 
+function ConvertTo-SysPilotArgString {
+    <# Baut aus einer Argumentliste eine korrekt gequotete Kommandozeile.
+       Start-Process -ArgumentList @(...) setzt Pfade mit Leerzeichen NICHT in Anfuehrungszeichen
+       (z.B. "C:\Program Files\SysPilot\SysPilot.ps1") - dann startet das Werkzeug nicht. #>
+    param([string[]]$ArgList)
+    $parts = foreach ($a in $ArgList) {
+        if ($null -eq $a -or $a -eq '') { '""' }
+        elseif ($a -match '[\s"]') { '"' + ($a -replace '"', '\"') + '"' }
+        else { $a }
+    }
+    return ($parts -join ' ')
+}
+
 function Write-SysPilotLog {
     param([string]$Message, [string]$Level = "INFO")
     $logDir = Join-Path $script:SysPilotRoot "logs"
@@ -274,7 +287,7 @@ function Show-SysPilotArrowMenu {
     }
 }
 
-Export-ModuleMember -Function Test-SysPilotAdmin, Assert-SysPilotAdmin, Restart-SysPilotElevated,
+Export-ModuleMember -Function ConvertTo-SysPilotArgString, Test-SysPilotAdmin, Assert-SysPilotAdmin, Restart-SysPilotElevated,
     Write-SysPilotLog, Get-SysPilotConfig, Reset-SysPilotConfig, Set-SysPilotConfigValue, Test-NameMatch,
     Get-SysPilotProcessByName, New-SysPilotBackup, Get-SysPilotBackups, Restore-SysPilotServices,
     Write-SysPilotHeader, Read-SysPilotChoice, Confirm-SysPilot, Show-SysPilotArrowMenu,

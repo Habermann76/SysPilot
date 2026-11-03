@@ -127,7 +127,7 @@ function Close-SysPilotToTray {
     Write-Host '  SysPilot laeuft im Hintergrund weiter (Tray-Symbol neben der Uhr).' -ForegroundColor DarkCyan
     Write-Host '  Doppelklick aufs Symbol = Dashboard. Rechtsklick = Beenden.' -ForegroundColor DarkGray
     Write-Host '  (Abschalten: Einstellungen -> "Beim Beenden im Hintergrund weiterlaufen")' -ForegroundColor DarkGray
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',$gui,'-StartHidden'
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList (ConvertTo-SysPilotArgString @('-NoProfile','-ExecutionPolicy','Bypass','-File',$gui,'-StartHidden'))
 }
 
 function Edit-SysPilotConfig {
@@ -176,12 +176,15 @@ function Show-SysPilotSettingsMenu {
         $guiOnExit = if ($null -ne $startCfg.GuiOnExit) { [bool]$startCfg.GuiOnExit } else { $true }
         $aaTxt = if ($alwaysAdmin) { 'AN' } else { 'AUS' }
         $geTxt = if ($guiOnExit) { 'AN' } else { 'AUS' }
+        $trayStart = [bool]($startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray)
+        $tsTxt = if ($trayStart) { 'AN' } else { 'AUS' }
 
         $items = @(
             @{ Label = "Sprache / Language: $langTxt"; Color = 'White'; Tag = 'lang' },
             @{ Label = "Temperatureinheit: $unitTxt"; Color = 'White'; Tag = 'unit' },
             @{ Label = "Immer als Administrator starten: $aaTxt"; Color = 'White'; Tag = 'alwaysadmin' },
             @{ Label = "Beim Beenden im Hintergrund weiterlaufen (Tray): $geTxt"; Color = 'White'; Tag = 'guionexit' },
+            @{ Label = "GUI beim Start nur im Tray (ohne Fenster): $tsTxt"; Color = 'White'; Tag = 'traystart' },
             @{ Label = "Konfiguration (Programme, Spiele, Ballast)"; Color = 'White'; Tag = 'config' },
             @{ Label = "Zurueck"; Color = 'DarkGray'; Tag = $null }
         )
@@ -199,6 +202,17 @@ function Show-SysPilotSettingsMenu {
                 } else {
                     $n = Set-SysPilotShortcutRunAs -RunAs $false
                     Write-Host "  [OK] Immer als Administrator: AUS." -ForegroundColor Green
+                }
+                Read-SysPilotChoice "Weiter" | Out-Null
+            }
+            'traystart' {
+                $new = -not $trayStart
+                Set-SysPilotConfigValue -Section 'Start' -Key 'StartInTray' -Value $new
+                if ($new) {
+                    Write-Host '  [OK] GUI-Start: nur im Tray (Symbol neben der Uhr, ggf. unter ^ "Ausgeblendete Symbole").' -ForegroundColor Green
+                    Write-Host '  Fenster oeffnen: Doppelklick aufs Symbol, oder die Verknuepfung nochmal starten.' -ForegroundColor DarkGray
+                } else {
+                    Write-Host '  [OK] GUI-Start: Fenster oeffnet sich (Symbol bleibt im Tray).' -ForegroundColor Green
                 }
                 Read-SysPilotChoice "Weiter" | Out-Null
             }
@@ -335,9 +349,9 @@ function Show-SysPilotMenu {
                     '20' {
                         $gui = Join-Path $script:Root 'SysPilot-GUI.ps1'
                         if (Test-SysPilotAdmin) {
-                            Start-Process powershell.exe -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui
+                            Start-Process powershell.exe -Verb RunAs -ArgumentList (ConvertTo-SysPilotArgString @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui))
                         } else {
-                            Start-Process powershell.exe -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui
+                            Start-Process powershell.exe -ArgumentList (ConvertTo-SysPilotArgString @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui))
                         }
                     }
                     '21' { Show-SysPilotExtensionManager }
