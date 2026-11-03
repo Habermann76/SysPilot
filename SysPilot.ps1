@@ -3,6 +3,8 @@
 #Requires -Version 5.1
 param(
     [switch]$Autopilot,
+    [switch]$CheckupAuto,
+    [switch]$Guardian,
     [string]$Tool
 )
 
@@ -17,6 +19,28 @@ Get-ChildItem (Join-Path $script:Root 'modules') -Filter '*.psm1' | ForEach-Obje
 # Direkt in den Autopilot (fuer geplante Aufgabe)
 if ($Autopilot) {
     Start-SysPilotAutopilot
+    return
+}
+
+# Guardian (fuer geplante Aufgabe "SysPilot Guardian"): startet die GUI, falls sie nicht laeuft
+if ($Guardian) {
+    Invoke-SysPilotGuardian
+    return
+}
+
+# Geplanter Checkup (fuer geplante Aufgabe "SysPilot Checkup"): scannt und behebt laut Zeitplan
+if ($CheckupAuto) {
+    $sched = Get-SysPilotCheckupSchedule
+    $results = Invoke-SysPilotCheckupScan -Quiet
+    $found = @($results | Where-Object { $_.Found }).Count
+    Write-SysPilotLog "Checkup (geplant): $found Bereiche mit Befunden"
+    if ($sched.AutoFix -and $found -gt 0) {
+        $fixable = @($results | Where-Object { $_.Found -and $_.AutoFix })
+        if ($fixable.Count -gt 0) {
+            $fixed = Invoke-SysPilotCheckupFix -Results $fixable
+            Write-SysPilotLog "Checkup (geplant): $fixed Bereiche automatisch behoben"
+        }
+    }
     return
 }
 
@@ -51,6 +75,8 @@ if ($Tool) {
         'stats'        { Show-SysPilotStats; Read-SysPilotChoice 'Weiter' | Out-Null }
         'sysinfo'      { Show-SysPilotSystemInfo; Read-SysPilotChoice 'Weiter' | Out-Null }
         'autooptimize' { Invoke-SysPilotAutoOptimize; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'checkupschedule' { Show-SysPilotCheckupScheduleMenu }
+        'guardian'     { Show-SysPilotGuardianMenu }
         'autopilottask' {
             $t = Get-ScheduledTask -TaskName 'SysPilot Autopilot' -ErrorAction SilentlyContinue
             if ($t) { Remove-SysPilotAutopilotTask } else { Install-SysPilotAutopilotTask }

@@ -242,6 +242,12 @@ function Get-SysPilotToolbox {
             Write-Host ('  Smart Boost: ' + $(if (-not $cur) { 'AN' } else { 'AUS' })) -ForegroundColor $(if (-not $cur) { 'Green' } else { 'Yellow' })
             Read-SysPilotChoice 'Weiter' | Out-Null
         } }
+    $tools += @{ Category = 'System optimieren'; Key = 'checkupschedule'; Name = 'Checkup-Zeitplan'
+        Desc = 'Checkup automatisch laufen lassen: taeglich oder an einem Wochentag, zu einer Uhrzeit, mit automatischem Beheben.'
+        NeedsAdmin = $true; Action = { Show-SysPilotCheckupScheduleMenu } }
+    $tools += @{ Category = 'System optimieren'; Key = 'guardian'; Name = 'SysPilot Guardian'
+        Desc = 'Wacht ueber SysPilot: startet es automatisch neu, falls es nicht laeuft. Waehlbar: GUI offen oder nur im Tray.'
+        NeedsAdmin = $true; Action = { Show-SysPilotGuardianMenu } }
     $tools += @{ Category = 'System optimieren'; Key = 'startup'; Name = 'Autostart-Manager'
         Desc = 'Zeigt alle Autostart-Eintraege, deaktiviert ohne zu loeschen (rueckgaengig moeglich).'
         NeedsAdmin = $false; Action = { Show-SysPilotStartupManager } }

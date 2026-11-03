@@ -776,13 +776,11 @@ $timer.Start()
 
 Update-SysPilotGui
 if ($StartHidden) {
-    # Direkt in den Tray starten (z.B. wenn das Text-Menue beim Beenden die GUI uebergibt)
-    $win.WindowState = 'Minimized'
-    $win.ShowInTaskbar = $false
+    # Direkt in den Tray starten (z.B. wenn das Text-Menue beim Beenden die GUI uebergibt).
+    # Wichtig: Hide() VOR ShowDialog() - sonst blockiert ShowDialog() nicht und das Skript beendet sich sofort.
     $script:notifyIcon.Visible = $true
-    $win.Add_ContentRendered({
-        $script:notifyIcon.ShowBalloonTip(2500, 'SysPilot', 'Laeuft im Hintergrund weiter. Doppelklick aufs Tray-Symbol oeffnet das Dashboard.', 'Info')
-    })
+    $win.Hide()
+    $script:notifyIcon.ShowBalloonTip(2500, 'SysPilot', 'Laeuft im Hintergrund weiter. Doppelklick aufs Tray-Symbol oeffnet das Dashboard.', 'Info')
 }
 $win.ShowDialog() | Out-Null
 $timer.Stop()

@@ -189,7 +189,7 @@ function Get-SysPilotCheckupItems {
 
     $items += @{
         Id = 'junk'; Name = 'Datenmuell'; Kategorie = 'Bereinigen'
-        Erklaerung = 'Temporaere Dateien, Update-Reste, Caches. Windows und Programme lagern hier Staub ab - loeschen ist sicher und schafft Platz.'
+        Erklaerung = 'Loescht temporaere Dateien, Update-Reste und Caches (Temp-Ordner, Windows-Update-Cache, Miniaturbilder, Shader-Cache, Fehlerberichte). Das ist sicher - Windows und Programme bauen diese Caches bei Bedarf neu. Deine Dokumente, Bilder und Programme bleiben unangetastet.'
         NeedsAdmin = $false; AutoFix = $true
         Scan = {
             $total = 0; $details = @()
@@ -205,7 +205,7 @@ function Get-SysPilotCheckupItems {
 
     $items += @{
         Id = 'privacy'; Name = 'Spuren der Privatsphaere'; Kategorie = 'Bereinigen'
-        Erklaerung = 'Liste zuletzt geoeffneter Dateien, DNS-Verlauf, Sprunglisten. Verraten, was du zuletzt gemacht hast - loeschen schuetzt deine Privatsphaere.'
+        Erklaerung = 'Loescht NUR lokale Verlaufs-Listen: zuletzt geoeffnete Dateien, Sprunglisten (Rechtsklick im Startmenue), DNS-Verlauf. WICHTIG: Das schaltet KEINE personalisierte Werbung, KEINE Standortfreigabe und KEINE Telemetrie ab - das sind separate Schalter (Menue 10), die du bewusst selbst steuerst. Hier geht es nur um lokale "Was habe ich zuletzt gemacht"-Spuren auf diesem PC.'
         NeedsAdmin = $false; AutoFix = $true
         Scan = {
             $recent = @(Get-ChildItem "$env:APPDATA\Microsoft\Windows\Recent" -Force -ErrorAction SilentlyContinue).Count
@@ -226,8 +226,8 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
-        Id = 'shortcuts'; Name = 'Ungueltige Verknuepfungen'; Kategorie = 'Bereinigen'
-        Erklaerung = 'Verknuepfungen auf Desktop/Startmenue, deren Programm laengst deinstalliert ist. Tote Links - weg damit.'
+        Id = 'shortcuts'; Name = 'Tote Verknuepfungen'; Kategorie = 'Bereinigen'
+        Erklaerung = 'Findet Verknuepfungen auf Desktop/Startmenue, deren Ziel-Programm laengst deinstalliert ist. Loescht nur diese toten Links - keine funktionierenden Verknuepfungen und keine Programme.'
         NeedsAdmin = $false; AutoFix = $true
         Scan = {
             $broken = @(Find-SysPilotBrokenShortcuts)
@@ -246,8 +246,8 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
-        Id = 'registry'; Name = 'Verwaiste Registry-Eintraege'; Kategorie = 'Bereinigen'
-        Erklaerung = 'Registry-Verweise auf Dateien, die es nicht mehr gibt (Autostart, Deinstallation, App Paths). Ehrlich gesagt: macht den PC kaum schneller, entfernt aber tote Verweise. Vorher wird ein Backup gemacht.'
+        Id = 'registry'; Name = 'Tote Registry-Verweise'; Kategorie = 'Bereinigen'
+        Erklaerung = 'Findet Registry-Eintraege, die auf laengst geloeschte Dateien zeigen (Autostart, Deinstallations-Reste, App Paths). Ehrlich: macht den PC kaum schneller, entfernt aber tote Verweise. Vorher wird automatisch ein Backup (.reg) erstellt. Aendert NICHTS an Netzwerk, Freigaben oder Programmen, die noch installiert sind.'
         NeedsAdmin = $true; AutoFix = $true
         Scan = {
             $orphans = @(Get-SysPilotRegistryOrphans)
@@ -280,8 +280,8 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
-        Id = 'antivirus'; Name = 'Antiviren-Schutz'; Kategorie = 'Sicherheit'
-        Erklaerung = 'Prueft, ob ein Virenschutz aktiv ist, Echtzeitschutz laeuft und die Virensignaturen aktuell sind. Das ist dein wichtigster Schutz.'
+        Id = 'antivirus'; Name = 'Virenschutz-Status'; Kategorie = 'Sicherheit'
+        Erklaerung = 'Prueft, ob ein Virenschutz aktiv ist, der Echtzeitschutz laeuft und die Signaturen aktuell sind. Behebt nur: Echtzeitschutz wieder einschalten + Signaturen aktualisieren. Deinstalliert oder veraendert KEIN Antivirus-Programm.'
         NeedsAdmin = $true; AutoFix = $true
         Scan = {
             $sec = Get-SysPilotSecurityStatus
@@ -311,8 +311,8 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
-        Id = 'firewall'; Name = 'Firewall'; Kategorie = 'Sicherheit'
-        Erklaerung = 'Die Windows-Firewall blockiert unerwuenschte Zugriffe aus dem Netz. Sie sollte in allen Profilen (Privat, Oeffentlich, Domain) an sein.'
+        Id = 'firewall'; Name = 'Firewall-Status'; Kategorie = 'Sicherheit'
+        Erklaerung = 'Prueft, ob die Windows-Firewall in allen Profilen (Privat, Oeffentlich, Domain) aktiv ist. Behebt nur: abgeschaltete Profile wieder einschalten. Aendert KEINE Firewall-Regeln, blockiert keine Programme und schaltet keine Netzwerk-Features ab.'
         NeedsAdmin = $true; AutoFix = $true
         Scan = {
             $sec = Get-SysPilotSecurityStatus
@@ -328,24 +328,31 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
-        Id = 'weaknesses'; Name = 'Systemschwaechen'; Kategorie = 'Sicherheit'
-        Erklaerung = 'Veraltete Protokolle (SMBv1), alte PowerShell-Version, ausstehende Neustarts, abgeschwaechte Benutzerkontensteuerung. Kleine Tueren, die man schliessen sollte.'
+        Id = 'hardening'; Name = 'System-Haertung'; Kategorie = 'Sicherheit'
+        Erklaerung = 'Prueft veraltete Angriffsflaechen: SMBv1 (altes Dateifreigabe-Protokoll), PowerShell v2, Benutzerkontensteuerung (UAC), ausstehende Neustarts. WICHTIG: SMBv1 wird NUR deaktiviert, wenn du es nicht brauchst - alte NAS/Netzwerkgeraete (manche Fritz!Box, alte Drucker, Windows XP/2003) brauchen es noch. Die Netzwerkerkennung und Dateifreigabe (SMBv2/v3) bleiben davon unberuehrt und laufen weiter.'
         NeedsAdmin = $true; AutoFix = $true
         Scan = {
             $sec = Get-SysPilotSecurityStatus
             $found = $false; $details = @()
-            if ($sec.SmbV1 -eq $true) { $found = $true; $details += 'SMBv1 aktiv (veraltetes Protokoll, Ransomware-Risiko)' }
+            if ($sec.SmbV1 -eq $true) { $found = $true; $details += 'SMBv1 aktiv (veraltet, Ransomware-Risiko - aber alte NAS/Geraete brauchen es evtl. noch)' }
             if ($sec.PsV2Enabled -eq $true) { $found = $true; $details += 'PowerShell v2 aktiv (veraltet, wird von Malware missbraucht)' }
             if (-not $sec.UacEnabled) { $found = $true; $details += 'Benutzerkontensteuerung (UAC) ist AUS' }
             if ($sec.PendingReboot) { $found = $true; $details += 'Ausstehender Neustart (Updates warten)' }
             @{ Found = $found; Count = $details.Count; SizeMB = 0; Details = $details
-               Summary = if ($details.Count) { "$($details.Count) Schwaechen" } else { 'Keine gefunden' } }
+               Summary = if ($details.Count) { "$($details.Count) Haertungs-Punkte" } else { 'Keine gefunden' } }
         }
         Fix = {
             $sec = Get-SysPilotSecurityStatus
             if ($sec.SmbV1 -eq $true) {
-                Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart -ErrorAction SilentlyContinue | Out-Null
-                Write-Host '  [OK] SMBv1 deaktiviert (wirkt nach Neustart)' -ForegroundColor Green
+                Write-Host '  [!] SMBv1 ist aktiv.' -ForegroundColor Yellow
+                Write-Host '      Brauchst du es noch? Nur fuer SEHR alte Geraete (alte NAS, XP, manche Fritz!Box).' -ForegroundColor DarkGray
+                Write-Host '      Netzwerkerkennung, Dateifreigabe und moderne Geraete laufen auch ohne SMBv1.' -ForegroundColor DarkGray
+                if (Confirm-SysPilot 'SMBv1 jetzt deaktivieren? (nur wenn du keine alten Geraete nutzt)') {
+                    Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart -ErrorAction SilentlyContinue | Out-Null
+                    Write-Host '  [OK] SMBv1 deaktiviert (wirkt nach Neustart)' -ForegroundColor Green
+                } else {
+                    Write-Host '  [i] SMBv1 bleibt aktiv (deine Entscheidung).' -ForegroundColor DarkGray
+                }
             }
             if ($sec.PsV2Enabled -eq $true) {
                 Disable-WindowsOptionalFeature -Online -FeatureName MicrosoftWindowsPowerShellV2Root -NoRestart -ErrorAction SilentlyContinue | Out-Null
@@ -358,13 +365,13 @@ function Get-SysPilotCheckupItems {
             if ($sec.PendingReboot) {
                 Write-Host '  [i] Bitte einmal neu starten - wartende Updates werden dann fertig installiert.' -ForegroundColor Yellow
             }
-            Write-SysPilotLog 'Checkup: Systemschwaechen behoben'
+            Write-SysPilotLog 'Checkup: System-Haertung ausgefuehrt'
         }
     }
 
     $items += @{
         Id = 'startup'; Name = 'Autostart-Last'; Kategorie = 'Optimieren'
-        Erklaerung = 'Jedes Programm im Autostart verlaengert den Start und frisst dauerhaft RAM. Ueber 15 aktive Eintraege bremsen spuerbar.'
+        Erklaerung = 'Zaehlt nur, wie viele Programme beim Start mitlaufen. Aendert hier NICHTS - zum Ausmisten oeffnest du den Autostart-Manager, der Eintraege deaktiviert (nicht loescht) und rueckgaengig machen kann.'
         NeedsAdmin = $false; AutoFix = $false; MenuAction = 'startup'
         Scan = {
             $active = @(Get-SysPilotStartupItems | Where-Object { $_.Aktiv }).Count
@@ -377,7 +384,7 @@ function Get-SysPilotCheckupItems {
 
     $items += @{
         Id = 'ram'; Name = 'RAM-Druck'; Kategorie = 'Optimieren'
-        Erklaerung = 'Ist der RAM fast voll, lagert Windows auf die langsame SSD aus und alles ruckelt. Freigeben hilft sofort.'
+        Erklaerung = 'Ist der RAM fast voll, lagert Windows auf die langsame SSD aus und alles ruckelt. Behebt: leert Arbeitsseiten und Standby-Cache - laufende Programme und deine Daten bleiben unberuehrt.'
         NeedsAdmin = $false; AutoFix = $true
         Scan = {
             $os = Get-CimInstance Win32_OperatingSystem
@@ -391,7 +398,7 @@ function Get-SysPilotCheckupItems {
 
     $items += @{
         Id = 'disk'; Name = 'Festplatten-Fuellstand'; Kategorie = 'Optimieren'
-        Erklaerung = 'Eine fast volle Systemplatte bremst Windows spuerbar aus (Auslagerung, Updates, Temp). Unter 10% frei wird es kritisch.'
+        Erklaerung = 'Eine fast volle Systemplatte bremst Windows spuerbar aus (Auslagerung, Updates, Temp). Behebt: loescht nur temporaere Dateien und Caches (wie "Datenmuell") - deine eigenen Dateien bleiben unangetastet.'
         NeedsAdmin = $false; AutoFix = $true
         Scan = {
             $disk = Get-PSDrive C
@@ -406,7 +413,7 @@ function Get-SysPilotCheckupItems {
 
     $items += @{
         Id = 'services'; Name = 'Dienste-Optimierung'; Kategorie = 'Optimieren'
-        Erklaerung = 'Windows-Dienste, die du nicht brauchst, laufen trotzdem mit. SysPilot kennt gepruefte Empfehlungen und deaktiviert nur, was Ressourcen spart.'
+        Erklaerung = 'Stellt gepruefte Windows-Dienste auf "Manuell" (starten nur bei Bedarf) statt "Automatisch". WICHTIG: Die Liste in config.json ist bewusst konservativ - sie enthaelt KEINE Dienste fuer Netzwerkerkennung (FDResPub, SSDPSRV), Dateifreigabe (LanmanServer), Samba/SMB oder Standort. Diese bleiben unangetastet, damit Netzwerkgeraete, Freigaben und Ortungsdienste weiter funktionieren, wenn du sie nutzt.'
         NeedsAdmin = $true; AutoFix = $true
         Scan = {
             $pending = @(Get-SysPilotServicePlan | Where-Object { $_.Aenderung })
@@ -428,8 +435,8 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
-        Id = 'bloat'; Name = 'Bekannte Bloatware'; Kategorie = 'Optimieren'
-        Erklaerung = 'Vorinstallierte Werbung, Testversionen und Ressourcenfresser, die kaum jemand braucht. SysPilot erkennt die ueblichen Verdaechtigen.'
+        Id = 'bloat'; Name = 'Bloatware-Radar'; Kategorie = 'Optimieren'
+        Erklaerung = 'Findet bekannte Werbe-Apps und Ressourcenfresser. Aendert hier NICHTS - zum Entfernen oeffnest du den Bloatware-Finder, der jede App einzeln zeigt und erst nach deiner Bestaetigung deinstalliert.'
         NeedsAdmin = $false; AutoFix = $false; MenuAction = 'bloat'
         Scan = {
             $flagged = @(Get-SysPilotInstalled | Where-Object { $_.Hinweis -and $_.Hinweis -notmatch 'Optimizer-Duplikate' })
@@ -441,8 +448,8 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
-        Id = 'optimizers'; Name = 'Optimizer-Konflikte'; Kategorie = 'Optimieren'
-        Erklaerung = 'Mehrere PC-Optimizer gleichzeitig bremsen sich gegenseitig aus (jeder scannt staendig). Ein bis zwei genuegen - SysPilot kann alles Wichtige selbst.'
+        Id = 'optimizers'; Name = 'Optimizer-Duplikate'; Kategorie = 'Optimieren'
+        Erklaerung = 'Mehrere PC-Optimizer gleichzeitig bremsen sich gegenseitig aus (jeder scannt staendig). Aendert hier NICHTS - zum Ausmisten oeffnest du den Optimizer-Manager, der jede App zeigt und erst nach deiner Wahl deinstalliert.'
         NeedsAdmin = $false; AutoFix = $false; MenuAction = 'optimizers'
         Scan = {
             $opts = @(Get-SysPilotInstalled | Where-Object { $_.Hinweis -match 'Optimizer-Duplikate' })
@@ -454,8 +461,8 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
-        Id = 'netrepair'; Name = 'Netzwerk / Internet'; Kategorie = 'Sicherheit'
-        Erklaerung = 'Prueft Internet-Verbindung, DNS-Aufloesung und Proxy-Einstellungen. Bei Problemen: NETREPAIR (Toolbox) repariert TCP/IP, Winsock, DNS, Firewall u.v.m. - wie Complete Internet Repair.'
+        Id = 'netrepair'; Name = 'Netzwerk-Check'; Kategorie = 'Sicherheit'
+        Erklaerung = 'Prueft nur, ob Internet, DNS und Proxy in Ordnung sind - aendert hier NICHTS. Bei Problemen oeffnet NETREPAIR (Toolbox) eine Auswahl, in der du jede Reparatur einzeln siehst und bestaetigst. WICHTIG: NETREPAIR setzt auf Wunsch TCP/IP, Winsock, DNS oder die Firewall zurueck - es schaltet NICHT die Netzwerkerkennung, Dateifreigabe oder Samba ab. Diese bleiben aktiv, wenn du sie nutzt.'
         NeedsAdmin = $false; AutoFix = $false; MenuAction = 'netrepair'
         Scan = {
             $details = @(); $problems = 0
@@ -476,7 +483,6 @@ function Get-SysPilotCheckupItems {
                 $problems++; $details += "Proxy: AKTIV ($($proxy.ProxyServer)) - unerwartet? NETREPAIR kann ihn zuruecksetzen"
             } else { $details += 'Proxy: aus (Standard)' }
 
-            # 4) Winsock-Katalog grob pruefbar? (nur Hinweis, kein Fehler)
             @{ Found = ($problems -gt 0); Count = $problems; SizeMB = 0; Details = $details
                Summary = if ($problems -eq 0) { 'Verbindung, DNS und Proxy in Ordnung' } else { "$problems Problem(e) - NETREPAIR kann helfen" } }
         }
@@ -485,7 +491,7 @@ function Get-SysPilotCheckupItems {
 
     $items += @{
         Id = 'temp'; Name = 'Temperatur'; Kategorie = 'Optimieren'
-        Erklaerung = 'Ein heisser Laptop drosselt sich selbst (wird langsam) und altert schneller. Ab 80 Grad greift SysPilot mit dem Kuehl-Plan ein.'
+        Erklaerung = 'Ein heisser Laptop drosselt sich selbst (wird langsam) und altert schneller. Behebt: aktiviert den SysPilot Kuehl-Plan (CPU-Boost aus, passive Kuehlung) - das senkt die Temperatur, kostet aber etwas Spitzenleistung. Jederzeit ueber die GUI wieder auf Leistung schaltbar.'
         NeedsAdmin = $false; AutoFix = $true
         Scan = {
             $t = Get-SysPilotCpuTemperature
@@ -589,6 +595,133 @@ function Invoke-SysPilotCheckupFix {
     return $fixed
 }
 
+# ---------- Checkup-Zeitplan (geplante Aufgabe) ----------
+
+function Get-SysPilotCheckupSchedule {
+    <# Liest den Zeitplan aus config.json -> Checkup.Schedule. #>
+    $cfg = Get-SysPilotConfig
+    $s = $cfg.Checkup.Schedule
+    if (-not $s) {
+        $s = [PSCustomObject]@{ Enabled = $false; Frequency = 'Daily'; Weekday = 'Sunday'; Time = '03:00'; AutoFix = $true }
+    }
+    return $s
+}
+
+function Save-SysPilotCheckupSchedule {
+    param([bool]$Enabled, [string]$Frequency, [string]$Weekday, [string]$Time, [bool]$AutoFix)
+    $path = Join-Path $script:SysPilotRoot 'config.json'
+    $json = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (-not $json.Checkup) { $json | Add-Member -NotePropertyName Checkup -NotePropertyValue ([PSCustomObject]@{}) -Force }
+    $sched = [PSCustomObject]@{ Enabled = $Enabled; Frequency = $Frequency; Weekday = $Weekday; Time = $Time; AutoFix = $AutoFix }
+    if ($json.Checkup.PSObject.Properties['Schedule']) { $json.Checkup.Schedule = $sched }
+    else { $json.Checkup | Add-Member -NotePropertyName Schedule -NotePropertyValue $sched -Force }
+    $json | ConvertTo-Json -Depth 10 | Set-Content $path -Encoding UTF8
+    Reset-SysPilotConfig
+}
+
+function Install-SysPilotCheckupTask {
+    <# Registriert die geplante Aufgabe "SysPilot Checkup" nach dem gespeicherten Zeitplan. #>
+    if (-not (Assert-SysPilotAdmin)) { return $false }
+    $s = Get-SysPilotCheckupSchedule
+    $exe = 'powershell.exe'
+    if ($PSVersionTable.PSEdition -eq 'Core') { $exe = 'pwsh.exe' }
+    $scriptPath = Join-Path $script:SysPilotRoot 'SysPilot.ps1'
+    $action = New-ScheduledTaskAction -Execute $exe -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`" -CheckupAuto"
+    $trigger = $null
+    $time = [DateTime]::ParseExact($s.Time, 'HH:mm', $null)
+    if ($s.Frequency -eq 'Daily') {
+        $trigger = New-ScheduledTaskTrigger -Daily -At $time
+    } else {
+        $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $s.Weekday -At $time
+    }
+    $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+    Register-ScheduledTask -TaskName 'SysPilot Checkup' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+    Write-SysPilotLog "Checkup-Zeitplan installiert: $($s.Frequency) $($s.Weekday) $($s.Time)"
+    return $true
+}
+
+function Remove-SysPilotCheckupTask {
+    if (-not (Assert-SysPilotAdmin)) { return }
+    Unregister-ScheduledTask -TaskName 'SysPilot Checkup' -Confirm:$false -ErrorAction SilentlyContinue
+    Write-SysPilotLog 'Checkup-Zeitplan entfernt'
+}
+
+function Show-SysPilotCheckupScheduleMenu {
+    <# Zeitplan einstellen: taeglich / Wochentag / Uhrzeit / Auto-Fix. #>
+    while ($true) {
+        $s = Get-SysPilotCheckupSchedule
+        $task = Get-ScheduledTask -TaskName 'SysPilot Checkup' -ErrorAction SilentlyContinue
+        $statusTxt = if ($task -and $s.Enabled) { "AKTIV: $($s.Frequency) $($s.Weekday) um $($s.Time)" } else { 'AUS' }
+        $freqTxt = if ($s.Frequency -eq 'Daily') { 'Taeglich' } else { "Woechtentlich ($($s.Weekday))" }
+        $fixTxt = if ($s.AutoFix) { 'AN (behebt automatisch)' } else { 'AUS (nur pruefen)' }
+
+        $items = @(
+            @{ Label = "Status: $statusTxt  (Enter = an/aus)"; Color = $(if ($task -and $s.Enabled) { 'Green' } else { 'Yellow' }); Tag = 'toggle' },
+            @{ Label = "Wie oft: $freqTxt"; Color = 'White'; Tag = 'freq' },
+            @{ Label = "Uhrzeit: $($s.Time)"; Color = 'White'; Tag = 'time' },
+            @{ Label = "Automatisch beheben: $fixTxt"; Color = 'White'; Tag = 'autofix' },
+            @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
+        )
+        $sel = Show-SysPilotArrowMenu -Items $items -Title 'Checkup-Zeitplan' -Footer 'Pfeiltasten, Enter = aendern, Esc = zurueck'
+        if ($null -eq $sel) { return }
+
+        switch ($sel) {
+            'toggle' {
+                if ($task -and $s.Enabled) {
+                    Save-SysPilotCheckupSchedule -Enabled $false -Frequency $s.Frequency -Weekday $s.Weekday -Time $s.Time -AutoFix $s.AutoFix
+                    Remove-SysPilotCheckupTask
+                    Write-Host '  [OK] Zeitplan deaktiviert.' -ForegroundColor Yellow
+                } else {
+                    Save-SysPilotCheckupSchedule -Enabled $true -Frequency $s.Frequency -Weekday $s.Weekday -Time $s.Time -AutoFix $s.AutoFix
+                    if (Install-SysPilotCheckupTask) { Write-Host '  [OK] Zeitplan aktiviert.' -ForegroundColor Green }
+                }
+                Read-SysPilotChoice 'Weiter' | Out-Null
+            }
+            'freq' {
+                $fItems = @(
+                    @{ Label = 'Taeglich'; Color = 'White'; Tag = 'Daily' },
+                    @{ Label = 'Woechtentlich - Montag'; Color = 'White'; Tag = 'Monday' },
+                    @{ Label = 'Woechtentlich - Dienstag'; Color = 'White'; Tag = 'Tuesday' },
+                    @{ Label = 'Woechtentlich - Mittwoch'; Color = 'White'; Tag = 'Wednesday' },
+                    @{ Label = 'Woechtentlich - Donnerstag'; Color = 'White'; Tag = 'Thursday' },
+                    @{ Label = 'Woechtentlich - Freitag'; Color = 'White'; Tag = 'Friday' },
+                    @{ Label = 'Woechtentlich - Samstag'; Color = 'White'; Tag = 'Saturday' },
+                    @{ Label = 'Woechtentlich - Sonntag'; Color = 'White'; Tag = 'Sunday' }
+                )
+                $f = Show-SysPilotArrowMenu -Items $fItems -Title 'Wie oft soll der Checkup laufen?'
+                if ($f) {
+                    if ($f -eq 'Daily') {
+                        Save-SysPilotCheckupSchedule -Enabled $s.Enabled -Frequency 'Daily' -Weekday $s.Weekday -Time $s.Time -AutoFix $s.AutoFix
+                    } else {
+                        Save-SysPilotCheckupSchedule -Enabled $s.Enabled -Frequency 'Weekly' -Weekday $f -Time $s.Time -AutoFix $s.AutoFix
+                    }
+                    if ($task -and $s.Enabled) { Install-SysPilotCheckupTask | Out-Null }
+                    Write-Host '  [OK] Haeufigkeit gespeichert.' -ForegroundColor Green
+                    Read-SysPilotChoice 'Weiter' | Out-Null
+                }
+            }
+            'time' {
+                $t = Read-SysPilotChoice 'Uhrzeit (HH:MM, z.B. 03:00 oder 18:30)'
+                if ($t -match '^([01]?\d|2[0-3]):[0-5]\d$') {
+                    $tNorm = [DateTime]::ParseExact($t, 'H:mm', $null).ToString('HH:mm')
+                    Save-SysPilotCheckupSchedule -Enabled $s.Enabled -Frequency $s.Frequency -Weekday $s.Weekday -Time $tNorm -AutoFix $s.AutoFix
+                    if ($task -and $s.Enabled) { Install-SysPilotCheckupTask | Out-Null }
+                    Write-Host "  [OK] Uhrzeit: $tNorm" -ForegroundColor Green
+                } else {
+                    Write-Host '  [!] Ungueltiges Format. Bitte HH:MM (z.B. 03:00).' -ForegroundColor Red
+                }
+                Read-SysPilotChoice 'Weiter' | Out-Null
+            }
+            'autofix' {
+                Save-SysPilotCheckupSchedule -Enabled $s.Enabled -Frequency $s.Frequency -Weekday $s.Weekday -Time $s.Time -AutoFix (-not $s.AutoFix)
+                Write-Host ('  [OK] Automatisch beheben: ' + $(if (-not $s.AutoFix) { 'AN' } else { 'AUS' })) -ForegroundColor Green
+                Read-SysPilotChoice 'Weiter' | Out-Null
+            }
+        }
+    }
+}
+
 # ---------- Konsolen-UI ----------
 
 function Show-SysPilotCheckup {
@@ -617,14 +750,16 @@ function Show-SysPilotCheckup {
     }
     Write-Host "  $foundCount Bereiche mit Befunden, davon $critCount kritisch." -ForegroundColor $(if ($critCount) { 'Red' } else { 'Yellow' })
 
-    # Auswahl: alles / einzeln / nur ansehen
+    # Auswahl: alles / einzeln / Zeitplan
     $menuItems = @(
         @{ Label = "ALLE automatisch behebaren Probleme beheben (empfohlen)"; Color = 'Green'; Tag = 'all' },
         @{ Label = "Eintraege EINZELN ansehen und auswaehlen (mit Erklaerungen)"; Color = 'White'; Tag = 'pick' },
+        @{ Label = "ZEITPLAN: Checkup automatisch laufen lassen (taeglich/woechentlich)"; Color = 'Cyan'; Tag = 'schedule' },
         @{ Label = "Zurueck"; Color = 'DarkGray'; Tag = $null }
     )
     $sel = Show-SysPilotArrowMenu -Items $menuItems -Title 'Was moechtest du tun?'
     if ($null -eq $sel) { return }
+    if ($sel -eq 'schedule') { Show-SysPilotCheckupScheduleMenu; return }
 
     if ($sel -eq 'all') {
         $fixable = @($results | Where-Object { $_.Found -and $_.AutoFix })
@@ -697,4 +832,5 @@ function Show-SysPilotCheckup {
 
 Export-ModuleMember -Function Get-SysPilotCheckupItems, Invoke-SysPilotCheckupScan, Invoke-SysPilotCheckupFix,
     Show-SysPilotCheckup, Find-SysPilotBrokenShortcuts, Get-SysPilotRegistryOrphans, Get-SysPilotSecurityStatus,
-    Get-SysPilotFolderSizeMB
+    Get-SysPilotFolderSizeMB, Get-SysPilotCheckupSchedule, Save-SysPilotCheckupSchedule,
+    Install-SysPilotCheckupTask, Remove-SysPilotCheckupTask, Show-SysPilotCheckupScheduleMenu
