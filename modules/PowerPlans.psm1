@@ -101,6 +101,13 @@ function Get-SysPilotActiveMode {
     return 'Other'
 }
 
+function Get-SysPilotActivePlanName {
+    <# Name des aktiven Plans (fuer die Anzeige, z.B. 'Ausbalanciert'). #>
+    $p = Get-SysPilotPlanList | Where-Object { $_.Active } | Select-Object -First 1
+    if ($p) { return $p.Name }
+    return $null
+}
+
 function Get-SysPilotCpuLoad {
     (Get-CimInstance Win32_Processor).LoadPercentage
 }
@@ -312,5 +319,5 @@ function Remove-SysPilotAutopilotTask {
 }
 
 Export-ModuleMember -Function Install-SysPilotPlans, Set-SysPilotPlan, Get-SysPilotActiveMode,
-    Get-SysPilotPlanList, Get-SysPilotPlanGuid, Start-SysPilotAutopilot, Get-SysPilotGameRunning, Get-SysPilotActiveAppCategory,
+    Get-SysPilotActivePlanName, Get-SysPilotPlanList, Get-SysPilotPlanGuid, Start-SysPilotAutopilot, Get-SysPilotGameRunning, Get-SysPilotActiveAppCategory,
     Install-SysPilotAutopilotTask, Remove-SysPilotAutopilotTask, Get-SysPilotCpuLoad, Test-SysPilotOnBattery

@@ -9,6 +9,9 @@ Add-Type '[System.Runtime.InteropServices.DllImport("user32.dll")] public static
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $script:Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $script:Root) { $script:Root = $PSScriptRoot }
+if (-not $script:Root) { $script:Root = Split-Path -Parent $PSCommandPath }
+if (-not $script:Root) { $script:Root = (Get-Location).Path }
 Get-ChildItem (Join-Path $script:Root 'modules') -Filter '*.psm1' | ForEach-Object {
     Import-Module $_.FullName -Force -Global -WarningAction SilentlyContinue
 }
@@ -59,6 +62,8 @@ $xaml = @"
       <TextBlock x:Name="AdminBadge" Text="" FontSize="11" Foreground="#FF81C784" VerticalAlignment="Center" Margin="12,0,0,0"/>
       <TextBlock x:Name="PlanBadge" Text="" FontSize="11" Foreground="#FFFFB74D" VerticalAlignment="Center" Margin="12,0,0,0"/>
       <TextBlock x:Name="WatchBadge" Text="  PC wird ueberwacht" FontSize="11" Foreground="#FF81C784" VerticalAlignment="Center" Margin="12,0,0,0"/>
+      <Button x:Name="BtnAdmin" Content="Als Admin starten" FontSize="11" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center"
+              ToolTip="Startet die GUI mit Administrator-Rechten neu (noetig fuer Plaene, Dienste, einige Fixes)"/>
     </StackPanel>
 
     <!-- Temperatur gross -->
@@ -150,12 +155,14 @@ $ctrl = @{}
 foreach ($n in 'CpuText','CpuSpeed','CpuBar','RamText','RamDetail','RamBar','DiskText','DiskDetail','DiskBar',
                  'SysCpu','SysProcs','SysBattery','SysUptime','HogList','AdminBadge','PlanBadge','WatchBadge',
                  'TempBig','TempStatus','TempSource','TempUnitLabel',
-                 'BtnCheckup','BtnToolbox','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu') {
+                 'BtnCheckup','BtnToolbox','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin') {
     $ctrl[$n] = $win.FindName($n)
 }
 
 # Admin-Badge
-$ctrl.AdminBadge.Text = if (Test-SysPilotAdmin) { "ADMIN" } else { "eingeschraenkt" }
+$isAdmin = Test-SysPilotAdmin
+$ctrl.AdminBadge.Text = if ($isAdmin) { "ADMIN" } else { "eingeschraenkt" }
+$ctrl.BtnAdmin.Visibility = if ($isAdmin) { 'Collapsed' } else { 'Visible' }
 $script:tick = 0
 
 # System-Info (einmalig)
@@ -203,7 +210,11 @@ function Update-SysPilotGui {
     $up = (Get-Date) - $os.LastBootUpTime
     $ctrl.SysUptime.Text = ("Laufzeit: {0}d {1}h {2}m" -f $up.Days, $up.Hours, $up.Minutes)
     $mode = Get-SysPilotActiveMode
-    $ctrl.PlanBadge.Text = switch ($mode) { 'Cool' { 'Plan: KUEHL' } 'Performance' { 'Plan: LEISTUNG' } default { 'Plan: fremd' } }
+    $ctrl.PlanBadge.Text = switch ($mode) {
+        'Cool'        { 'Plan: KUEHL' }
+        'Performance' { 'Plan: LEISTUNG' }
+        default       { $n = Get-SysPilotActivePlanName; if ($n) { "Plan: $n" } else { 'Plan: unbekannt' } }
+    }
 
     # Temperatur (gross, in gewaehlter Einheit)
     if (Get-Command Get-SysPilotCpuTemperature -ErrorAction SilentlyContinue) {
@@ -302,7 +313,7 @@ function Show-SysPilotCheckupWindow {
     </Grid.RowDefinitions>
     <DockPanel Grid.Row="0">
       <TextBlock Text="Automatic Checkup" FontSize="20" FontWeight="Bold" Foreground="#FF4FC3F7"/>
-      <TextBlock Text="14 Bereiche, ehrlich erklaert, echt repariert" FontSize="11" Foreground="#FF9E9E9E" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+      <TextBlock Text="15 Bereiche, ehrlich erklaert, echt repariert" FontSize="11" Foreground="#FF9E9E9E" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
     </DockPanel>
     <StackPanel Grid.Row="1" Margin="0,8">
       <ProgressBar x:Name="ScanBar" Height="6" Minimum="0" Maximum="100" Background="#FF2D2D44" Foreground="#FF4FC3F7"/>
@@ -452,7 +463,9 @@ function Show-SysPilotCheckupWindow {
             [System.Windows.MessageBox]::Show('Waehle links einen Eintrag, der ein Werkzeug hat (z.B. Autostart-Last, Bloatware).', 'Checkup', 'OK', 'Information') | Out-Null
             return
         }
-        $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $script:Root 'SysPilot.ps1'), '-Tool', $sel.MenuAction)
+        $root = $script:Root
+        if (-not $root) { $root = Split-Path -Parent $PSCommandPath }
+        $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $root 'SysPilot.ps1'), '-Tool', $sel.MenuAction)
         Start-Process powershell.exe -ArgumentList $args
     })
     $cctrl.BtnClose.Add_Click({ $cwin.Close() })
@@ -512,7 +525,13 @@ function Show-SysPilotToolboxWindow {
             $btn.Add_Click({
                 param($s, $e)
                 $key = $s.Tag
-                $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $script:Root 'SysPilot.ps1'), '-Tool', $key)
+                $root = $script:Root
+                if (-not $root) { $root = Split-Path -Parent $PSCommandPath }
+                if (-not $root) {
+                    [System.Windows.MessageBox]::Show('Installationspfad nicht gefunden. Bitte GUI neu starten.', 'SysPilot', 'OK', 'Warning') | Out-Null
+                    return
+                }
+                $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $root 'SysPilot.ps1'), '-Tool', $key)
                 if ($needsAdmin -and -not (Test-SysPilotAdmin)) {
                     Start-Process powershell.exe -Verb RunAs -ArgumentList $argList
                 } else {
@@ -527,6 +546,14 @@ function Show-SysPilotToolboxWindow {
 }
 
 # Buttons
+$ctrl.BtnAdmin.Add_Click({
+    $ans = [System.Windows.MessageBox]::Show("SysPilot mit Administrator-Rechten neu starten?`n`nDamit funktionieren: Energieplaene, Dienste, alle Checkup-Fixes, Netzwerk-Reparatur.", "Als Admin starten", 'YesNo', 'Question')
+    if ($ans -eq 'Yes') {
+        $script:reallyClose = $true
+        Restart-SysPilotElevated -NoExit
+        $win.Close()
+    }
+})
 $ctrl.BtnCheckup.Add_Click({ Show-SysPilotCheckupWindow })
 $ctrl.BtnToolbox.Add_Click({ Show-SysPilotToolboxWindow })
 $ctrl.BtnCool.Add_Click({ Set-PlanWithFeedback -Mode Cool -Label 'KUEHL'; Update-SysPilotGui })
@@ -669,6 +696,7 @@ $win.Add_KeyDown({
     if ($e.Key -eq 'Escape') { $win.Close(); return }
     if ($e.Key -eq 'Left' -or $e.Key -eq 'Right' -or $e.Key -eq 'Up' -or $e.Key -eq 'Down') {
         $buttons = @($ctrl.BtnCheckup, $ctrl.BtnToolbox, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
+        if ($ctrl.BtnAdmin.Visibility -eq 'Visible') { $buttons = @($ctrl.BtnAdmin) + $buttons }
         $focused = [System.Windows.Input.Keyboard]::FocusedElement
         $idx = [Array]::IndexOf($buttons, $focused)
         if ($idx -lt 0) { $idx = 0 }

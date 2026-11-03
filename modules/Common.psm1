@@ -22,12 +22,17 @@ function Assert-SysPilotAdmin {
 }
 
 function Restart-SysPilotElevated {
+    <# Startet das aktuelle Skript (GUI oder Konsole) mit Admin-Rechten neu.
+       -NoExit: das aufrufende Skript beendet sich selbst (kein hartes exit,
+       damit die GUI sauber aufraeumen kann). #>
+    param([switch]$NoExit)
     if (Test-SysPilotAdmin) { return }
     $exe = "powershell.exe"
     if ($PSVersionTable.PSEdition -eq 'Core') { $exe = "pwsh.exe" }
-    $scriptPath = Join-Path $script:SysPilotRoot "SysPilot.ps1"
-    Start-Process $exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
-    exit
+    $current = $PSCommandPath
+    if (-not $current) { $current = Join-Path $script:SysPilotRoot "SysPilot.ps1" }
+    Start-Process $exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$current`""
+    if (-not $NoExit) { exit }
 }
 
 function Write-SysPilotLog {

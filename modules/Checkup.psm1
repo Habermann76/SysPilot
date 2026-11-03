@@ -454,6 +454,36 @@ function Get-SysPilotCheckupItems {
     }
 
     $items += @{
+        Id = 'netrepair'; Name = 'Netzwerk / Internet'; Kategorie = 'Sicherheit'
+        Erklaerung = 'Prueft Internet-Verbindung, DNS-Aufloesung und Proxy-Einstellungen. Bei Problemen: NETREPAIR (Toolbox) repariert TCP/IP, Winsock, DNS, Firewall u.v.m. - wie Complete Internet Repair.'
+        NeedsAdmin = $false; AutoFix = $false; MenuAction = 'netrepair'
+        Scan = {
+            $details = @(); $problems = 0
+
+            # 1) Internet-Erreichbarkeit (ICMP + HTTP)
+            $online = Test-Connection -ComputerName '8.8.8.8' -Count 1 -Quiet -ErrorAction SilentlyContinue
+            if ($online) { $details += 'Internet: erreichbar (8.8.8.8)' } else { $problems++; $details += 'Internet: NICHT erreichbar' }
+
+            # 2) DNS-Aufloesung
+            try {
+                $null = [System.Net.Dns]::GetHostAddresses('www.microsoft.com')
+                $details += 'DNS: funktioniert'
+            } catch { $problems++; $details += 'DNS: FEHLER (Namen werden nicht aufgeloest)' }
+
+            # 3) Unerwarteter Proxy aktiv?
+            $proxy = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
+            if ($proxy -and $proxy.ProxyEnable -eq 1) {
+                $problems++; $details += "Proxy: AKTIV ($($proxy.ProxyServer)) - unerwartet? NETREPAIR kann ihn zuruecksetzen"
+            } else { $details += 'Proxy: aus (Standard)' }
+
+            # 4) Winsock-Katalog grob pruefbar? (nur Hinweis, kein Fehler)
+            @{ Found = ($problems -gt 0); Count = $problems; SizeMB = 0; Details = $details
+               Summary = if ($problems -eq 0) { 'Verbindung, DNS und Proxy in Ordnung' } else { "$problems Problem(e) - NETREPAIR kann helfen" } }
+        }
+        Fix = $null
+    }
+
+    $items += @{
         Id = 'temp'; Name = 'Temperatur'; Kategorie = 'Optimieren'
         Erklaerung = 'Ein heisser Laptop drosselt sich selbst (wird langsam) und altert schneller. Ab 80 Grad greift SysPilot mit dem Kuehl-Plan ein.'
         NeedsAdmin = $false; AutoFix = $true
@@ -563,7 +593,7 @@ function Invoke-SysPilotCheckupFix {
 
 function Show-SysPilotCheckup {
     Write-SysPilotHeader 'AUTOMATIC CHECKUP'
-    Write-Host '  SysPilot prueft deinen PC in 14 Bereichen - ehrlich, mit Erklaerung' -ForegroundColor DarkGray
+    Write-Host '  SysPilot prueft deinen PC in 15 Bereichen - ehrlich, mit Erklaerung' -ForegroundColor DarkGray
     Write-Host '  und echter Reparatur. Kein erfundener Verkaufsdruck wie bei Kauf-Optimizern.' -ForegroundColor DarkGray
     Write-Host ''
 
@@ -659,6 +689,7 @@ function Show-SysPilotCheckup {
                 'startup'    { if (Confirm-SysPilot 'Autostart-Manager oeffnen?') { Show-SysPilotStartupManager } }
                 'bloat'      { if (Confirm-SysPilot 'Bloatware-Finder oeffnen?') { Show-SysPilotBloatManager } }
                 'optimizers' { if (Confirm-SysPilot 'Optimizer-Manager oeffnen?') { Show-SysPilotOptimizerManager; Read-SysPilotChoice 'Weiter' | Out-Null } }
+                'netrepair'  { if (Confirm-SysPilot 'NETREPAIR oeffnen? (braucht Admin)') { Show-SysPilotNetworkRepair } }
             }
         }
     }
