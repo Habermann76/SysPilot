@@ -335,9 +335,9 @@ function Show-SysPilotMenu {
                     '20' {
                         $gui = Join-Path $script:Root 'SysPilot-GUI.ps1'
                         if (Test-SysPilotAdmin) {
-                            Start-Process powershell.exe -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',$gui
+                            Start-Process powershell.exe -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui
                         } else {
-                            Start-Process powershell.exe -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',$gui
+                            Start-Process powershell.exe -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui
                         }
                     }
                     '21' { Show-SysPilotExtensionManager }

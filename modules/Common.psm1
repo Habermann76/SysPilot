@@ -31,7 +31,7 @@ function Restart-SysPilotElevated {
     if ($PSVersionTable.PSEdition -eq 'Core') { $exe = "pwsh.exe" }
     $current = $PSCommandPath
     if (-not $current) { $current = Join-Path $script:SysPilotRoot "SysPilot.ps1" }
-    Start-Process $exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$current`""
+    Start-Process $exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$current`""
     if (-not $NoExit) { exit }
 }
 
