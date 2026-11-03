@@ -1,6 +1,9 @@
 # SysPilot - Guardian: wacht ueber SysPilot und startet es neu, falls es nicht laeuft
 #Requires -Version 5.1
 
+# Wurzelordner (jedes Modul hat einen eigenen $script:-Bereich, die Variable aus Common.psm1 ist hier nicht sichtbar)
+$script:SysPilotRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+
 function Get-SysPilotGuardianConfig {
     <# Liest die Guardian-Einstellungen aus config.json -> Guardian. #>
     $cfg = Get-SysPilotConfig
@@ -59,9 +62,9 @@ function Invoke-SysPilotGuardian {
     if (Test-SysPilotGuiRunning) { return }
 
     $gui = Join-Path $script:SysPilotRoot 'SysPilot-GUI.ps1'
-    $args = @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui)
-    if ($g.StartMode -eq 'TrayOnly') { $args += '-StartHidden' }
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList $args
+    $guiArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui)
+    if ($g.StartMode -eq 'TrayOnly') { $guiArgs += '-StartHidden' }
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList (ConvertTo-SysPilotArgString $guiArgs)
     Write-SysPilotLog "Guardian: SysPilot neu gestartet (Modus: $($g.StartMode))"
 }
 

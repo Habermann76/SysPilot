@@ -42,6 +42,11 @@ if ($con -ne [IntPtr]::Zero) { [SysPilotWin]::ShowWindow($con, 0) | Out-Null }  
 # Nur EINE GUI-Instanz: laeuft sie schon, vorhandenes Fenster nach vorne holen und beenden
 $script:guiMutex = New-Object System.Threading.Mutex($true, 'Local\SysPilotGUI-SingleInstance')
 if (-not $script:guiMutex.WaitOne(0)) {
+    # Laeuft schon (evtl. nur im Tray): die laufende Instanz bitten, ihr Fenster zu zeigen.
+    # (Nicht bei -StartHidden, z.B. Autostart/Guardian - dann soll nichts aufpoppen.)
+    if (-not $StartHidden) {
+        try { $evt = New-Object System.Threading.EventWaitHandle($false, 'AutoReset', 'Local\SysPilotGUI-Show'); $evt.Set() | Out-Null } catch { }
+    }
     $existing = [SysPilotWin]::FindGuiWindow()
     if ($existing -ne [IntPtr]::Zero) {
         [SysPilotWin]::ShowWindow($existing, 9) | Out-Null   # SW_RESTORE
@@ -49,6 +54,8 @@ if (-not $script:guiMutex.WaitOne(0)) {
     }
     exit
 }
+
+try { $script:showEvt = New-Object System.Threading.EventWaitHandle($false, 'AutoReset', 'Local\SysPilotGUI-Show') } catch { $script:showEvt = $null }
 
 $script:Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $script:Root) { $script:Root = $PSScriptRoot }
@@ -514,8 +521,8 @@ function Show-SysPilotCheckupWindow {
         }
         $root = $script:Root
         if (-not $root) { $root = Split-Path -Parent $PSCommandPath }
-        $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $root 'SysPilot.ps1'), '-Tool', $sel.MenuAction)
-        Start-Process powershell.exe -ArgumentList $args
+        $toolArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $root 'SysPilot.ps1'), '-Tool', $sel.MenuAction)
+        Start-Process powershell.exe -ArgumentList (ConvertTo-SysPilotArgString $toolArgs)
     })
     $cctrl.BtnClose.Add_Click({ $cwin.Close() })
 
@@ -581,10 +588,15 @@ function Show-SysPilotToolboxWindow {
                     return
                 }
                 $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $root 'SysPilot.ps1'), '-Tool', $key)
-                if ($needsAdmin -and -not (Test-SysPilotAdmin)) {
-                    Start-Process powershell.exe -Verb RunAs -ArgumentList $argList
-                } else {
-                    Start-Process powershell.exe -ArgumentList $argList
+                $cmdLine = ConvertTo-SysPilotArgString $argList
+                try {
+                    if ($needsAdmin -and -not (Test-SysPilotAdmin)) {
+                        Start-Process powershell.exe -Verb RunAs -ArgumentList $cmdLine
+                    } else {
+                        Start-Process powershell.exe -ArgumentList $cmdLine
+                    }
+                } catch {
+                    [System.Windows.MessageBox]::Show("Das Werkzeug konnte nicht gestartet werden:`n$($_.Exception.Message)", 'SysPilot', 'OK', 'Warning') | Out-Null
                 }
             }.GetNewClosure())
             $wrap.Children.Add($btn) | Out-Null
@@ -611,10 +623,11 @@ $ctrl.BtnAuto.Add_Click({
     if ($ans -ne 'Yes') { return }
     $root = $script:Root
     $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $root 'SysPilot.ps1'), '-Tool', 'autooptimize')
+    $cmdLine = ConvertTo-SysPilotArgString $argList
     if (Test-SysPilotAdmin) {
-        Start-Process powershell.exe -ArgumentList $argList
+        Start-Process powershell.exe -ArgumentList $cmdLine
     } else {
-        Start-Process powershell.exe -Verb RunAs -ArgumentList $argList
+        Start-Process powershell.exe -Verb RunAs -ArgumentList $cmdLine
     }
 })
 $ctrl.BtnCool.Add_Click({ Set-PlanWithFeedback -Mode Cool -Label 'KUEHL'; Update-SysPilotGui })
@@ -664,13 +677,13 @@ $ctrl.BtnLHM.Add_Click({
         } else {
             # Als Admin neu starten und LHM installieren
             $scriptPath = Join-Path $script:Root 'SysPilot-GUI.ps1'
-            Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"Import-Module '$script:Root\modules\Temperature.psm1' -Force; Import-Module '$script:Root\modules\Common.psm1' -Force; Install-SysPilotLHM; Start-Process powershell.exe -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','$scriptPath'`""
+            Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"Import-Module '$script:Root\modules\Temperature.psm1' -Force; Import-Module '$script:Root\modules\Common.psm1' -Force; Install-SysPilotLHM; Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \`"$scriptPath\`"'`""
         }
     }
     Update-SysPilotGui
 })
 $ctrl.BtnMenu.Add_Click({
-    Start-Process powershell.exe -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $script:Root 'SysPilot.ps1')
+    Start-Process powershell.exe -ArgumentList (ConvertTo-SysPilotArgString @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $script:Root 'SysPilot.ps1')))
 })
 
 # Doppelklick auf Fresser -> Details + Aktion/Howto
@@ -726,6 +739,11 @@ $miCool   = $trayMenu.Items.Add('Kuehl-Modus')
 $miPerf   = $trayMenu.Items.Add('Leistung')
 $miFree   = $trayMenu.Items.Add('RAM freigeben')
 $trayMenu.Items.Add('-') | Out-Null
+$miTrayStart = New-Object System.Windows.Forms.ToolStripMenuItem 'Beim Start nur im Tray (ohne Fenster)'
+$miTrayStart.CheckOnClick = $true
+$miTrayStart.Checked = [bool]($startCfg -and $startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray)
+$trayMenu.Items.Add($miTrayStart) | Out-Null
+$trayMenu.Items.Add('-') | Out-Null
 $miExit   = $trayMenu.Items.Add('Beenden')
 $script:notifyIcon.ContextMenuStrip = $trayMenu
 
@@ -733,6 +751,7 @@ $miShow.Add_Click({ $win.Show(); $win.WindowState = 'Normal'; $win.Activate() })
 $miCool.Add_Click({ Set-PlanWithFeedback -Mode Cool -Label 'KUEHL' })
 $miPerf.Add_Click({ Set-PlanWithFeedback -Mode Performance -Label 'LEISTUNG' })
 $miFree.Add_Click({ Clear-SysPilotWorkingSets | Out-Null; if (Test-SysPilotAdmin) { Clear-SysPilotStandbyList | Out-Null } })
+$miTrayStart.Add_Click({ Set-SysPilotConfigValue -Section 'Start' -Key 'StartInTray' -Value ([bool]$miTrayStart.Checked) })
 $miExit.Add_Click({ $script:reallyClose = $true; $win.Close() })
 $script:notifyIcon.Add_DoubleClick({ $win.Show(); $win.WindowState = 'Normal'; $win.Activate() })
 
@@ -774,8 +793,15 @@ $timer.Interval = [TimeSpan]::FromSeconds(2)
 $timer.Add_Tick({ Update-SysPilotGui })
 $timer.Start()
 
+# Zweiter Start (Verknuepfung) waehrend die GUI im Tray laeuft -> Fenster zeigen
+$showTimer = New-Object System.Windows.Threading.DispatcherTimer
+$showTimer.Interval = [TimeSpan]::FromMilliseconds(400)
+$showTimer.Add_Tick({ if ($script:showEvt -and $script:showEvt.WaitOne(0)) { $win.Show(); $win.WindowState = 'Normal'; $win.Activate() | Out-Null } })
+$showTimer.Start()
+
 Update-SysPilotGui
-if ($StartHidden) {
+$startInTray = [bool]($StartHidden -or ($startCfg -and $startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray))
+if ($startInTray) {
     # Direkt in den Tray starten (z.B. wenn das Text-Menue beim Beenden die GUI uebergibt).
     # Wichtig: Hide() VOR ShowDialog() - sonst blockiert ShowDialog() nicht und das Skript beendet sich sofort.
     $script:notifyIcon.Visible = $true
@@ -784,6 +810,7 @@ if ($StartHidden) {
 }
 $win.ShowDialog() | Out-Null
 $timer.Stop()
+$showTimer.Stop()
 $script:notifyIcon.Visible = $false
 $script:notifyIcon.Dispose()
 if ($script:guiMutex) { $script:guiMutex.ReleaseMutex() | Out-Null; $script:guiMutex.Dispose() }
