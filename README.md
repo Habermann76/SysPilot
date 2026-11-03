@@ -54,14 +54,16 @@ I'd appreciate it. 💛
 ## Start
 
 Rechtsklick auf `SysPilot.ps1` → **Mit PowerShell ausführen**.
-Keine Start-Frage — Admin-Rechte holst du dir bei Bedarf über Menü **[16]**.
+Keine Start-Frage — Admin-Rechte holst du dir bei Bedarf über Menü **[16]**
+oder den **„Als Admin starten"-Button** in der GUI.
 Ohne Admin laufen Analyse, Autostart, Prioritäten und Skripte trotzdem.
-(Wer die alte Start-Abfrage will: `config.json` → `Start.AskForAdmin = true`.)
+(Wer die alte Start-Abfrage will: `config.json` → `Start.AskForAdmin = true`.
+Wer SysPilot immer erhöht will: Einstellungen → „Immer als Administrator starten".)
 
 **Steuerung im Text-Menü:**
 - **Pfeiltasten ↑ ↓** = Auswahl bewegen
 - **Enter** = ausführen
-- **Esc** = beenden
+- **Esc** = beenden (SysPilot läuft im Hintergrund weiter — Tray-Symbol)
 - (Maus geht in der Konsole leider nicht — dafür ist die GUI da, Menü **20**)
 
 Oder im Terminal:
@@ -363,26 +365,27 @@ die Deinstallation des zugehörigen Programms an.
 
 ## Automatic Checkup (Menüpunkt 24 / GUI-Button CHECKUP)
 
-Der Komplett-Check für deinen PC — inspiriert von Advanced SystemCare, aber **ehrlich**:
-keine erfundenen „Probleme" als Verkaufsdruck, sondern 14 reale Bereiche mit
-verständlicher Erklärung und echter Reparatur:
+Der Komplett-Check für deinen PC — **ehrlich**: keine erfundenen „Probleme" als
+Verkaufsdruck, sondern 15 reale Bereiche mit ausführlicher Erklärung und echter
+Reparatur. Jeder Bereich sagt dir **genau, was gemacht wird — und was nicht.**
 
-| Bereich | Was SysPilot prüft |
-|---|---|
-| Datenmüll | Temp, Update-Cache, Caches — löschbar |
-| Spuren der Privatsphäre | Zuletzt geöffnete Dateien, DNS-Verlauf, Sprunglisten |
-| Ungültige Verknüpfungen | Desktop/Startmenü-Links auf gelöschte Programme |
-| Verwaiste Registry-Einträge | Tote Verweise (Autostart, Deinstallation, App Paths) — mit Backup |
-| Antiviren-Schutz | Defender aktiv? Echtzeitschutz? Signaturen aktuell? |
-| Firewall | Alle Profile aktiv? |
-| Systemschwächen | SMBv1, PowerShell v2, UAC, ausstehender Neustart |
-| Autostart-Last | Mehr als 15 aktive Einträge bremsen |
-| RAM-Druck | Ab 85% wird ausgelagert — freigeben hilft sofort |
-| Festplatten-Füllstand | Unter 15% frei bremst Windows |
-| Dienste-Optimierung | Ausstehende geprüfte Empfehlungen |
-| Bekannte Bloatware | Die üblichen Verdächtigen |
-| Optimizer-Konflikte | Mehrere Optimizer bremsen sich gegenseitig |
-| Temperatur | Ab 80°C greift der Kühl-Plan |
+| Bereich | Was SysPilot prüft | Was der Fix macht (und was NICHT) |
+|---|---|---|
+| Datenmüll | Temp, Update-Cache, Caches | Löscht nur temporaere Dateien — deine Dokumente/Bilder bleiben |
+| Spuren der Privatsphäre | Zuletzt geöffnete Dateien, DNS-Verlauf, Sprunglisten | Löscht nur lokale Verlaufs-Listen. **Schaltet KEINE personalisierte Werbung, Standort oder Telemetrie ab** (das sind separate Schalter, die du selbst steuerst) |
+| Tote Verknüpfungen | Desktop/Startmenü-Links auf gelöschte Programme | Löscht nur tote Links — keine funktionierenden Verknüpfungen |
+| Tote Registry-Verweise | Verweise auf gelöschte Dateien (Autostart, Deinstallation, App Paths) | Entfernt tote Verweise, vorher Backup (.reg). **Ändert nichts an Netzwerk, Freigaben oder installierten Programmen** |
+| Virenschutz-Status | Defender aktiv? Echtzeitschutz? Signaturen aktuell? | Schaltet Echtzeitschutz ein + aktualisiert Signaturen. **Deinstalliert kein Antivirus** |
+| Firewall-Status | Alle Profile (Privat/Öffentlich/Domain) aktiv? | Schaltet abgeschaltete Profile ein. **Ändert keine Regeln, blockiert keine Programme** |
+| System-Härtung | SMBv1, PowerShell v2, UAC, ausstehender Neustart | **SMBv1 nur nach Rückfrage** (alte NAS/Fritz!Box brauchen es evtl. noch!). **Netzwerkerkennung, Dateifreigabe und Samba bleiben an** |
+| Autostart-Last | Mehr als 15 aktive Einträge? | Ändert hier nichts — öffnet den Autostart-Manager (deaktiviert, löscht nicht) |
+| RAM-Druck | Ab 85% wird ausgelagert | Leert Arbeitsseiten + Standby-Cache — laufende Programme bleiben |
+| Festplatten-Füllstand | Unter 15% frei bremst Windows | Löscht nur temporaere Dateien (wie „Datenmüll") |
+| Dienste-Optimierung | Ausstehende geprüfte Empfehlungen | Stellt Dienste auf „Manuell". **Enthält KEINE Dienste für Netzwerkerkennung, Dateifreigabe, Samba oder Standort** — die bleiben an |
+| Bloatware-Radar | Bekannte Werbe-Apps | Ändert hier nichts — öffnet den Bloatware-Finder (jede App einzeln, erst nach Bestätigung) |
+| Optimizer-Duplikate | Mehrere Optimizer bremsen sich | Ändert hier nichts — öffnet den Optimizer-Manager |
+| Netzwerk-Check | Internet, DNS, Proxy in Ordnung? | Ändert hier nichts — öffnet NETREPAIR (jede Reparatur einzeln bestätigt). **Schaltet nicht Netzwerkerkennung/Freigabe/Samba ab** |
+| Temperatur | Ab 80°C | Aktiviert den Kühl-Plan (CPU-Boost aus) — jederzeit über GUI umkehrbar |
 
 Ablauf: **Scan mit Fortschrittsanzeige → Ergebnis mit Ampel ([OK]/[i]/[!]) →
 „Alle beheben" oder einzeln ansehen (mit Erklärung) und auswählen.**
@@ -391,12 +394,26 @@ Was deine Entscheidung braucht (Autostart, Bloatware), öffnet direkt das passen
 In der GUI: eigener **CHECKUP**-Button mit Fenster, Häkchen zum Abwählen,
 Hintergrund-Scan (Oberfläche bleibt flüssig) und Erklärungstext pro Eintrag.
 
+### Checkup-Zeitplan (automatisch laufen lassen)
+
+Im Checkup-Menü (oder Toolbox → „Checkup-Zeitplan") stellst du ein, **wann der
+Checkup von allein läuft**:
+
+- **Wie oft:** täglich oder an einem Wochentag (Mo–So)
+- **Uhrzeit:** z. B. 03:00 (nachts) oder 18:30
+- **Automatisch beheben:** an (repariert sofort) oder aus (nur prüfen)
+
+Läuft als geplante Aufgabe „SysPilot Checkup" im Hintergrund — du musst nicht
+dran denken.
+
 ## Toolbox (Menüpunkt 25 / GUI-Button Toolbox)
 
-Alle 24 Werkzeuge in 4 Kategorien, jedes mit ehrlicher Erklärung:
+Alle 29 Werkzeuge in 4 Kategorien, jedes mit ehrlicher Erklärung:
 
-- **System optimieren**: Energiepläne, Autopilot, Autostart-Manager, Dienste-Tuner,
-  RAM freigeben, Prioritäten, Gaming-Tweaks, Skripte
+- **System optimieren**: **Vollautomatik** (Auto-Optimierung), Energiepläne,
+  Autopilot, **Autopilot bei Anmeldung**, **Smart Boost** (RAM automatisch
+  freigeben), **Checkup-Zeitplan**, **SysPilot Guardian**, Autostart-Manager,
+  Dienste-Tuner, RAM freigeben, Prioritäten, Gaming-Tweaks, Skripte
 - **Sicherheit & Reparatur**: Sicherheits-Check, Netzwerk-Reparatur (14 Reparaturen),
   Adapter identifizieren, Windows Update, Backup
 - **System bereinigen**: Datenträger, Bloatware, UWP-Apps, **Shortcut-Fixer**,
@@ -405,6 +422,17 @@ Alle 24 Werkzeuge in 4 Kategorien, jedes mit ehrlicher Erklärung:
 
 In der GUI öffnet die Toolbox ein eigenes Fenster mit Kategorien — jeder Klick
 startet das Werkzeug in einem eigenen Fenster (mit Admin-Rechten, falls nötig).
+
+## SysPilot Guardian (läuft SysPilot nicht mehr?)
+
+Der **Guardian** (Toolbox → „SysPilot Guardian") wacht über SysPilot: Eine
+geplante Aufgabe prüft **alle 2 Minuten**, ob die GUI läuft — und startet sie
+automatisch neu, falls nicht. Du wählst den Start-Modus:
+
+- **GUI offen (Standard):** Fenster wird gezeigt
+- **Nur im Tray (versteckt):** startet im Hintergrund, nur das Tray-Symbol
+
+So läuft SysPilot immer weiter, ohne dass du dich kümmern musst.
 
 ## Sicherheit
 
