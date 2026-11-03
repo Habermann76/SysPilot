@@ -117,6 +117,17 @@ für Gaming, Kompilieren, VS Code.
 Menüpunkt **4** richtet ein, dass der Autopilot bei jeder Anmeldung
 automatisch (versteckt, im Hintergrund) startet.
 
+**Mit Windows starten (drei Wege, je nachdem was du willst):**
+
+| Was | Wie | Effekt |
+|---|---|---|
+| **Autopilot bei Anmeldung** | Menü **4** oder Toolbox → „Autopilot bei Anmeldung" | Energiepläne + Prioritäten laufen automatisch im Hintergrund |
+| **GUI mit Windows starten** | Toolbox → „SysPilot Guardian" → an | SysPilot startet bei jeder Anmeldung (GUI offen oder nur Tray — wählbar) und wird neu gestartet, falls es abstürzt |
+| **Beides** | Autopilot-Task + Guardian | Volle Automatik: Optimierung + Überwachung ab Anmeldung |
+
+Beim **Installer** sind die Häkchen „Autopilot bei Windows-Anmeldung starten"
+und „Smart Boost" standardmäßig an — einmal installieren, fertig.
+
 ## Prioritäten (config.json)
 
 - **ImportantProcesses** → `AboveNormal`: VS Code, Compiler (cl, link, msbuild,
