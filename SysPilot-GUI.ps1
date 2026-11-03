@@ -3,6 +3,9 @@
 param([switch]$AsAdmin)
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms
+# DPI-aware: scharfe Darstellung und korrektes Layout bei 125%/150% Bildschirmskalierung
+Add-Type '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetProcessDPIAware();' -Name DpiAware -Namespace SysPilotGui
+[SysPilotGui.DpiAware]::SetProcessDPIAware() | Out-Null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $script:Root = Split-Path -Parent $MyInvocation.MyCommand.Path

@@ -9,6 +9,16 @@ Reines PowerShell, keine Installation, keine Telemetrie, alles bleibt auf deinem
   <sub>Live-Dashboard: CPU-Temperatur (groß), CPU/RAM/Disk-Balken, Top-Ressourcen-Fresser mit Maßnahmen, Ein-Klick-Aktionen</sub>
 </p>
 
+<p align="center">
+  <img src="assets/screenshot-checkup.png" alt="Automatic Checkup — 14 Bereiche mit ehrlichen Erklärungen und abwählbaren Fixes" width="800">
+  <br>
+  <sub>Automatic Checkup: 14 Bereiche, ehrlich erklärt, echt repariert — Fixes einzeln abwählbar</sub>
+  <br><br>
+  <img src="assets/screenshot-toolbox.png" alt="Toolbox — 24 Werkzeuge in 4 Kategorien mit Erklärungen" width="700">
+  <br>
+  <sub>Toolbox: 24 Werkzeuge nach Kategorie, jedes mit verständlicher Erklärung</sub>
+</p>
+
 ---
 
 ## 💛 Spenden / Donate
