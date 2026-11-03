@@ -192,4 +192,83 @@ function Show-SysPilotStats {
     $data | Select-Object -Last 10 | Format-Table Zeit, CPU_Pct, RAM_Pct, RAM_FreiMB, Prozesse, TopProzess, Plan -AutoSize
 }
 
-Export-ModuleMember -Function Get-SysPilotHogs, Show-SysPilotHogs, Write-SysPilotStatSample, Show-SysPilotStats, Invoke-SysPilotHogAction
+function Show-SysPilotReport {
+    Write-SysPilotHeader "System-Analyse"
+    $cfg = Get-SysPilotConfig
+
+    # Basis
+    $os = Get-CimInstance Win32_OperatingSystem
+    $cpu = Get-CimInstance Win32_Processor
+    $totalGB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
+    $freeGB = [math]::Round($os.FreePhysicalMemory / 1MB, 1)
+    Write-Host ("  CPU:      {0} ({1} Kerne/{2} Threads)" -f $cpu.Name.Trim(), $cpu.NumberOfCores, $cpu.NumberOfLogicalProcessors)
+    Write-Host ("  RAM:      {0} GB gesamt, {1} GB frei ({2}% belegt)" -f $totalGB, $freeGB, [math]::Round(100 * ($totalGB - $freeGB) / $totalGB))
+    Write-Host ("  CPU-Last: {0}%" -f $cpu.LoadPercentage)
+    $disk = Get-PSDrive C
+    Write-Host ("  Platte C: {0} GB frei von {1} GB" -f [math]::Round($disk.Free / 1GB, 1), [math]::Round(($disk.Used + $disk.Free) / 1GB, 1))
+
+    # Aktiver Energieplan
+    $mode = Get-SysPilotActiveMode
+    $plans = Get-SysPilotPlanList
+    $active = ($plans | Where-Object { $_.Active }).Name
+    $modeTxt = switch ($mode) { 'Cool' { 'SysPilot KUEHL' } 'Performance' { 'SysPilot LEISTUNG' } default { "fremd ($active)" } }
+    Write-Host ("  Energie:  {0}" -f $modeTxt)
+
+    # Top RAM-Verbraucher (nach Programm-Familie gruppiert)
+    Write-Host ""
+    Write-Host "  Top RAM-Verbraucher (gruppiert):" -ForegroundColor Cyan
+    $groups = Get-Process | Group-Object ProcessName | ForEach-Object {
+        [PSCustomObject]@{
+            Name  = $_.Name
+            Anzahl = $_.Count
+            RAM_MB = [math]::Round(($_.Group | Measure-Object WorkingSet64 -Sum).Sum / 1MB)
+        }
+    } | Sort-Object RAM_MB -Descending | Select-Object -First 12
+    $groups | Format-Table -AutoSize | Out-String | ForEach-Object { $_.Trim() } | Write-Host
+
+    # Warnungen
+    Write-Host "  Warnungen:" -ForegroundColor Cyan
+    $warnings = 0
+
+    # Bandbreiten-Sharing
+    $sharing = Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -match 'honeygain|earnapp|bright'
+    }
+    if ($sharing) {
+        $warnings++
+        Write-Host "  [!] BANDBREITEN-SHARING laeuft: $($sharing.Name -join ', ')" -ForegroundColor Red
+        Write-Host "      Diese Apps verkaufen deine Internet-IP als Proxy. Deinstallation empfohlen (Menue 6)." -ForegroundColor Red
+    }
+
+    # Optimizer-Duplikate
+    $installed = Get-SysPilotInstalled
+    $optimizers = $installed | Where-Object { $_.Hinweis -match 'Optimizer-Duplikate' }
+    if ($optimizers.Count -gt 1) {
+        $warnings++
+        Write-Host "  [!] $($optimizers.Count) PC-Optimizer gleichzeitig installiert (bremsen sich gegenseitig):" -ForegroundColor Yellow
+        $optimizers | ForEach-Object { Write-Host "      - $($_.DisplayName)" -ForegroundColor Yellow }
+    }
+
+    # Autostart-Last
+    $startup = Get-SysPilotStartupItems
+    $activeStartup = ($startup | Where-Object { $_.Aktiv }).Count
+    if ($activeStartup -gt 15) {
+        $warnings++
+        Write-Host "  [!] $activeStartup aktive Autostart-Eintraege (viel!). Manager: Menue 5." -ForegroundColor Yellow
+    } else {
+        Write-Host "  [OK] $activeStartup aktive Autostart-Eintraege." -ForegroundColor Green
+    }
+
+    # Dienste
+    $svcPlan = Get-SysPilotServicePlan
+    $pending = ($svcPlan | Where-Object { $_.Aenderung }).Count
+    if ($pending -gt 0) {
+        Write-Host "  [i] $pending Dienste koennten optimiert werden (Menue 7)." -ForegroundColor Cyan
+    } else {
+        Write-Host "  [OK] Dienste sind optimiert." -ForegroundColor Green
+    }
+
+    if ($warnings -eq 0) { Write-Host "  [OK] Keine kritischen Warnungen." -ForegroundColor Green }
+}
+
+Export-ModuleMember -Function Get-SysPilotHogs, Show-SysPilotHogs, Write-SysPilotStatSample, Show-SysPilotStats, Invoke-SysPilotHogAction, Show-SysPilotReport

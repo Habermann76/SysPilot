@@ -113,6 +113,8 @@ $xaml = @"
     <!-- Aktionen -->
     <Border Grid.Row="4" Background="#FF252538" CornerRadius="8" Padding="8" Margin="0,10,0,0">
       <WrapPanel HorizontalAlignment="Center">
+        <Button x:Name="BtnCheckup" Content="CHECKUP" FontWeight="Bold" ToolTip="Automatic Checkup: Komplett-Scan mit Erklaerungen und Reparatur"/>
+        <Button x:Name="BtnToolbox" Content="Toolbox" ToolTip="Alle Werkzeuge nach Kategorien"/>
         <Button x:Name="BtnCool" Content="Kuehl"/>
         <Button x:Name="BtnPerf" Content="Leistung"/>
         <Button x:Name="BtnFreeRam" Content="RAM freigeben"/>
@@ -145,7 +147,7 @@ $ctrl = @{}
 foreach ($n in 'CpuText','CpuSpeed','CpuBar','RamText','RamDetail','RamBar','DiskText','DiskDetail','DiskBar',
                  'SysCpu','SysProcs','SysBattery','SysUptime','HogList','AdminBadge','PlanBadge','WatchBadge',
                  'TempBig','TempStatus','TempSource','TempUnitLabel',
-                 'BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu') {
+                 'BtnCheckup','BtnToolbox','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu') {
     $ctrl[$n] = $win.FindName($n)
 }
 
@@ -270,7 +272,260 @@ function Set-PlanWithFeedback {
     }
 }
 
+# --- Checkup-Fenster (nativ, Scan laeuft im Hintergrund-Runspace) ---
+function Show-SysPilotCheckupWindow {
+    $cxaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SysPilot - Automatic Checkup" Width="740" Height="580" MinWidth="640" MinHeight="480"
+        Background="#FF1E1E2E" Foreground="#FFE0E0E0"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip">
+  <Window.Resources>
+    <Style TargetType="Button">
+      <Setter Property="Background" Value="#FF2D2D44"/><Setter Property="Foreground" Value="#FFE0E0E0"/>
+      <Setter Property="BorderBrush" Value="#FF4A4A6A"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/><Setter Property="Margin" Value="3"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style TargetType="CheckBox"><Setter Property="Foreground" Value="#FFE0E0E0"/></Style>
+  </Window.Resources>
+  <Grid Margin="14">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <DockPanel Grid.Row="0">
+      <TextBlock Text="Automatic Checkup" FontSize="20" FontWeight="Bold" Foreground="#FF4FC3F7"/>
+      <TextBlock Text="14 Bereiche, ehrlich erklaert, echt repariert" FontSize="11" Foreground="#FF9E9E9E" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+    </DockPanel>
+    <StackPanel Grid.Row="1" Margin="0,8">
+      <ProgressBar x:Name="ScanBar" Height="6" Minimum="0" Maximum="100" Background="#FF2D2D44" Foreground="#FF4FC3F7"/>
+      <TextBlock x:Name="StatusText" Text="Bereit. Starte den Scan, um deinen PC zu pruefen." FontSize="11" Foreground="#FF9E9E9E" Margin="0,4,0,0"/>
+    </StackPanel>
+    <ListView x:Name="ResultList" Grid.Row="2" Background="#FF252538" BorderThickness="0">
+      <ListView.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Orientation="Horizontal" Margin="2">
+            <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding Icon}" Width="34" VerticalAlignment="Center" Foreground="{Binding IconColor}" FontWeight="Bold"/>
+            <TextBlock Text="{Binding Name}" Width="200" VerticalAlignment="Center" Foreground="#FFE0E0E0"/>
+            <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" Foreground="#FF9E9E9E"/>
+          </StackPanel>
+        </DataTemplate>
+      </ListView.ItemTemplate>
+    </ListView>
+    <Border Grid.Row="3" Background="#FF252538" CornerRadius="6" Padding="8" Margin="0,8">
+      <TextBlock x:Name="DetailText" Text="Waehle einen Eintrag, um die Erklaerung zu sehen." TextWrapping="Wrap" FontSize="12" Foreground="#FFB0B0C0"/>
+    </Border>
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center">
+      <Button x:Name="BtnScan" Content="Scan starten"/>
+      <Button x:Name="BtnFixSelected" Content="Ausgewaehlte beheben"/>
+      <Button x:Name="BtnFixAll" Content="Alle beheben"/>
+      <Button x:Name="BtnTool" Content="Werkzeug oeffnen" ToolTip="Fuer Bereiche, die deine Entscheidung brauchen"/>
+      <Button x:Name="BtnClose" Content="Schliessen"/>
+    </StackPanel>
+  </Grid>
+</Window>
+"@
+    $creader = New-Object System.Xml.XmlNodeReader ([xml]$cxaml)
+    $cwin = [Windows.Markup.XamlReader]::Load($creader)
+    $cwin.Owner = $win
+    $cctrl = @{}
+    foreach ($n in 'ScanBar','StatusText','ResultList','DetailText','BtnScan','BtnFixSelected','BtnFixAll','BtnTool','BtnClose') {
+        $cctrl[$n] = $cwin.FindName($n)
+    }
+    $script:checkupItems = @()
+
+    $scanTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $scanTimer.Interval = [TimeSpan]::FromMilliseconds(400)
+
+    $startScan = {
+        $cctrl.BtnScan.IsEnabled = $false
+        $cctrl.ScanBar.IsIndeterminate = $true
+        $cctrl.StatusText.Text = 'Scan laeuft ...'
+        $cctrl.ResultList.ItemsSource = $null
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.ApartmentState = 'STA'; $rs.ThreadOptions = 'ReuseThread'
+        $rs.Open()
+        $rs.SessionStateProxy.SetVariable('Root', $script:Root)
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript({
+            Get-ChildItem (Join-Path $Root 'modules') -Filter '*.psm1' | ForEach-Object { Import-Module $_.FullName -Force -Global -WarningAction SilentlyContinue }
+            Invoke-SysPilotCheckupScan -Quiet
+        })
+        $script:scanPs = $ps; $script:scanRs = $rs
+        $script:scanHandle = $ps.BeginInvoke()
+        $scanTimer.Start()
+    }
+
+    $scanTimer.Add_Tick({
+        if (-not $script:scanHandle.IsCompleted) { return }
+        $scanTimer.Stop()
+        $cctrl.ScanBar.IsIndeterminate = $false
+        $cctrl.ScanBar.Value = 100
+        $cctrl.BtnScan.IsEnabled = $true
+        $out = $script:scanPs.EndInvoke($script:scanHandle)
+        $script:scanPs.Dispose(); $script:scanRs.Close(); $script:scanRs.Dispose()
+
+        $script:checkupItems = @($out | ForEach-Object {
+            $icon = if ($_.Skipped) { '?' } elseif (-not $_.Found) { 'OK' } elseif ($_.Critical) { '!!' } else { 'i' }
+            $color = if ($_.Skipped) { '#FF666677' } elseif (-not $_.Found) { '#FF81C784' } elseif ($_.Critical) { '#FFEF5350' } else { '#FFFFB74D' }
+            [PSCustomObject]@{
+                Selected   = ($_.Found -and $_.AutoFix)
+                Icon       = $icon
+                IconColor  = $color
+                Name       = $_.Name
+                Summary    = $_.Summary
+                Erklaerung = $_.Erklaerung
+                Id         = $_.Id
+                Found      = $_.Found
+                AutoFix    = $_.AutoFix
+                MenuAction = $_.MenuAction
+                Details    = $_.Details
+            }
+        })
+        $cctrl.ResultList.ItemsSource = $script:checkupItems
+        $foundCount = @($script:checkupItems | Where-Object { $_.Found }).Count
+        $cctrl.StatusText.Text = if ($foundCount -eq 0) { 'Fertig: Alles sauber - dein PC ist in Topform!' } else { "Fertig: $foundCount Bereiche mit Befunden. Haken setzen und beheben." }
+    })
+
+    $cctrl.BtnScan.Add_Click($startScan)
+
+    $cctrl.ResultList.Add_SelectionChanged({
+        $sel = $cctrl.ResultList.SelectedItem
+        if ($null -eq $sel) { return }
+        $txt = $sel.Erklaerung
+        if ($sel.Details -and $sel.Details.Count -gt 0) { $txt += "`n`nBefund: " + ($sel.Details -join '; ') }
+        if ($sel.Found -and -not $sel.AutoFix) { $txt += "`n`nDieser Bereich braucht deine Entscheidung - nutze den Button 'Werkzeug oeffnen'." }
+        $cctrl.DetailText.Text = $txt
+    })
+
+    $runFix = {
+        param($items)
+        $toFix = @($items | Where-Object { $_.Found -and $_.AutoFix -and $_.Selected })
+        if ($toFix.Count -eq 0) {
+            [System.Windows.MessageBox]::Show('Keine automatisch behebbaren Eintraege ausgewaehlt.', 'Checkup', 'OK', 'Information') | Out-Null
+            return
+        }
+        $cctrl.BtnScan.IsEnabled = $false
+        $cctrl.ScanBar.IsIndeterminate = $true
+        $cctrl.StatusText.Text = "Behebe $($toFix.Count) Bereiche ..."
+        $rs = [runspacefactory]::CreateRunspace()
+        $rs.ApartmentState = 'STA'; $rs.ThreadOptions = 'ReuseThread'
+        $rs.Open()
+        $rs.SessionStateProxy.SetVariable('Root', $script:Root)
+        $rs.SessionStateProxy.SetVariable('ToFix', $toFix)
+        $ps = [powershell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript({
+            Get-ChildItem (Join-Path $Root 'modules') -Filter '*.psm1' | ForEach-Object { Import-Module $_.FullName -Force -Global -WarningAction SilentlyContinue }
+            Invoke-SysPilotCheckupFix -Results $ToFix
+        })
+        $handle = $ps.BeginInvoke()
+        while (-not $handle.IsCompleted) {
+            [System.Windows.Forms.Application]::DoEvents()
+            Start-Sleep -Milliseconds 200
+        }
+        $fixed = $ps.EndInvoke($handle)
+        $ps.Dispose(); $rs.Close(); $rs.Dispose()
+        $cctrl.ScanBar.IsIndeterminate = $false
+        $cctrl.BtnScan.IsEnabled = $true
+        [System.Windows.MessageBox]::Show("$fixed Bereiche behoben. Der Scan startet zur Kontrolle erneut.", 'Checkup', 'OK', 'Information') | Out-Null
+        & $startScan
+    }
+
+    $cctrl.BtnFixSelected.Add_Click({ & $runFix $script:checkupItems })
+    $cctrl.BtnFixAll.Add_Click({
+        foreach ($i in $script:checkupItems) { if ($i.Found -and $i.AutoFix) { $i.Selected = $true } }
+        & $runFix $script:checkupItems
+    })
+    $cctrl.BtnTool.Add_Click({
+        $sel = $cctrl.ResultList.SelectedItem
+        if ($null -eq $sel -or -not $sel.MenuAction) {
+            [System.Windows.MessageBox]::Show('Waehle links einen Eintrag, der ein Werkzeug hat (z.B. Autostart-Last, Bloatware).', 'Checkup', 'OK', 'Information') | Out-Null
+            return
+        }
+        $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $script:Root 'SysPilot.ps1'), '-Tool', $sel.MenuAction)
+        Start-Process powershell.exe -ArgumentList $args
+    })
+    $cctrl.BtnClose.Add_Click({ $cwin.Close() })
+
+    $cwin.ShowDialog() | Out-Null
+    $scanTimer.Stop()
+}
+
+# --- Toolbox-Fenster (Kategorien, startet die Konsolen-Werkzeuge) ---
+function Show-SysPilotToolboxWindow {
+    $twin = New-Object System.Windows.Window
+    $twin.Title = 'SysPilot - Toolbox'
+    $twin.Width = 640; $twin.Height = 560
+    $twin.Background = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF1E1E2E')
+    $twin.WindowStartupLocation = 'CenterOwner'
+    $twin.Owner = $win
+
+    $scroll = New-Object System.Windows.Controls.ScrollViewer
+    $scroll.VerticalScrollBarVisibility = 'Auto'
+    $panel = New-Object System.Windows.Controls.StackPanel
+    $panel.Margin = '14'
+    $scroll.Content = $panel
+    $twin.Content = $scroll
+
+    $head = New-Object System.Windows.Controls.TextBlock
+    $head.Text = 'Toolbox - alle Werkzeuge nach Kategorie'
+    $head.FontSize = 20; $head.FontWeight = 'Bold'
+    $head.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF4FC3F7')
+    $panel.Children.Add($head) | Out-Null
+    $hint = New-Object System.Windows.Controls.TextBlock
+    $hint.Text = 'Jedes Werkzeug oeffnet sich in einem eigenen Fenster. Mauszeiger auf einen Eintrag = Erklaerung.'
+    $hint.FontSize = 11; $hint.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF9E9E9E')
+    $hint.Margin = '0,2,0,10'
+    $panel.Children.Add($hint) | Out-Null
+
+    $tools = Get-SysPilotToolbox
+    foreach ($cat in ($tools | Group-Object Category)) {
+        $catHead = New-Object System.Windows.Controls.TextBlock
+        $catHead.Text = $cat.Name
+        $catHead.FontSize = 15; $catHead.FontWeight = 'Bold'
+        $catHead.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FFFFB74D')
+        $catHead.Margin = '0,10,0,4'
+        $panel.Children.Add($catHead) | Out-Null
+
+        $wrap = New-Object System.Windows.Controls.WrapPanel
+        foreach ($t in $cat.Group) {
+            $btn = New-Object System.Windows.Controls.Button
+            $btn.Content = $t.Name + $(if ($t.NeedsAdmin) { ' [Admin]' } else { '' })
+            $btn.ToolTip = $t.Desc
+            $btn.Tag = $t.Key
+            $btn.Margin = '3'; $btn.Padding = '10,6'
+            $btn.Background = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF2D2D44')
+            $btn.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FFE0E0E0')
+            $btn.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFrom('#FF4A4A6A')
+            $btn.Cursor = 'Hand'
+            $needsAdmin = [bool]$t.NeedsAdmin
+            $btn.Add_Click({
+                param($s, $e)
+                $key = $s.Tag
+                $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $script:Root 'SysPilot.ps1'), '-Tool', $key)
+                if ($needsAdmin -and -not (Test-SysPilotAdmin)) {
+                    Start-Process powershell.exe -Verb RunAs -ArgumentList $argList
+                } else {
+                    Start-Process powershell.exe -ArgumentList $argList
+                }
+            }.GetNewClosure())
+            $wrap.Children.Add($btn) | Out-Null
+        }
+        $panel.Children.Add($wrap) | Out-Null
+    }
+    $twin.ShowDialog() | Out-Null
+}
+
 # Buttons
+$ctrl.BtnCheckup.Add_Click({ Show-SysPilotCheckupWindow })
+$ctrl.BtnToolbox.Add_Click({ Show-SysPilotToolboxWindow })
 $ctrl.BtnCool.Add_Click({ Set-PlanWithFeedback -Mode Cool -Label 'KUEHL'; Update-SysPilotGui })
 $ctrl.BtnPerf.Add_Click({ Set-PlanWithFeedback -Mode Performance -Label 'LEISTUNG'; Update-SysPilotGui })
 $ctrl.BtnFreeRam.Add_Click({
@@ -410,7 +665,7 @@ $win.Add_KeyDown({
     param($s, $e)
     if ($e.Key -eq 'Escape') { $win.Close(); return }
     if ($e.Key -eq 'Left' -or $e.Key -eq 'Right' -or $e.Key -eq 'Up' -or $e.Key -eq 'Down') {
-        $buttons = @($ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
+        $buttons = @($ctrl.BtnCheckup, $ctrl.BtnToolbox, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
         $focused = [System.Windows.Input.Keyboard]::FocusedElement
         $idx = [Array]::IndexOf($buttons, $focused)
         if ($idx -lt 0) { $idx = 0 }

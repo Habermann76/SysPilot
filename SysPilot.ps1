@@ -2,7 +2,8 @@
 # Kuehlt, beschleunigt und aufraeumen - besser als Camomile, kostenlos, offen.
 #Requires -Version 5.1
 param(
-    [switch]$Autopilot
+    [switch]$Autopilot,
+    [string]$Tool
 )
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -19,90 +20,46 @@ if ($Autopilot) {
     return
 }
 
+# Direktaufruf eines Werkzeugs (z.B. aus der GUI-Toolbox heraus)
+if ($Tool) {
+    switch ($Tool) {
+        'checkup'      { Show-SysPilotCheckup }
+        'toolbox'      { Show-SysPilotToolbox }
+        'plans'        { Install-SysPilotPlans; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'autopilot'    { Start-SysPilotAutopilot }
+        'startup'      { Show-SysPilotStartupManager }
+        'services'     { Show-SysPilotServiceTuner; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'freemem'      { Invoke-SysPilotFreeRam; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'priorities'   { Set-SysPilotPriorities; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'features'     { Show-SysPilotFeaturesMenu }
+        'scripts'      { Show-SysPilotScriptsMenu }
+        'security'     { Show-SysPilotSecurityCheck; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'netrepair'    { Show-SysPilotNetworkRepair }
+        'adapters'     { Show-SysPilotNetworkAdapters }
+        'winupdate'    { Update-SysPilotWindows; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'backup'       { $b = New-SysPilotBackup -Label 'tool'; Write-Host "  Backup: $b" -ForegroundColor Green; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'cleanup'      { Show-SysPilotCleanupMenu; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'bloat'        { Show-SysPilotBloatManager }
+        'optimizers'   { Show-SysPilotOptimizerManager; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'uwp'          { Show-SysPilotUwpManager }
+        'shortcuts'    { Show-SysPilotShortcutFixer; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'largefiles'   { Show-SysPilotLargeFiles; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'emptyfolders' { Show-SysPilotEmptyFolders; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'extensions'   { Show-SysPilotExtensionManager }
+        'report'       { Show-SysPilotReport; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'hogs'         { Show-SysPilotHogs; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'stats'        { Show-SysPilotStats; Read-SysPilotChoice 'Weiter' | Out-Null }
+        'sysinfo'      { Show-SysPilotSystemInfo; Read-SysPilotChoice 'Weiter' | Out-Null }
+        default        { Write-Host "  Unbekanntes Werkzeug: $Tool" -ForegroundColor Red }
+    }
+    return
+}
+
 # Admin nur als Menue-Option (16), keine Start-Frage.
 # Optional wieder aktivierbar: config.json -> Start.AskForAdmin = true
 $startCfg = (Get-SysPilotConfig).Start
 if (-not (Test-SysPilotAdmin) -and $startCfg -and $startCfg.AskForAdmin) {
     Restart-SysPilotElevated
-}
-
-function Show-SysPilotReport {
-    Write-SysPilotHeader "System-Analyse"
-    $cfg = Get-SysPilotConfig
-
-    # Basis
-    $os = Get-CimInstance Win32_OperatingSystem
-    $cpu = Get-CimInstance Win32_Processor
-    $totalGB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
-    $freeGB = [math]::Round($os.FreePhysicalMemory / 1MB, 1)
-    Write-Host ("  CPU:      {0} ({1} Kerne/{2} Threads)" -f $cpu.Name.Trim(), $cpu.NumberOfCores, $cpu.NumberOfLogicalProcessors)
-    Write-Host ("  RAM:      {0} GB gesamt, {1} GB frei ({2}% belegt)" -f $totalGB, $freeGB, [math]::Round(100 * ($totalGB - $freeGB) / $totalGB))
-    Write-Host ("  CPU-Last: {0}%" -f $cpu.LoadPercentage)
-    $disk = Get-PSDrive C
-    Write-Host ("  Platte C: {0} GB frei von {1} GB" -f [math]::Round($disk.Free / 1GB, 1), [math]::Round(($disk.Used + $disk.Free) / 1GB, 1))
-
-    # Aktiver Energieplan
-    $mode = Get-SysPilotActiveMode
-    $plans = Get-SysPilotPlanList
-    $active = ($plans | Where-Object { $_.Active }).Name
-    $modeTxt = switch ($mode) { 'Cool' { 'SysPilot KUEHL' } 'Performance' { 'SysPilot LEISTUNG' } default { "fremd ($active)" } }
-    Write-Host ("  Energie:  {0}" -f $modeTxt)
-
-    # Top RAM-Verbraucher (nach Programm-Familie gruppiert)
-    Write-Host ""
-    Write-Host "  Top RAM-Verbraucher (gruppiert):" -ForegroundColor Cyan
-    $groups = Get-Process | Group-Object ProcessName | ForEach-Object {
-        [PSCustomObject]@{
-            Name  = $_.Name
-            Anzahl = $_.Count
-            RAM_MB = [math]::Round(($_.Group | Measure-Object WorkingSet64 -Sum).Sum / 1MB)
-        }
-    } | Sort-Object RAM_MB -Descending | Select-Object -First 12
-    $groups | Format-Table -AutoSize | Out-String | ForEach-Object { $_.Trim() } | Write-Host
-
-    # Warnungen
-    Write-Host "  Warnungen:" -ForegroundColor Cyan
-    $warnings = 0
-
-    # Bandbreiten-Sharing
-    $sharing = Get-Process -ErrorAction SilentlyContinue | Where-Object {
-        $_.Name -match 'honeygain|earnapp|bright'
-    }
-    if ($sharing) {
-        $warnings++
-        Write-Host "  [!] BANDBREITEN-SHARING laeuft: $($sharing.Name -join ', ')" -ForegroundColor Red
-        Write-Host "      Diese Apps verkaufen deine Internet-IP als Proxy. Deinstallation empfohlen (Menue 6)." -ForegroundColor Red
-    }
-
-    # Optimizer-Duplikate
-    $installed = Get-SysPilotInstalled
-    $optimizers = $installed | Where-Object { $_.Hinweis -match 'Optimizer-Duplikate' }
-    if ($optimizers.Count -gt 1) {
-        $warnings++
-        Write-Host "  [!] $($optimizers.Count) PC-Optimizer gleichzeitig installiert (bremsen sich gegenseitig):" -ForegroundColor Yellow
-        $optimizers | ForEach-Object { Write-Host "      - $($_.DisplayName)" -ForegroundColor Yellow }
-    }
-
-    # Autostart-Last
-    $startup = Get-SysPilotStartupItems
-    $activeStartup = ($startup | Where-Object { $_.Aktiv }).Count
-    if ($activeStartup -gt 15) {
-        $warnings++
-        Write-Host "  [!] $activeStartup aktive Autostart-Eintraege (viel!). Manager: Menue 5." -ForegroundColor Yellow
-    } else {
-        Write-Host "  [OK] $activeStartup aktive Autostart-Eintraege." -ForegroundColor Green
-    }
-
-    # Dienste
-    $svcPlan = Get-SysPilotServicePlan
-    $pending = ($svcPlan | Where-Object { $_.Aenderung }).Count
-    if ($pending -gt 0) {
-        Write-Host "  [i] $pending Dienste koennten optimiert werden (Menue 7)." -ForegroundColor Cyan
-    } else {
-        Write-Host "  [OK] Dienste sind optimiert." -ForegroundColor Green
-    }
-
-    if ($warnings -eq 0) { Write-Host "  [OK] Keine kritischen Warnungen." -ForegroundColor Green }
 }
 
 function Edit-SysPilotConfig {
@@ -202,6 +159,8 @@ function Show-SysPilotMenu {
         @{ Key = '21'; Label = 'BROWSER-ERWEITERUNGEN (Duplikate finden)'; Color = 'Yellow' },
         @{ Key = '22'; Label = 'NETZWERK / INTERNET reparieren'; Color = 'Cyan' },
         @{ Key = '23'; Label = 'NETZWERKADAPTER identifizieren (was ist vgate0?)'; Color = 'Cyan' },
+        @{ Key = '24'; Label = 'AUTOMATIC CHECKUP (Komplett-Scan, Erklaerungen, Reparatur)'; Color = 'Green' },
+        @{ Key = '25'; Label = 'TOOLBOX (alle Werkzeuge nach Kategorien)'; Color = 'Cyan' },
         @{ Key = '0';  Label = 'Beenden'; Color = 'DarkGray' }
     )
 
@@ -288,6 +247,8 @@ function Show-SysPilotMenu {
                     '21' { Show-SysPilotExtensionManager }
                     '22' { Show-SysPilotNetworkRepair }
                     '23' { Show-SysPilotNetworkAdapters }
+                    '24' { Show-SysPilotCheckup }
+                    '25' { Show-SysPilotToolbox }
                     '0'  { return }
                 }
             }

@@ -333,6 +333,51 @@ Zeigt alle Netzwerkadapter und identifiziert das zugehörige Programm:
 Bei bekannten Adaptern mit „deinstallieren"-Hinweis: Enter → SysPilot bietet
 die Deinstallation des zugehörigen Programms an.
 
+## Automatic Checkup (Menüpunkt 24 / GUI-Button CHECKUP)
+
+Der Komplett-Check für deinen PC — inspiriert von Advanced SystemCare, aber **ehrlich**:
+keine erfundenen „Probleme" als Verkaufsdruck, sondern 14 reale Bereiche mit
+verständlicher Erklärung und echter Reparatur:
+
+| Bereich | Was SysPilot prüft |
+|---|---|
+| Datenmüll | Temp, Update-Cache, Caches — löschbar |
+| Spuren der Privatsphäre | Zuletzt geöffnete Dateien, DNS-Verlauf, Sprunglisten |
+| Ungültige Verknüpfungen | Desktop/Startmenü-Links auf gelöschte Programme |
+| Verwaiste Registry-Einträge | Tote Verweise (Autostart, Deinstallation, App Paths) — mit Backup |
+| Antiviren-Schutz | Defender aktiv? Echtzeitschutz? Signaturen aktuell? |
+| Firewall | Alle Profile aktiv? |
+| Systemschwächen | SMBv1, PowerShell v2, UAC, ausstehender Neustart |
+| Autostart-Last | Mehr als 15 aktive Einträge bremsen |
+| RAM-Druck | Ab 85% wird ausgelagert — freigeben hilft sofort |
+| Festplatten-Füllstand | Unter 15% frei bremst Windows |
+| Dienste-Optimierung | Ausstehende geprüfte Empfehlungen |
+| Bekannte Bloatware | Die üblichen Verdächtigen |
+| Optimizer-Konflikte | Mehrere Optimizer bremsen sich gegenseitig |
+| Temperatur | Ab 80°C greift der Kühl-Plan |
+
+Ablauf: **Scan mit Fortschrittsanzeige → Ergebnis mit Ampel ([OK]/[i]/[!]) →
+„Alle beheben" oder einzeln ansehen (mit Erklärung) und auswählen.**
+Was deine Entscheidung braucht (Autostart, Bloatware), öffnet direkt das passende Werkzeug.
+
+In der GUI: eigener **CHECKUP**-Button mit Fenster, Häkchen zum Abwählen,
+Hintergrund-Scan (Oberfläche bleibt flüssig) und Erklärungstext pro Eintrag.
+
+## Toolbox (Menüpunkt 25 / GUI-Button Toolbox)
+
+Alle 24 Werkzeuge in 4 Kategorien, jedes mit ehrlicher Erklärung:
+
+- **System optimieren**: Energiepläne, Autopilot, Autostart-Manager, Dienste-Tuner,
+  RAM freigeben, Prioritäten, Gaming-Tweaks, Skripte
+- **Sicherheit & Reparatur**: Sicherheits-Check, Netzwerk-Reparatur (14 Reparaturen),
+  Adapter identifizieren, Windows Update, Backup
+- **System bereinigen**: Datenträger, Bloatware, UWP-Apps, **Shortcut-Fixer**,
+  **Große Dateien finden**, **Leere Ordner finden**, Browser-Erweiterungen
+- **Analyse & Info**: System-Analyse, Ressourcen-Fresser, Statistiken, System-Info
+
+In der GUI öffnet die Toolbox ein eigenes Fenster mit Kategorien — jeder Klick
+startet das Werkzeug in einem eigenen Fenster (mit Admin-Rechten, falls nötig).
+
 ## Sicherheit
 
 - **Backup** vor jeder Dienste-Änderung (Menü 12 erstellt manuell eins)
@@ -344,10 +389,13 @@ die Deinstallation des zugehörigen Programms an.
 ## Dateien
 
 ```
-SysPilot.ps1        Hauptprogramm (Menü)
+SysPilot.ps1        Hauptprogramm (Menü, 25 Einträge)
+SysPilot-GUI.ps1    Grafische Oberfläche (Dashboard, Checkup, Toolbox, Tray)
 config.json         Alle Regeln und Empfehlungen
-modules\            PowerPlans, Priorities, Startup, Bloatware,
-                    Services, Features, Cleanup, Common
+modules\            PowerPlans, Priorities, Startup, Bloatware, Services,
+                    Features, Cleanup, Memory, Insights, Extensions, Scripts,
+                    Temperature, Localization, AutoOptimize, NetworkRepair,
+                    NetworkAdapters, Checkup, Toolbox, Common
 backup\             Automatische Sicherungen
 logs\               Protokoll aller Aktionen
 ```

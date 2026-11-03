@@ -135,4 +135,5 @@ function Show-SysPilotCleanupMenu {
     }
 }
 
-Export-ModuleMember -Function Show-SysPilotCleanupAnalysis, Invoke-SysPilotCleanup, Show-SysPilotCleanupMenu
+Export-ModuleMember -Function Show-SysPilotCleanupAnalysis, Invoke-SysPilotCleanup, Show-SysPilotCleanupMenu,
+    Get-SysPilotCleanupTargets, Get-FolderSizeMB
