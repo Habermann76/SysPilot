@@ -1,4 +1,12 @@
-# SysPilot 0.9.4 beta
+# SysPilot 0.9.4.1 beta
+
+- **GUI-Toolbox**: Werkzeuge starten jetzt über einen zentralen, robusten GUI-Launcher mit korrektem Arbeitsordner, Admin-Erhöhung und Fehlermeldungen.
+- **Tooltips & Suche**: Toolbox-Buttons zeigen Erklärungen; per Rechtsklick ist eine KI-/Web-Suche zum Werkzeugthema verfügbar.
+- **Tray-Tooltip**: Live-Informationen werden gekürzt und zuverlässig aktualisiert, damit Windows die Anzeige beim Mauszeiger korrekt übernimmt.
+- **Arbeitsregeln für KI**: `AGENTS.md` legt Test-, Versions-, Installations- und GitHub-Fallback-Regeln verbindlich fest.
+- **GitHub-Fallback**: `scripts/github-fallback.ps1` ermöglicht Commit/Push über PowerShell, wenn der GitHub MCP nicht funktioniert.
+
+---
 
 - **Guardian**: erkennt eine laufende SysPilot-GUI jetzt zuverlaessig ueber ihre Sperre (Mutex), auch wenn sie mit hoeheren Rechten laeuft als die pruefende Stelle.
 

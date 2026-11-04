@@ -21,7 +21,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=installer-output
-OutputBaseFilename=SysPilot-Setup-0.9.4-beta-x64
+OutputBaseFilename=SysPilot-Setup-0.9.4.1-beta-x64
 SetupIconFile=
 Compression=lzma
 SolidCompression=yes
@@ -99,3 +99,4 @@ begin
       FileCopy(ExpandConstant('{app}\config.json'), ExpandConstant('{app}\config.user-backup.json'), False);
   end;
 end;
+

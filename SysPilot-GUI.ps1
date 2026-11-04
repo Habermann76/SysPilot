@@ -333,7 +333,7 @@ function Update-SysPilotGui {
             $trayTxt = "SysPilot | CPU: $load% | RAM: $ramPct%"
             if ($tVal) { $trayTxt += " | $tVal" }
             if ($trayTxt.Length -gt 63) { $trayTxt = $trayTxt.Substring(0, 63) }
-            $script:notifyIcon.Text = $trayTxt
+            Set-SysPilotTrayTooltip $trayTxt
         } catch { }
     }
 }
@@ -801,6 +801,20 @@ $ctrl.HogList.Add_MouseDoubleClick({
 })
 
 # --- Tray-Icon (ausgeblendete Symbole) ---
+function Set-SysPilotTrayTooltip {
+    param([string]$Text)
+    if (-not $script:notifyIcon) { return }
+    $safeText = ([string]$Text).Trim()
+    if ($safeText.Length -gt 63) { $safeText = $safeText.Substring(0, 63) }
+    if (-not $safeText) { $safeText = 'SysPilot' }
+    if ($script:notifyIcon.Text -ne $safeText) {
+        $wasVisible = $script:notifyIcon.Visible
+        $script:notifyIcon.Text = $safeText
+        # Windows aktualisiert NotifyIcon-Tooltips nicht immer bei laufendem Symbol.
+        if ($wasVisible) { $script:notifyIcon.Visible = $false; $script:notifyIcon.Visible = $true }
+    }
+}
+
 $script:notifyIcon = New-Object System.Windows.Forms.NotifyIcon
 # Eigenes Icon: blauer Kreis mit "S"
 $bmp = New-Object System.Drawing.Bitmap 32, 32
@@ -810,8 +824,10 @@ $g.FillEllipse((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::Fr
 $g.DrawString('S', (New-Object System.Drawing.Font('Segoe UI', 16, [System.Drawing.FontStyle]::Bold)), [System.Drawing.Brushes]::White, 4, 2)
 $g.Dispose()
 $script:notifyIcon.Icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
-$script:notifyIcon.Text = "SysPilot - PC wird ueberwacht"
+Set-SysPilotTrayTooltip 'SysPilot - PC wird ueberwacht'
 $script:notifyIcon.Visible = $true
+$script:notifyIcon.BalloonTipTitle = 'SysPilot'
+$script:notifyIcon.BalloonTipText = 'Doppelklick öffnet das Dashboard; Rechtsklick zeigt Aktionen.'
 
 # Rechtsklick-Menue
 $trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -1010,5 +1026,8 @@ if ($script:updPs) {
     try { $script:updPs.Dispose(); $script:updRs.Close(); $script:updRs.Dispose() } catch { }
 }
 $script:notifyIcon.Visible = $false
+$script:notifyIcon.Dispose()
+if ($script:guiMutex) { $script:guiMutex.ReleaseMutex() | Out-Null; $script:guiMutex.Dispose() }
+Icon.Visible = $false
 $script:notifyIcon.Dispose()
 if ($script:guiMutex) { $script:guiMutex.ReleaseMutex() | Out-Null; $script:guiMutex.Dispose() }

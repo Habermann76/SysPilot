@@ -1,8 +1,8 @@
-# SysPilot — Installationsanleitung
+# SysPilot 0.9.4.1 — Installationsanleitung
 
 ## Schnellstart (empfohlen)
 
-1. **Installer herunterladen**: `SysPilot-Setup-0.9.4-beta-x64.exe` von den
+1. **Installer herunterladen**: `SysPilot-Setup-0.9.4.1-beta-x64.exe` von den
    [Releases](https://github.com/Habermann76/SysPilot/releases)
 2. **Doppelklick** → installiert nach `C:\Program Files\SysPilot`
 3. **Startmenü** → „SysPilot" öffnen
@@ -12,7 +12,7 @@ Fertig. SysPilot fragt beim ersten Start, ob es als Administrator laufen soll
 
 ## Portable Version (keine Installation)
 
-1. `SysPilot-0.9.4-beta-portable.zip` herunterladen
+1. `SysPilot-0.9.4.1-beta-portable.zip` herunterladen
 2. Entpacken (z. B. nach `C:\SysPilot`)
 3. `SysPilot.ps1` → Rechtsklick → **Mit PowerShell ausführen**
 

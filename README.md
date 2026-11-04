@@ -4,7 +4,7 @@ Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Fu
 Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
 alles bleibt auf deinem PC.
 
-## Version 0.9.3.1 beta
+## Version 0.9.4.1 beta
 
 SysPilot ist bewusst **keine Electron-App**. Electron würde für diese Anwendung
 mehr als doppelt so viel RAM benötigen, obwohl SysPilot selbst möglichst klein

@@ -92,6 +92,37 @@ function ConvertTo-SysPilotArgString {
     return ($parts -join ' ')
 }
 
+function Start-SysPilotGuiTool {
+    <# Einheitlicher, sicherer Starter für Toolbox-Aktionen aus der GUI. #>
+    param(
+        [Parameter(Mandatory)][string]$ToolKey,
+        [bool]$NeedsAdmin = $false,
+        [string]$WorkingDirectory = $script:SysPilotRoot
+    )
+    $scriptPath = Join-Path $script:SysPilotRoot 'SysPilot.ps1'
+    if (-not (Test-Path -LiteralPath $scriptPath)) {
+        throw "SysPilot-Hauptskript nicht gefunden: $scriptPath"
+    }
+    $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$scriptPath,'-Tool',$ToolKey)
+    $argString = ConvertTo-SysPilotArgString $args
+    $params = @{ FilePath = $(if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh.exe' } else { 'powershell.exe' }); ArgumentList = $argString; WorkingDirectory = $WorkingDirectory; WindowStyle = 'Normal' }
+    if ($NeedsAdmin -and -not (Test-SysPilotAdmin)) { $params.Verb = 'RunAs' }
+    try {
+        $process = Start-Process @params -PassThru -ErrorAction Stop
+        Write-SysPilotLog "GUI-Tool gestartet: $ToolKey (Admin=$NeedsAdmin, PID=$($process.Id))"
+        return $process
+    } catch {
+        Write-SysPilotLog "GUI-Tool konnte nicht starten: $ToolKey - $($_.Exception.Message)" 'ERROR'
+        throw
+    }
+}
+
+function Search-SysPilotGuiTopic {
+    param([Parameter(Mandatory)][string]$Query)
+    $encoded = [Uri]::EscapeDataString("SysPilot $Query")
+    Start-Process "https://www.bing.com/search?q=$encoded"
+}
+
 function Write-SysPilotLog {
     param([string]$Message, [string]$Level = "INFO")
     $logDir = Join-Path $script:SysPilotRoot "logs"
