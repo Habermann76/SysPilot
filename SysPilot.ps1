@@ -5,6 +5,7 @@ param(
     [switch]$Autopilot,
     [switch]$CheckupAuto,
     [switch]$Guardian,
+    [switch]$Loop,
     [string]$Tool
 )
 
@@ -24,7 +25,7 @@ if ($Autopilot) {
 
 # Guardian (fuer geplante Aufgabe "SysPilot Guardian"): startet die GUI, falls sie nicht laeuft
 if ($Guardian) {
-    Invoke-SysPilotGuardian
+    if ($Loop) { Invoke-SysPilotGuardianLoop } else { Invoke-SysPilotGuardian }
     return
 }
 

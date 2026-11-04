@@ -9,6 +9,9 @@
                "Language":  "de",
                "TempUnit":  "C"
            },
+    "Update":  {
+                   "CheckAtStart":  true
+               },
     "ImportantProcesses":  [
                                "code",
                                "devenv",

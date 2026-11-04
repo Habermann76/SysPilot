@@ -1,6 +1,6 @@
 # SysPilot — Roadmap
 
-## Version 0.9.2 beta (aktuell)
+## Version 0.9.3 beta (aktuell)
 
 - ✅ PowerShell-Kern (Text-Menü mit Pfeiltasten)
 - ✅ WPF-GUI (schlank, ~80 MB RAM, Tray, dunkel)

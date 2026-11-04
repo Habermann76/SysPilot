@@ -114,9 +114,12 @@ $xaml = @"
     <!-- Kopf -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
       <TextBlock Text="SysPilot" FontSize="24" FontWeight="Bold" Foreground="#FF4FC3F7" VerticalAlignment="Center"/>
+      <TextBlock x:Name="VersionBadge" Text="" FontSize="11" Foreground="#FF9E9E9E" VerticalAlignment="Bottom" Margin="6,0,0,5"/>
       <TextBlock x:Name="AdminBadge" Text="" FontSize="11" Foreground="#FF81C784" VerticalAlignment="Center" Margin="12,0,0,0"/>
       <TextBlock x:Name="PlanBadge" Text="" FontSize="11" Foreground="#FFFFB74D" VerticalAlignment="Center" Margin="12,0,0,0"/>
       <TextBlock x:Name="WatchBadge" Text="  PC wird ueberwacht" FontSize="11" Foreground="#FF81C784" VerticalAlignment="Center" Margin="12,0,0,0"/>
+      <Button x:Name="BtnUpdate" Content="Updates" FontSize="11" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center"
+              ToolTip="Nach einer neuen SysPilot-Version suchen"/>
       <Button x:Name="BtnAdmin" Content="Als Admin starten" FontSize="11" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center"
               ToolTip="Startet die GUI mit Administrator-Rechten neu (noetig fuer Plaene, Dienste, einige Fixes)"/>
     </StackPanel>
@@ -209,9 +212,9 @@ function Show-SysPilotWindow {
 # Controls
 $ctrl = @{}
 foreach ($n in 'CpuText','CpuSpeed','CpuBar','RamText','RamDetail','RamBar','DiskText','DiskDetail','DiskBar',
-                 'SysCpu','SysProcs','SysBattery','SysUptime','HogList','AdminBadge','PlanBadge','WatchBadge',
+                 'SysCpu','SysProcs','SysBattery','SysUptime','HogList','AdminBadge','PlanBadge','WatchBadge','VersionBadge',
                  'TempBig','TempStatus','TempSource','TempUnitLabel',
-                 'BtnCheckup','BtnToolbox','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin') {
+                 'BtnCheckup','BtnToolbox','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin','BtnUpdate') {
     $ctrl[$n] = $win.FindName($n)
 }
 
@@ -606,7 +609,63 @@ function Show-SysPilotToolboxWindow {
     $twin.ShowDialog() | Out-Null
 }
 
+# --- Updates ---
+$ctrl.VersionBadge.Text = 'v' + (Get-SysPilotVersion)
+$script:updateInfo = $null
+$script:updJob = $null
+
+function Install-SysPilotGuiUpdate {
+    param($info)
+    $txt = "Neue Version verfuegbar: $($info.Latest)`n(installiert: $($info.Current))`n`nJetzt herunterladen und installieren?`nSysPilot wird dabei kurz neu gestartet, Windows fragt nach Administrator-Rechten."
+    $ans = [System.Windows.MessageBox]::Show($txt, 'SysPilot Update', 'YesNo', 'Question')
+    if ($ans -ne 'Yes') { return }
+    if (-not $info.DownloadUrl) {
+        # Noch kein Installer als Datei am Release -> Download-Seite im Browser oeffnen
+        Start-Process $info.Url
+        return
+    }
+    try {
+        $win.Cursor = [System.Windows.Input.Cursors]::Wait
+        $win.Dispatcher.Invoke([action]{}, 'Render')
+        Install-SysPilotUpdate -DownloadUrl $info.DownloadUrl -Version $info.Latest
+        $script:reallyClose = $true
+        $win.Close()
+    } catch {
+        [System.Windows.MessageBox]::Show("Update fehlgeschlagen:`n$($_.Exception.Message)`n`nDu kannst die neue Version auch hier laden:`n$($info.Url)", 'SysPilot Update', 'OK', 'Warning') | Out-Null
+    } finally {
+        $win.Cursor = $null
+    }
+}
+
+function Invoke-SysPilotGuiUpdateClick {
+    if ($script:updateInfo -and $script:updateInfo.Newer) { Install-SysPilotGuiUpdate $script:updateInfo; return }
+    try {
+        $win.Cursor = [System.Windows.Input.Cursors]::Wait
+        $win.Dispatcher.Invoke([action]{}, 'Render')
+        $info = Test-SysPilotUpdate
+    } finally { $win.Cursor = $null }
+    if (-not $info.Ok) {
+        [System.Windows.MessageBox]::Show("Die Update-Suche hat nicht geklappt (keine Verbindung zu GitHub?).`n`n$($info.Error)", 'SysPilot Update', 'OK', 'Warning') | Out-Null
+        return
+    }
+    if ($info.Newer) {
+        $script:updateInfo = $info
+        Set-SysPilotGuiUpdateAvailable $info
+        Install-SysPilotGuiUpdate $info
+    } else {
+        [System.Windows.MessageBox]::Show("SysPilot ist aktuell (Version $($info.Current)).", 'SysPilot Update', 'OK', 'Information') | Out-Null
+    }
+}
+
+function Set-SysPilotGuiUpdateAvailable {
+    param($info)
+    $ctrl.BtnUpdate.Content = "Update $($info.Latest) verfuegbar!"
+    $ctrl.BtnUpdate.FontWeight = 'Bold'
+    $ctrl.BtnUpdate.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+}
+
 # Buttons
+$ctrl.BtnUpdate.Add_Click({ Invoke-SysPilotGuiUpdateClick })
 $ctrl.BtnAdmin.Add_Click({
     $ans = [System.Windows.MessageBox]::Show("SysPilot mit Administrator-Rechten neu starten?`n`nDamit funktionieren: Energieplaene, Dienste, alle Checkup-Fixes, Netzwerk-Reparatur.", "Als Admin starten", 'YesNo', 'Question')
     if ($ans -eq 'Yes') {
@@ -744,6 +803,12 @@ $miTrayStart.CheckOnClick = $true
 $miTrayStart.Checked = [bool]($startCfg -and $startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray)
 $trayMenu.Items.Add($miTrayStart) | Out-Null
 $trayMenu.Items.Add('-') | Out-Null
+$miUpdate = $trayMenu.Items.Add('Nach Updates suchen')
+$miUpdAtStart = New-Object System.Windows.Forms.ToolStripMenuItem 'Beim Start nach Updates suchen'
+$miUpdAtStart.CheckOnClick = $true
+$miUpdAtStart.Checked = [bool](Test-SysPilotUpdateAtStart)
+$trayMenu.Items.Add($miUpdAtStart) | Out-Null
+$trayMenu.Items.Add('-') | Out-Null
 $miExit   = $trayMenu.Items.Add('Beenden')
 $script:notifyIcon.ContextMenuStrip = $trayMenu
 
@@ -752,7 +817,10 @@ $miCool.Add_Click({ Set-PlanWithFeedback -Mode Cool -Label 'KUEHL' })
 $miPerf.Add_Click({ Set-PlanWithFeedback -Mode Performance -Label 'LEISTUNG' })
 $miFree.Add_Click({ Clear-SysPilotWorkingSets | Out-Null; if (Test-SysPilotAdmin) { Clear-SysPilotStandbyList | Out-Null } })
 $miTrayStart.Add_Click({ Set-SysPilotConfigValue -Section 'Start' -Key 'StartInTray' -Value ([bool]$miTrayStart.Checked) })
-$miExit.Add_Click({ $script:reallyClose = $true; $win.Close() })
+$miUpdate.Add_Click({ Show-SysPilotWindow; Invoke-SysPilotGuiUpdateClick })
+$miUpdAtStart.Add_Click({ Set-SysPilotConfigValue -Section 'Update' -Key 'CheckAtStart' -Value ([bool]$miUpdAtStart.Checked) })
+# Bewusstes Beenden: der Guardian startet SysPilot dann nicht sofort wieder (bis zur naechsten Anmeldung)
+$miExit.Add_Click({ try { Set-SysPilotGuardianPause } catch { }; $script:reallyClose = $true; $win.Close() })
 $script:notifyIcon.Add_DoubleClick({ $win.Show(); $win.WindowState = 'Normal'; $win.Activate() })
 
 # Schliessen -> in Tray minimieren (nicht beenden), es sei denn wirklich beenden
@@ -776,6 +844,7 @@ $win.Add_KeyDown({
     if ($e.Key -eq 'Escape') { $win.Close(); return }
     if ($e.Key -eq 'Left' -or $e.Key -eq 'Right' -or $e.Key -eq 'Up' -or $e.Key -eq 'Down') {
         $buttons = @($ctrl.BtnCheckup, $ctrl.BtnToolbox, $ctrl.BtnAuto, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
+        $buttons = @($ctrl.BtnUpdate) + $buttons
         if ($ctrl.BtnAdmin.Visibility -eq 'Visible') { $buttons = @($ctrl.BtnAdmin) + $buttons }
         $focused = [System.Windows.Input.Keyboard]::FocusedElement
         $idx = [Array]::IndexOf($buttons, $focused)
@@ -799,6 +868,38 @@ $showTimer.Interval = [TimeSpan]::FromMilliseconds(400)
 $showTimer.Add_Tick({ if ($script:showEvt -and $script:showEvt.WaitOne(0)) { $win.Show(); $win.WindowState = 'Normal'; $win.Activate() | Out-Null } })
 $showTimer.Start()
 
+# Beim Start (nach 6 Sek.) im Hintergrund nach Updates suchen
+$updStart = New-Object System.Windows.Threading.DispatcherTimer
+$updStart.Interval = [TimeSpan]::FromSeconds(6)
+$updPoll = New-Object System.Windows.Threading.DispatcherTimer
+$updPoll.Interval = [TimeSpan]::FromSeconds(1)
+$updStart.Add_Tick({
+    $updStart.Stop()
+    if (-not (Test-SysPilotUpdateAtStart)) { return }
+    try {
+        $modPath = Join-Path $script:Root 'modules\Updater.psm1'
+        $script:updJob = Start-Job -ScriptBlock { param($m) Import-Module $m -Force; Test-SysPilotUpdate } -ArgumentList $modPath
+        $updPoll.Start()
+    } catch { }
+})
+$updPoll.Add_Tick({
+    if (-not $script:updJob) { $updPoll.Stop(); return }
+    if ($script:updJob.State -in 'Completed','Failed','Stopped') {
+        $updPoll.Stop()
+        try {
+            $info = Receive-Job $script:updJob -ErrorAction SilentlyContinue | Select-Object -Last 1
+            Remove-Job $script:updJob -Force -ErrorAction SilentlyContinue
+            $script:updJob = $null
+            if ($info -and $info.Newer) {
+                $script:updateInfo = $info
+                Set-SysPilotGuiUpdateAvailable $info
+                $script:notifyIcon.ShowBalloonTip(5000, 'SysPilot Update', "Neue Version $($info.Latest) verfuegbar. Im SysPilot-Fenster auf 'Update' klicken.", 'Info')
+            }
+        } catch { }
+    }
+})
+$updStart.Start()
+
 Update-SysPilotGui
 $startInTray = [bool]($StartHidden -or ($startCfg -and $startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray))
 if ($startInTray) {
@@ -811,6 +912,8 @@ if ($startInTray) {
 $win.ShowDialog() | Out-Null
 $timer.Stop()
 $showTimer.Stop()
+$updStart.Stop(); $updPoll.Stop()
+if ($script:updJob) { Remove-Job $script:updJob -Force -ErrorAction SilentlyContinue }
 $script:notifyIcon.Visible = $false
 $script:notifyIcon.Dispose()
 if ($script:guiMutex) { $script:guiMutex.ReleaseMutex() | Out-Null; $script:guiMutex.Dispose() }

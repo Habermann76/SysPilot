@@ -33,32 +33,47 @@ function Test-SysPilotGuiRunning {
 }
 
 function Install-SysPilotGuardian {
-    <# Registriert die geplante Aufgabe "SysPilot Guardian": prueft alle 2 Min, ob die GUI laeuft. #>
+    <# Registriert die geplante Aufgabe "SysPilot Guardian": bei Anmeldung startet eine unsichtbare Wache,
+       die alle 30 Sek. prueft, ob die GUI laeuft (und sie sonst startet). Die Aufgabe selbst wird alle 5 Min.
+       neu angestossen, falls die Wache selbst einmal beendet wurde. Kein Fenster-Aufblitzen im 2-Minuten-Takt. #>
     if (-not (Assert-SysPilotAdmin)) { return $false }
     $exe = 'powershell.exe'
     if ($PSVersionTable.PSEdition -eq 'Core') { $exe = 'pwsh.exe' }
     $scriptPath = Join-Path $script:SysPilotRoot 'SysPilot.ps1'
-    $action = New-ScheduledTaskAction -Execute $exe -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`" -Guardian"
-    # Bei Anmeldung starten + alle 2 Minuten wiederholen (dauerhaft)
+    $action = New-ScheduledTaskAction -Execute $exe -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`" -Guardian -Loop"
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-    $trigger.Repetition = New-ScheduledTaskRepetition -Interval (New-TimeSpan -Minutes 2) -Duration ([TimeSpan]::MaxValue)
+    $trigger.Repetition = New-ScheduledTaskRepetition -Interval (New-TimeSpan -Minutes 5) -Duration ([TimeSpan]::MaxValue)
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -RunLevel Highest
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::FromMinutes(1))
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero)
     Register-ScheduledTask -TaskName 'SysPilot Guardian' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
-    Write-SysPilotLog 'Guardian installiert (prueft alle 2 Min, ob SysPilot laeuft)'
+    Start-ScheduledTask -TaskName 'SysPilot Guardian' -ErrorAction SilentlyContinue
+    Write-SysPilotLog 'Guardian installiert (Wache prueft alle 30 Sek., ob SysPilot laeuft)'
     return $true
 }
 
 function Remove-SysPilotGuardian {
     if (-not (Assert-SysPilotAdmin)) { return }
+    Stop-ScheduledTask -TaskName 'SysPilot Guardian' -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName 'SysPilot Guardian' -Confirm:$false -ErrorAction SilentlyContinue
     Write-SysPilotLog 'Guardian entfernt'
 }
 
+function Get-SysPilotGuardianPausePath { Join-Path $script:SysPilotRoot 'logs\guardian.pause' }
+
+function Set-SysPilotGuardianPause {
+    <# Wird beim bewussten "Beenden" (Tray-Menue) gesetzt: der Guardian startet SysPilot dann nicht neu,
+       bis zur naechsten Anmeldung bzw. bis die Wache neu startet. #>
+    try {
+        $g = Get-SysPilotGuardianConfig
+        if ($g.Enabled) { Set-Content -Path (Get-SysPilotGuardianPausePath) -Value (Get-Date -Format o) -Encoding ASCII -ErrorAction Stop }
+    } catch { }
+}
+
 function Invoke-SysPilotGuardian {
-    <# Wird von der geplanten Aufgabe aufgerufen: startet die GUI, falls sie nicht laeuft. #>
+    <# Startet die GUI, falls sie nicht laeuft (einmalige Pruefung). #>
     $g = Get-SysPilotGuardianConfig
     if (-not $g.Enabled) { return }
+    if (Test-Path (Get-SysPilotGuardianPausePath)) { return }
     if (Test-SysPilotGuiRunning) { return }
 
     $gui = Join-Path $script:SysPilotRoot 'SysPilot-GUI.ps1'
@@ -66,6 +81,29 @@ function Invoke-SysPilotGuardian {
     if ($g.StartMode -eq 'TrayOnly') { $guiArgs += '-StartHidden' }
     Start-Process powershell.exe -WindowStyle Hidden -ArgumentList (ConvertTo-SysPilotArgString $guiArgs)
     Write-SysPilotLog "Guardian: SysPilot neu gestartet (Modus: $($g.StartMode))"
+}
+
+function Invoke-SysPilotGuardianLoop {
+    <# Dauer-Wache (geplante Aufgabe): prueft alle 30 Sek. und startet SysPilot bei Bedarf neu.
+       Es laeuft immer nur eine Wache. Endet, wenn der Guardian in der Config ausgeschaltet wird. #>
+    param([int]$IntervalSec = 30)
+    $mtx = New-Object System.Threading.Mutex($false, 'Local\SysPilotGuardian-Loop')
+    if (-not $mtx.WaitOne(0)) { return }
+    try {
+        # Neue Wache = neue Anmeldung/Neustart: eine fruehere Pause aufheben
+        Remove-Item (Get-SysPilotGuardianPausePath) -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 20   # Anmeldung in Ruhe abschliessen lassen
+        while ($true) {
+            Reset-SysPilotConfig
+            $g = Get-SysPilotGuardianConfig
+            if (-not $g.Enabled) { break }
+            try { Invoke-SysPilotGuardian } catch { Write-SysPilotLog "Guardian-Fehler: $($_.Exception.Message)" }
+            Start-Sleep -Seconds $IntervalSec
+        }
+    } finally {
+        try { $mtx.ReleaseMutex() } catch { }
+        $mtx.Dispose()
+    }
 }
 
 function Show-SysPilotGuardianMenu {
@@ -92,7 +130,7 @@ function Show-SysPilotGuardianMenu {
                     Write-Host '  [OK] Guardian deaktiviert.' -ForegroundColor Yellow
                 } else {
                     Save-SysPilotGuardianConfig -Enabled $true -StartMode $g.StartMode
-                    if (Install-SysPilotGuardian) { Write-Host '  [OK] Guardian aktiviert - startet SysPilot neu, falls es nicht laeuft.' -ForegroundColor Green }
+                    if (Install-SysPilotGuardian) { Write-Host '  [OK] Guardian aktiviert - die Wache prueft alle 30 Sek. und startet SysPilot neu, falls es nicht laeuft.' -ForegroundColor Green }
                 }
                 Read-SysPilotChoice 'Weiter' | Out-Null
             }
@@ -113,4 +151,5 @@ function Show-SysPilotGuardianMenu {
 }
 
 Export-ModuleMember -Function Get-SysPilotGuardianConfig, Save-SysPilotGuardianConfig, Test-SysPilotGuiRunning,
-    Install-SysPilotGuardian, Remove-SysPilotGuardian, Invoke-SysPilotGuardian, Show-SysPilotGuardianMenu
+    Install-SysPilotGuardian, Remove-SysPilotGuardian, Invoke-SysPilotGuardian, Invoke-SysPilotGuardianLoop,
+    Set-SysPilotGuardianPause, Show-SysPilotGuardianMenu
