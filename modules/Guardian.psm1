@@ -26,7 +26,17 @@ function Save-SysPilotGuardianConfig {
 }
 
 function Test-SysPilotGuiRunning {
-    <# Prueft, ob die SysPilot-GUI laeuft (eigener Prozess, nicht dieser). #>
+    <# Prueft, ob die SysPilot-GUI laeuft. Zuerst ueber den Mutex der GUI (funktioniert auch, wenn die GUI mit mehr
+       Rechten laeuft als der Pruefer), danach ueber die Prozessliste. #>
+    try {
+        $m = $null
+        if ([System.Threading.Mutex]::TryOpenExisting('Local\SysPilotGUI-SingleInstance', [ref]$m)) {
+            if ($m) { $m.Dispose() }
+            return $true
+        }
+    } catch [System.UnauthorizedAccessException] {
+        return $true   # Mutex existiert, ist aber geschuetzt -> GUI laeuft
+    } catch { }
     $procs = Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue |
         Where-Object { $_.CommandLine -match 'SysPilot-GUI\.ps1' -and $_.ProcessId -ne $PID }
     return [bool]$procs

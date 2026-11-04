@@ -1,4 +1,10 @@
-# SysPilot 0.9.3 beta
+# SysPilot 0.9.4 beta
+
+- **Guardian**: erkennt eine laufende SysPilot-GUI jetzt zuverlaessig ueber ihre Sperre (Mutex), auch wenn sie mit hoeheren Rechten laeuft als die pruefende Stelle.
+
+---
+
+# SysPilot 0.9.3 beta (Vorgaenger)
 
 - **Updates**: Neuer Button "Updates" im SysPilot-Fenster (zeigt die installierte Version, z. B. v0.9.3). SysPilot sucht ausserdem beim Start im Hintergrund auf GitHub nach einer neueren Version und meldet sie per Tray-Hinweis. Ein Klick laedt den Installer und aktualisiert; eigene Einstellungen bleiben erhalten. Abschaltbar: Tray-Menue "Beim Start nach Updates suchen".
 - **Guardian (neu mit Installer-Haekchen, standardmaessig an)**: SysPilot startet mit Windows unsichtbar im Infobereich ("Ausgeblendete Symbole") und wird alle 30 Sekunden geprueft; laeuft es nicht, startet der Guardian es neu. Bewusstes "Beenden" im Tray-Menue wird respektiert (bis zur naechsten Anmeldung). Keine Fenster, die alle 2 Minuten aufblitzen.
@@ -52,8 +58,8 @@ Der ehrliche, kostenlose PC-Optimierer für Windows 10/11 – ohne Abo, ohne Sca
 
 ## Installation
 
-- **Installer**: `SysPilot-Setup-0.9.3-beta-x64.exe` (Windows 10/11, 64-bit) – installiert nach `Program Files\SysPilot`, Desktop-Verknüpfung inklusive.
-- **Portable**: `SysPilot-0.9.3-beta-portable.zip` – entpacken und `SysPilot.ps1` bzw. `SysPilot-GUI.ps1` starten.
+- **Installer**: `SysPilot-Setup-0.9.4-beta-x64.exe` (Windows 10/11, 64-bit) – installiert nach `Program Files\SysPilot`, Desktop-Verknüpfung inklusive.
+- **Portable**: `SysPilot-0.9.4-beta-portable.zip` – entpacken und `SysPilot.ps1` bzw. `SysPilot-GUI.ps1` starten.
 
 Beim ersten Start bitte als Administrator ausführen (für Powerpläne, Dienste und einige Fixes nötig). Details: [INSTALL.md](https://github.com/Habermann76/SysPilot/blob/main/INSTALL.md)
 
