@@ -1,8 +1,8 @@
 ; SysPilot Installer (Inno Setup)
-; Version 0.9.1 beta - x64
+; Version 0.9.2 beta - x64
 
 #define MyAppName "SysPilot"
-#define MyAppVersion "0.9.1"
+#define MyAppVersion "0.9.2"
 #define MyAppPublisher "Habermann76"
 #define MyAppURL "https://github.com/Habermann76/SysPilot"
 #define MyAppExeName "SysPilot-GUI.ps1"
@@ -21,7 +21,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=installer-output
-OutputBaseFilename=SysPilot-Setup-0.9.1-beta-x64
+OutputBaseFilename=SysPilot-Setup-0.9.2-beta-x64
 SetupIconFile=
 Compression=lzma
 SolidCompression=yes

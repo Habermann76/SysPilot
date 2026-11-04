@@ -148,30 +148,47 @@ function Show-SysPilotExtensionReport {
 }
 
 function Show-SysPilotExtensionManager {
+    $pos = 0
     while ($true) {
-        Write-SysPilotHeader "Browser-Erweiterungen verwalten"
         $ext = @(Get-SysPilotExtensions)
-        if ($ext.Count -eq 0) { Write-Host "  Keine Erweiterungen gefunden." -ForegroundColor Green; return }
+        if ($ext.Count -eq 0) {
+            Write-SysPilotHeader "Browser-Erweiterungen verwalten"
+            Write-Host "  Keine Erweiterungen gefunden." -ForegroundColor Green
+            return
+        }
+        $list = @($ext | Sort-Object Kategorie, Browser, Name)
 
-        $i = 0; $list = @()
-        foreach ($e in ($ext | Sort-Object Kategorie, Browser, Name)) {
-            $i++; $list += $e
+        $items = @()
+        $items += @{ Label = '>> Report: Duplikate und Ueberlappungen anzeigen'; Color = 'Cyan'; Tag = 'report' }
+        for ($i = 0; $i -lt $list.Count; $i++) {
+            $e = $list[$i]
             $state = if ($e.Aktiv) { 'AN ' } else { 'aus' }
             $color = if ($e.Kategorie -match 'KI|Coupon|Cache') { 'Yellow' } else { 'White' }
-            Write-Host ("  [{0,2}] {1} {2,-38} {3,-8} {4}" -f $i, $state, $e.Name, $e.Browser, $e.Kategorie) -ForegroundColor $color
+            $items += @{ Label = ("{0} {1,-38} {2,-8} {3}" -f $state, $e.Name, $e.Browser, $e.Kategorie); Color = $color; Tag = $i }
         }
+        $items += @{ Label = '<< Zurueck'; Color = 'Green'; Tag = 'back' }
+
+        $choice = Show-SysPilotArrowMenu -Items $items -StartIndex $pos `
+            -Title "Browser-Erweiterungen verwalten  ($($list.Count) gefunden)" `
+            -Footer 'Pfeiltasten = auswaehlen | Enter = Erweiterungs-Seite im Browser oeffnen | Esc = zurueck'
+        if ($null -eq $choice -or $choice -eq 'back') { return }
+        if ($choice -eq 'report') {
+            Clear-Host
+            Show-SysPilotExtensionReport
+            Write-Host ""
+            Write-Host "  Beliebige Taste = zurueck zur Liste" -ForegroundColor DarkGray
+            $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+            $pos = 0
+            continue
+        }
+        $e = $list[[int]$choice]
+        $pos = [int]$choice + 1
+        Clear-Host
         Write-Host ""
-        Write-Host "  Befehle: <Nr> = Extension-Seite im Browser oeffnen | R = Report | 0 = zurueck" -ForegroundColor Yellow
-        $c = Read-SysPilotChoice "Auswahl"
-        if ($c -eq '0' -or $c -eq '') { return }
-        if ($c -match '^(r|R)$') { Show-SysPilotExtensionReport; Read-SysPilotChoice "Weiter" | Out-Null; continue }
-        $n = 0
-        if ([int]::TryParse($c, [ref]$n) -and $n -ge 1 -and $n -le $list.Count) {
-            $e = $list[$n - 1]
-            Write-Host "  Oeffne $($e.Settings) in $($e.Browser) ..." -ForegroundColor Cyan
-            Write-Host "  (Dort kannst du die Erweiterung deaktivieren/entfernen)" -ForegroundColor DarkGray
-            Start-Process $e.Settings
-        }
+        Write-Host "  Oeffne $($e.Settings) in $($e.Browser) ..." -ForegroundColor Cyan
+        Write-Host "  (Dort kannst du die Erweiterung '$($e.Name)' deaktivieren/entfernen)" -ForegroundColor DarkGray
+        try { Start-Process $e.Settings } catch { Write-Host "  Konnte nicht geoeffnet werden: $($_.Exception.Message)" -ForegroundColor Red }
+        Start-Sleep -Milliseconds 1200
     }
 }
 

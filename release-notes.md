@@ -1,4 +1,11 @@
-# SysPilot 0.9.1 beta
+# SysPilot 0.9.2 beta
+
+- **Browser-Erweiterungen verwalten**: jetzt komplett mit Pfeiltasten bedienbar (hoch/runter, Bild auf/ab, Pos1/Ende, Enter oeffnet die Erweiterungs-Seite, Esc = zurueck). Lange Listen scrollen automatisch, die Position bleibt nach dem Oeffnen erhalten.
+- Alle Pfeiltasten-Menues scrollen jetzt bei kleinen Fenstern und zeigen die Position (z. B. [12/48]).
+
+---
+
+# SysPilot 0.9.1 beta (Vorgaenger)
 
 **Bugfix-Release**
 
@@ -36,8 +43,8 @@ Der ehrliche, kostenlose PC-Optimierer für Windows 10/11 – ohne Abo, ohne Sca
 
 ## Installation
 
-- **Installer**: `SysPilot-Setup-0.9.1-beta-x64.exe` (Windows 10/11, 64-bit) – installiert nach `Program Files\SysPilot`, Desktop-Verknüpfung inklusive.
-- **Portable**: `SysPilot-0.9.1-beta-portable.zip` – entpacken und `SysPilot.ps1` bzw. `SysPilot-GUI.ps1` starten.
+- **Installer**: `SysPilot-Setup-0.9.2-beta-x64.exe` (Windows 10/11, 64-bit) – installiert nach `Program Files\SysPilot`, Desktop-Verknüpfung inklusive.
+- **Portable**: `SysPilot-0.9.2-beta-portable.zip` – entpacken und `SysPilot.ps1` bzw. `SysPilot-GUI.ps1` starten.
 
 Beim ersten Start bitte als Administrator ausführen (für Powerpläne, Dienste und einige Fixes nötig). Details: [INSTALL.md](https://github.com/Habermann76/SysPilot/blob/main/INSTALL.md)
 

@@ -250,37 +250,53 @@ function Complete-SysPilotProgress {
 }
 
 function Show-SysPilotArrowMenu {
-    <# Pfeiltasten-Menue: hoch/runter, Enter = waehlen, Esc = zurueck.
-       Items: Array von @{ Label; Color; Tag } - gibt Tag des gewaehlten Eintrags zurueck oder $null bei Esc. #>
+    <# Pfeiltasten-Menue: hoch/runter, Bild auf/ab, Pos1/Ende, Enter = waehlen, Esc = zurueck.
+       Items: Array von @{ Label; Color; Tag } - gibt Tag des gewaehlten Eintrags zurueck oder $null bei Esc.
+       Lange Listen scrollen automatisch (an Fensterhoehe angepasst). -StartIndex merkt die Position. #>
     param(
         [Parameter(Mandatory)][array]$Items,
         [string]$Title = '',
-        [string]$Footer = 'Pfeiltasten hoch/runter, Enter = waehlen, Esc = zurueck'
+        [string]$Footer = 'Pfeiltasten hoch/runter, Enter = waehlen, Esc = zurueck',
+        [int]$StartIndex = 0
     )
     if ($Items.Count -eq 0) { return $null }
-    $sel = 0
+    $sel = [math]::Max(0, [math]::Min($StartIndex, $Items.Count - 1))
+    $top = 0
     while ($true) {
+        $winH = 30
+        try { $winH = [Console]::WindowHeight } catch { }
+        $reserve = 4 + $(if ($Title) { 3 } else { 0 })
+        $page = [math]::Max(5, $winH - $reserve)
+        if ($Items.Count -lt $page) { $page = $Items.Count }
+        if ($sel -lt $top) { $top = $sel }
+        if ($sel -ge $top + $page) { $top = $sel - $page + 1 }
+        $top = [math]::Max(0, [math]::Min($top, $Items.Count - $page))
+
         Clear-Host
         if ($Title) {
             Write-Host ""
             Write-Host "  $Title" -ForegroundColor Cyan
             Write-Host ""
         }
-        for ($i = 0; $i -lt $Items.Count; $i++) {
+        for ($i = $top; $i -lt ($top + $page); $i++) {
             $it = $Items[$i]
             $prefix = if ($i -eq $sel) { ' > ' } else { '   ' }
             $color = if ($i -eq $sel) { 'Black' } else { if ($it.Color) { $it.Color } else { 'White' } }
-            $bg = if ($i -eq $sel) { 'Cyan' } else { $null }
             $line = "$prefix$($it.Label)"
-            if ($bg) { Write-Host $line -ForegroundColor $color -BackgroundColor $bg }
+            if ($i -eq $sel) { Write-Host $line -ForegroundColor $color -BackgroundColor Cyan }
             else { Write-Host $line -ForegroundColor $color }
         }
         Write-Host ""
-        Write-Host "  $Footer" -ForegroundColor DarkGray
+        $more = if ($Items.Count -gt $page) { "  [{0}/{1}]" -f ($sel + 1), $Items.Count } else { '' }
+        Write-Host ("  $Footer" + $more) -ForegroundColor DarkGray
         $key = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
         switch ($key.VirtualKeyCode) {
             38 { $sel = ($sel - 1 + $Items.Count) % $Items.Count }
             40 { $sel = ($sel + 1) % $Items.Count }
+            33 { $sel = [math]::Max(0, $sel - $page) }
+            34 { $sel = [math]::Min($Items.Count - 1, $sel + $page) }
+            36 { $sel = 0 }
+            35 { $sel = $Items.Count - 1 }
             27 { return $null }
             13 { return $Items[$sel].Tag }
         }
