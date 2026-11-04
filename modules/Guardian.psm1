@@ -86,11 +86,40 @@ function Invoke-SysPilotGuardian {
     if (Test-Path (Get-SysPilotGuardianPausePath)) { return }
     if (Test-SysPilotGuiRunning) { return }
 
+    # Cooldown gegen schnelle Crash-/Restart-Schleifen (mindestens 20 Sekunden)
+    $stampFile = Join-Path $script:SysPilotRoot 'logs\guardian.laststart'
+    if (Test-Path $stampFile) {
+        try {
+            $last = [datetime](Get-Content $stampFile -Raw -ErrorAction SilentlyContinue)
+            if ((Get-Date) - $last -lt [TimeSpan]::FromSeconds(20)) { return }
+        } catch { }
+    }
+    Set-Content -Path $stampFile -Value (Get-Date -Format o) -Encoding ASCII -ErrorAction SilentlyContinue
+
     $gui = Join-Path $script:SysPilotRoot 'SysPilot-GUI.ps1'
     $guiArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui)
-    if ($g.StartMode -eq 'TrayOnly') { $guiArgs += '-StartHidden' }
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList (ConvertTo-SysPilotArgString $guiArgs)
-    Write-SysPilotLog "Guardian: SysPilot neu gestartet (Modus: $($g.StartMode))"
+
+    # SPIELE-SCHUTZ: Wenn ein Spiel laeuft oder Vollbild aktiv ist, IMMER unsichtbar im Tray starten!
+    $isGaming = $false
+    if (Get-Command Test-SysPilotGamingActive -ErrorAction SilentlyContinue) {
+        $isGaming = [bool](Test-SysPilotGamingActive)
+    }
+
+    if ($g.StartMode -eq 'TrayOnly' -or $isGaming) {
+        $guiArgs += '-StartHidden'
+    }
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $exe = 'powershell.exe'
+    if ($PSVersionTable.PSEdition -eq 'Core') { $exe = 'pwsh.exe' }
+    $psi.FileName = $exe
+    $psi.Arguments = ConvertTo-SysPilotArgString $guiArgs
+    $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+    $psi.CreateNoWindow = $true
+    $psi.UseShellExecute = $false
+    [System.Diagnostics.Process]::Start($psi) | Out-Null
+
+    Write-SysPilotLog "Guardian: SysPilot neu gestartet (Modus: $($g.StartMode), Gaming=$isGaming)"
 }
 
 function Invoke-SysPilotGuardianLoop {

@@ -1,7 +1,40 @@
-# SysPilot — Dein intelligenter PC-Autopilot
+# SysPilot 0.9.3.1 beta — Dein intelligenter PC-Autopilot
 
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
-Reines PowerShell, keine Installation, keine Telemetrie, alles bleibt auf deinem PC.
+Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
+alles bleibt auf deinem PC.
+
+## Version 0.9.3.1 beta
+
+SysPilot ist bewusst **keine Electron-App**. Electron würde für diese Anwendung
+mehr als doppelt so viel RAM benötigen, obwohl SysPilot selbst möglichst klein
+und effizient bleiben soll. Das Ziel war von Anfang an: viele möglichst clevere
+Funktionen in einem schlanken Windows-Tool, ohne unnötigen Unterbau.
+
+### Was ist neu?
+
+- **Updates-Schaltfläche** mit installierter Versionsanzeige und Suche nach neuen
+  GitHub-Versionen im Hintergrund.
+- **Guardian** startet SysPilot bei der Windows-Anmeldung unsichtbar im Tray und
+  startet ihn bei Bedarf automatisch neu.
+- **Automatischer Start nach Installation und Update**, optional auch im Tray.
+- **Einstellungen bleiben beim Update erhalten** — darunter Startverhalten,
+  Guardian, Autopilot, Sprache/Einheit und Update-Suche.
+- Die Update-Suche lässt sich über das Tray-Menü abschalten.
+
+### Ein persönlicher Hinweis zur Versionsnummer
+
+Rückblickend hätte ich wahrscheinlich mit `0.0.0.1 alpha` anfangen müssen. Ich
+habe aber schon eine ganze Weile an SysPilot gearbeitet und dachte deshalb,
+es sei fast fertig — daher die etwas zu hoch angesetzte `0.9`-Versionsreihe.
+Da noch weitere Funktionen geplant sind, kann es künftig gut sein, dass eine
+weitere Versionsnummer hinzukommt. SysPilot bleibt in Entwicklung.
+
+Ich arbeite weiter daran. Gleichzeitig ist Vibe Coding mit KI teurer, als ich
+anfangs gedacht hatte — vor allem durch Zeit, API-/Tool-Kosten und die vielen
+Iterationen, bis eine Funktion zuverlässig funktioniert.
+
+---
 
 <p align="center">
   <img src="assets/screenshot-gui.png" alt="SysPilot GUI — Live-Dashboard mit CPU-Temperatur, RAM, Disk und Top-Ressourcen-Fressern" width="800">
@@ -50,6 +83,11 @@ I'd appreciate it. 💛
 </p>
 
 ---
+
+## Installation
+
+Für die aktuelle Beta siehe die [Installationsanleitung](INSTALL.md) und die
+[GitHub-Releases](https://github.com/Habermann76/SysPilot/releases).
 
 ## Start
 

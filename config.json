@@ -50,7 +50,22 @@
                                "x64dbg"
                            ],
     "GameProcesses":  [
-
+                          "cs2",
+                          "valorant",
+                          "FortniteClient-Win64-Shipping",
+                          "GTA5",
+                          "r5apex",
+                          "Cyberpunk2077",
+                          "Overwatch",
+                          "RocketLeague",
+                          "Dota2",
+                          "League of Legends",
+                          "javaw",
+                          "RainbowSix",
+                          "eldenring",
+                          "bg3",
+                          "Starfield",
+                          "witcher3"
                       ],
     "GameLaunchers":  [
                           "steam",

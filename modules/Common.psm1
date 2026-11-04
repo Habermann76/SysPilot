@@ -10,6 +10,43 @@ function Test-SysPilotAdmin {
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class SysPilotGameCheck {
+    [DllImport("shell32.dll")]
+    public static extern int SHQueryUserNotificationState(out int pquns);
+}
+"@ -ErrorAction SilentlyContinue
+
+function Test-SysPilotGamingActive {
+    <# Gibt $true zurueck, wenn ein Spiel laeuft oder eine Vollbild-/Direct3D-Anwendung aktiv ist.
+       Schuetzt Spiele vor stoerenden Fenstern, Popups und Fokus-Verlust. #>
+    try {
+        $state = 0
+        if ([SysPilotGameCheck]::SHQueryUserNotificationState([ref]$state) -eq 0) {
+            # 2 = QUNS_BUSY (Vollbild / D3D Exklusiv)
+            # 3 = QUNS_RUNNING_D3D_FULL_SCREEN (Direct3D Vollbild, typisch fuer Spiele)
+            # 4 = QUNS_PRESENTATION_MODE
+            # 7 = QUNS_APP (Vollbild Store-App)
+            if ($state -in 2, 3, 4, 7) { return $true }
+        }
+    } catch { }
+
+    try {
+        $cfg = Get-SysPilotConfig
+        if ($cfg -and $cfg.GameProcesses -and $cfg.GameProcesses.Count -gt 0) {
+            $running = Get-Process -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessName
+            foreach ($g in $cfg.GameProcesses) {
+                $base = $g -replace '\.exe$',''
+                if ($running -contains $base) { return $true }
+            }
+        }
+    } catch { }
+
+    return $false
+}
+
 function Assert-SysPilotAdmin {
     if (-not (Test-SysPilotAdmin)) {
         Write-Host ""
@@ -307,4 +344,5 @@ Export-ModuleMember -Function ConvertTo-SysPilotArgString, Test-SysPilotAdmin, A
     Write-SysPilotLog, Get-SysPilotConfig, Reset-SysPilotConfig, Set-SysPilotConfigValue, Test-NameMatch,
     Get-SysPilotProcessByName, New-SysPilotBackup, Get-SysPilotBackups, Restore-SysPilotServices,
     Write-SysPilotHeader, Read-SysPilotChoice, Confirm-SysPilot, Show-SysPilotArrowMenu,
-    Write-SysPilotProgress, Complete-SysPilotProgress, Get-SysPilotShortcutPaths, Set-SysPilotShortcutRunAs
+    Write-SysPilotProgress, Complete-SysPilotProgress, Get-SysPilotShortcutPaths, Set-SysPilotShortcutRunAs,
+    Test-SysPilotGamingActive

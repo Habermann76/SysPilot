@@ -44,13 +44,23 @@ $script:guiMutex = New-Object System.Threading.Mutex($true, 'Local\SysPilotGUI-S
 if (-not $script:guiMutex.WaitOne(0)) {
     # Laeuft schon (evtl. nur im Tray): die laufende Instanz bitten, ihr Fenster zu zeigen.
     # (Nicht bei -StartHidden, z.B. Autostart/Guardian - dann soll nichts aufpoppen.)
-    if (-not $StartHidden) {
+    # SPIELE-SCHUTZ: Auch wenn ein Spiel laeuft, Fenster niemals in den Vordergrund draengen!
+    $isGamingNow = $false
+    try {
+        $rootCheck = Split-Path -Parent $MyInvocation.MyCommand.Path
+        if (-not $rootCheck) { $rootCheck = $PSScriptRoot }
+        $cmod = Join-Path $rootCheck 'modules\Common.psm1'
+        if (Test-Path $cmod) { Import-Module $cmod -Force -WarningAction SilentlyContinue }
+        if (Get-Command Test-SysPilotGamingActive -ErrorAction SilentlyContinue) { $isGamingNow = Test-SysPilotGamingActive }
+    } catch { }
+
+    if (-not $StartHidden -and -not $isGamingNow) {
         try { $evt = New-Object System.Threading.EventWaitHandle($false, 'AutoReset', 'Local\SysPilotGUI-Show'); $evt.Set() | Out-Null } catch { }
-    }
-    $existing = [SysPilotWin]::FindGuiWindow()
-    if ($existing -ne [IntPtr]::Zero) {
-        [SysPilotWin]::ShowWindow($existing, 9) | Out-Null   # SW_RESTORE
-        [SysPilotWin]::SetForegroundWindow($existing) | Out-Null
+        $existing = [SysPilotWin]::FindGuiWindow()
+        if ($existing -ne [IntPtr]::Zero) {
+            [SysPilotWin]::ShowWindow($existing, 9) | Out-Null   # SW_RESTORE
+            [SysPilotWin]::SetForegroundWindow($existing) | Out-Null
+        }
     }
     exit
 }
@@ -314,6 +324,17 @@ function Update-SysPilotGui {
             }
         }
         $ctrl.HogList.ItemsSource = $hogs
+    }
+
+    # Tray-Icon Tooltip mit Live-Daten aktualisieren (Windows-Limit: max 63 Zeichen)
+    if ($script:notifyIcon -and $script:notifyIcon.Visible) {
+        try {
+            $tVal = if ($ctrl.TempBig.Text -and $ctrl.TempBig.Text -ne '--') { "$($ctrl.TempBig.Text)$($ctrl.TempUnitLabel.Text)" } else { '' }
+            $trayTxt = "SysPilot | CPU: $load% | RAM: $ramPct%"
+            if ($tVal) { $trayTxt += " | $tVal" }
+            if ($trayTxt.Length -gt 63) { $trayTxt = $trayTxt.Substring(0, 63) }
+            $script:notifyIcon.Text = $trayTxt
+        } catch { }
     }
 }
 
@@ -662,6 +683,7 @@ function Set-SysPilotGuiUpdateAvailable {
     $ctrl.BtnUpdate.Content = "Update $($info.Latest) verfuegbar!"
     $ctrl.BtnUpdate.FontWeight = 'Bold'
     $ctrl.BtnUpdate.Foreground = [System.Windows.Media.Brushes]::OrangeRed
+    $ctrl.BtnUpdate.ToolTip = "SysPilot Update verfuegbar!`nInstalliert: $($info.Current) -> Neueste: $($info.Latest)`nKlicken zum Herunterladen und Installieren."
 }
 
 # Buttons
@@ -794,14 +816,27 @@ $script:notifyIcon.Visible = $true
 # Rechtsklick-Menue
 $trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
 $miShow   = $trayMenu.Items.Add('SysPilot anzeigen')
-$miCool   = $trayMenu.Items.Add('Kuehl-Modus')
-$miPerf   = $trayMenu.Items.Add('Leistung')
-$miFree   = $trayMenu.Items.Add('RAM freigeben')
+$miShow.Font = New-Object System.Drawing.Font($trayMenu.Font, [System.Drawing.FontStyle]::Bold)
+$miCool   = $trayMenu.Items.Add('Kuehl-Modus (Leise)')
+$miPerf   = $trayMenu.Items.Add('Leistungs-Modus')
+$miFree   = $trayMenu.Items.Add('RAM jetzt freigeben')
 $trayMenu.Items.Add('-') | Out-Null
+
+$miGame = $trayMenu.Items.Add('Gaming-Schutz: Spiele ungestoert')
+$miGame.Enabled = $false
+$trayMenu.Items.Add('-') | Out-Null
+
 $miTrayStart = New-Object System.Windows.Forms.ToolStripMenuItem 'Beim Start nur im Tray (ohne Fenster)'
 $miTrayStart.CheckOnClick = $true
 $miTrayStart.Checked = [bool]($startCfg -and $startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray)
 $trayMenu.Items.Add($miTrayStart) | Out-Null
+
+$miGuardian = New-Object System.Windows.Forms.ToolStripMenuItem 'Guardian (Waecher-Schutz aktiv)'
+$miGuardian.CheckOnClick = $true
+$gCfg = Get-SysPilotGuardianConfig
+$miGuardian.Checked = [bool]($gCfg.Enabled)
+$trayMenu.Items.Add($miGuardian) | Out-Null
+
 $trayMenu.Items.Add('-') | Out-Null
 $miUpdate = $trayMenu.Items.Add('Nach Updates suchen')
 $miUpdAtStart = New-Object System.Windows.Forms.ToolStripMenuItem 'Beim Start nach Updates suchen'
@@ -817,11 +852,28 @@ $miCool.Add_Click({ Set-PlanWithFeedback -Mode Cool -Label 'KUEHL' })
 $miPerf.Add_Click({ Set-PlanWithFeedback -Mode Performance -Label 'LEISTUNG' })
 $miFree.Add_Click({ Clear-SysPilotWorkingSets | Out-Null; if (Test-SysPilotAdmin) { Clear-SysPilotStandbyList | Out-Null } })
 $miTrayStart.Add_Click({ Set-SysPilotConfigValue -Section 'Start' -Key 'StartInTray' -Value ([bool]$miTrayStart.Checked) })
+$miGuardian.Add_Click({
+    $enable = [bool]$miGuardian.Checked
+    Save-SysPilotGuardianConfig -Enabled $enable -StartMode 'TrayOnly'
+    if ($enable) { Install-SysPilotGuardian | Out-Null } else { Remove-SysPilotGuardian }
+})
 $miUpdate.Add_Click({ Show-SysPilotWindow; Invoke-SysPilotGuiUpdateClick })
 $miUpdAtStart.Add_Click({ Set-SysPilotConfigValue -Section 'Update' -Key 'CheckAtStart' -Value ([bool]$miUpdAtStart.Checked) })
 # Bewusstes Beenden: der Guardian startet SysPilot dann nicht sofort wieder (bis zur naechsten Anmeldung)
-$miExit.Add_Click({ try { Set-SysPilotGuardianPause } catch { }; $script:reallyClose = $true; $win.Close() })
+$miExit.Add_Click({
+    try { Set-SysPilotGuardianPause } catch { }
+    $script:reallyClose = $true
+    try { $script:notifyIcon.Visible = $false; $script:notifyIcon.Dispose() } catch { }
+    $win.Close()
+})
 $script:notifyIcon.Add_DoubleClick({ $win.Show(); $win.WindowState = 'Normal'; $win.Activate() })
+
+# Minimieren -> im Tray verstecken statt Taskleiste belasten
+$win.Add_StateChanged({
+    if ($win.WindowState -eq 'Minimized') {
+        $win.Hide()
+    }
+})
 
 # Schliessen -> in Tray minimieren (nicht beenden), es sei denn wirklich beenden
 $script:reallyClose = $false
@@ -830,7 +882,15 @@ $win.Add_Closing({
     if (-not $script:reallyClose) {
         $e.Cancel = $true
         $win.Hide()
-        $script:notifyIcon.ShowBalloonTip(2000, 'SysPilot', 'Laeuft im Hintergrund weiter. Rechtsklick aufs Symbol -> Beenden.', 'Info')
+        # Keine stoerenden Balloontips waehrend des Spielens
+        if (-not (Test-SysPilotGamingActive)) {
+            $script:notifyIcon.ShowBalloonTip(2000, 'SysPilot', 'Laeuft im Hintergrund weiter. Rechtsklick aufs Symbol -> Beenden.', 'Info')
+        }
+    } else {
+        try {
+            $script:notifyIcon.Visible = $false
+            $script:notifyIcon.Dispose()
+        } catch { }
     }
 })
 
@@ -862,38 +922,65 @@ $timer.Interval = [TimeSpan]::FromSeconds(2)
 $timer.Add_Tick({ Update-SysPilotGui })
 $timer.Start()
 
-# Zweiter Start (Verknuepfung) waehrend die GUI im Tray laeuft -> Fenster zeigen
+# Zweiter Start (Verknuepfung) waehrend die GUI im Tray laeuft -> Fenster zeigen (nicht wenn ein Spiel laeuft)
 $showTimer = New-Object System.Windows.Threading.DispatcherTimer
 $showTimer.Interval = [TimeSpan]::FromMilliseconds(400)
-$showTimer.Add_Tick({ if ($script:showEvt -and $script:showEvt.WaitOne(0)) { $win.Show(); $win.WindowState = 'Normal'; $win.Activate() | Out-Null } })
+$showTimer.Add_Tick({
+    if ($script:showEvt -and $script:showEvt.WaitOne(0)) {
+        if (-not (Test-SysPilotGamingActive)) {
+            $win.Show(); $win.WindowState = 'Normal'; $win.Activate() | Out-Null
+        }
+    }
+})
 $showTimer.Start()
 
-# Beim Start (nach 6 Sek.) im Hintergrund nach Updates suchen
+# Beim Start (nach 6 Sek.) im Hintergrund nach Updates suchen (per leichtem Runspace statt schwerem Prozess-Job)
+$script:updRs = $null
+$script:updPs = $null
+$script:updAsync = $null
+
 $updStart = New-Object System.Windows.Threading.DispatcherTimer
 $updStart.Interval = [TimeSpan]::FromSeconds(6)
 $updPoll = New-Object System.Windows.Threading.DispatcherTimer
 $updPoll.Interval = [TimeSpan]::FromSeconds(1)
+
 $updStart.Add_Tick({
     $updStart.Stop()
     if (-not (Test-SysPilotUpdateAtStart)) { return }
     try {
         $modPath = Join-Path $script:Root 'modules\Updater.psm1'
-        $script:updJob = Start-Job -ScriptBlock { param($m) Import-Module $m -Force; Test-SysPilotUpdate } -ArgumentList $modPath
+        $script:updRs = [runspacefactory]::CreateRunspace()
+        $script:updRs.ApartmentState = 'STA'; $script:updRs.ThreadOptions = 'ReuseThread'
+        $script:updRs.Open()
+        $script:updRs.SessionStateProxy.SetVariable('modPath', $modPath)
+        $script:updPs = [powershell]::Create()
+        $script:updPs.Runspace = $script:updRs
+        [void]$script:updPs.AddScript({
+            Import-Module $modPath -Force -Global -WarningAction SilentlyContinue
+            Test-SysPilotUpdate
+        })
+        $script:updAsync = $script:updPs.BeginInvoke()
         $updPoll.Start()
     } catch { }
 })
+
 $updPoll.Add_Tick({
-    if (-not $script:updJob) { $updPoll.Stop(); return }
-    if ($script:updJob.State -in 'Completed','Failed','Stopped') {
+    if (-not $script:updAsync) { $updPoll.Stop(); return }
+    if ($script:updAsync.IsCompleted) {
         $updPoll.Stop()
         try {
-            $info = Receive-Job $script:updJob -ErrorAction SilentlyContinue | Select-Object -Last 1
-            Remove-Job $script:updJob -Force -ErrorAction SilentlyContinue
-            $script:updJob = $null
+            $res = $script:updPs.EndInvoke($script:updAsync)
+            $info = $res | Select-Object -Last 1
+            $script:updPs.Dispose(); $script:updRs.Close(); $script:updRs.Dispose()
+            $script:updPs = $null; $script:updRs = $null; $script:updAsync = $null
+
             if ($info -and $info.Newer) {
                 $script:updateInfo = $info
                 Set-SysPilotGuiUpdateAvailable $info
-                $script:notifyIcon.ShowBalloonTip(5000, 'SysPilot Update', "Neue Version $($info.Latest) verfuegbar. Im SysPilot-Fenster auf 'Update' klicken.", 'Info')
+                # Spiele-Schutz: Ballon-Tip nur zeigen, wenn gerade KEIN Spiel laeuft!
+                if (-not (Test-SysPilotGamingActive)) {
+                    $script:notifyIcon.ShowBalloonTip(5000, 'SysPilot Update', "Neue Version $($info.Latest) verfuegbar. Im SysPilot-Fenster auf 'Updates' klicken.", 'Info')
+                }
             }
         } catch { }
     }
@@ -901,19 +988,27 @@ $updPoll.Add_Tick({
 $updStart.Start()
 
 Update-SysPilotGui
-$startInTray = [bool]($StartHidden -or ($startCfg -and $startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray))
+
+$isGameActive = Test-SysPilotGamingActive
+$startInTray = [bool]($StartHidden -or $isGameActive -or ($startCfg -and $startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray))
 if ($startInTray) {
-    # Direkt in den Tray starten (z.B. wenn das Text-Menue beim Beenden die GUI uebergibt).
-    # Wichtig: Hide() VOR ShowDialog() - sonst blockiert ShowDialog() nicht und das Skript beendet sich sofort.
+    # Direkt in den Tray starten (z.B. Autostart, Guardian oder waehrend ein Spiel laeuft)
     $script:notifyIcon.Visible = $true
     $win.Hide()
-    $script:notifyIcon.ShowBalloonTip(2500, 'SysPilot', 'Laeuft im Hintergrund weiter. Doppelklick aufs Tray-Symbol oeffnet das Dashboard.', 'Info')
+    if (-not $isGameActive) {
+        $script:notifyIcon.ShowBalloonTip(2500, 'SysPilot', 'Laeuft im Hintergrund weiter. Doppelklick aufs Tray-Symbol oeffnet das Dashboard.', 'Info')
+    }
+} else {
+    $win.Show()
 }
+
 $win.ShowDialog() | Out-Null
 $timer.Stop()
 $showTimer.Stop()
 $updStart.Stop(); $updPoll.Stop()
-if ($script:updJob) { Remove-Job $script:updJob -Force -ErrorAction SilentlyContinue }
+if ($script:updPs) {
+    try { $script:updPs.Dispose(); $script:updRs.Close(); $script:updRs.Dispose() } catch { }
+}
 $script:notifyIcon.Visible = $false
 $script:notifyIcon.Dispose()
 if ($script:guiMutex) { $script:guiMutex.ReleaseMutex() | Out-Null; $script:guiMutex.Dispose() }

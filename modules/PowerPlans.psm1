@@ -269,9 +269,14 @@ function Start-SysPilotAutopilot {
 
 function Get-SysPilotGameRunning {
     $cfg = Get-SysPilotConfig
-    foreach ($g in $cfg.GameProcesses) {
-        $base = $g -replace '\.exe$',''
-        if (Get-Process -Name $base -ErrorAction SilentlyContinue) { return $base }
+    if ($cfg.GameProcesses) {
+        foreach ($g in $cfg.GameProcesses) {
+            $base = $g -replace '\.exe$',''
+            if (Get-Process -Name $base -ErrorAction SilentlyContinue) { return $base }
+        }
+    }
+    if (Get-Command Test-SysPilotGamingActive -ErrorAction SilentlyContinue) {
+        if (Test-SysPilotGamingActive) { return 'FullscreenGame' }
     }
     return $null
 }

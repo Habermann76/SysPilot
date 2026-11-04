@@ -4,16 +4,23 @@
 
 ---
 
-# SysPilot 0.9.3 beta (Vorgaenger)
+# SysPilot 0.9.3.1 beta
 
-- **Updates**: Neuer Button "Updates" im SysPilot-Fenster (zeigt die installierte Version, z. B. v0.9.3). SysPilot sucht ausserdem beim Start im Hintergrund auf GitHub nach einer neueren Version und meldet sie per Tray-Hinweis. Ein Klick laedt den Installer und aktualisiert; eigene Einstellungen bleiben erhalten. Abschaltbar: Tray-Menue "Beim Start nach Updates suchen".
-- **Guardian (neu mit Installer-Haekchen, standardmaessig an)**: SysPilot startet mit Windows unsichtbar im Infobereich ("Ausgeblendete Symbole") und wird alle 30 Sekunden geprueft; laeuft es nicht, startet der Guardian es neu. Bewusstes "Beenden" im Tray-Menue wird respektiert (bis zur naechsten Anmeldung). Keine Fenster, die alle 2 Minuten aufblitzen.
-- **Nach der Installation/dem Update startet SysPilot jetzt automatisch** (Installer-Haekchen "SysPilot jetzt starten" bzw. unsichtbar im Tray bei stillem Update).
-- **Einstellungen bleiben beim Update erhalten** (Start, Guardian, Autopilot, Sprache/Einheit, Update).
+- **Updates**: Neuer Button "Updates" im SysPilot-Fenster (zeigt die installierte Version, z. B. v0.9.3.1). SysPilot sucht ausserdem beim Start im Hintergrund auf GitHub nach einer neueren Version und meldet sie per Tray-Hinweis. Ein Klick laedt den Installer und aktualisiert; eigene Einstellungen bleiben erhalten. Abschaltbar: Tray-Menue "Beim Start nach Updates suchen".
+- **Guardian**: SysPilot startet mit Windows unsichtbar im Infobereich und wird regelmaessig geprueft; laeuft es nicht, startet der Guardian es neu. Bewusstes "Beenden" im Tray-Menue wird bis zur naechsten Anmeldung respektiert.
+- **Automatischer Start**: Nach der Installation oder einem Update startet SysPilot automatisch — auf Wunsch unsichtbar im Tray.
+- **Einstellungen bleiben erhalten**: Startverhalten, Guardian, Autopilot, Sprache/Einheit und Update-Suche werden beim Update uebernommen.
+- **Bewusst schlank**: SysPilot bleibt eine native PowerShell-/WPF-Anwendung und keine Electron-App. Dadurch wird unnoetiger RAM-Verbrauch vermieden; das Ziel sind viele clevere Funktionen in einem kleinen Tool.
+
+## Ein persoenlicher Hinweis
+
+Rueckblickend haette ich mit `0.0.0.1 alpha` anfangen muessen. Da ich aber schon eine Weile daran gearbeitet hatte, dachte ich, SysPilot sei fast fertig. Deshalb ist die Versionsnummer hoeher gestartet. Weil noch weitere Funktionen geplant sind, kann kuenftig eventuell eine weitere Versionsnummer hinzukommen.
+
+Ich arbeite weiter an SysPilot. Vibe Coding mit KI ist allerdings teurer, als ich anfangs gedacht hatte — durch Zeit, API-/Tool-Kosten und viele Iterationen.
 
 ---
 
-# SysPilot 0.9.2 beta (Vorgaenger)
+# SysPilot 0.9.3 beta (Vorgaenger)
 
 - **Browser-Erweiterungen verwalten**: jetzt komplett mit Pfeiltasten bedienbar (hoch/runter, Bild auf/ab, Pos1/Ende, Enter oeffnet die Erweiterungs-Seite, Esc = zurueck). Lange Listen scrollen automatisch, die Position bleibt nach dem Oeffnen erhalten.
 - Alle Pfeiltasten-Menues scrollen jetzt bei kleinen Fenstern und zeigen die Position (z. B. [12/48]).
