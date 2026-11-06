@@ -1,10 +1,10 @@
-# SysPilot 0.9.4.1 — Dein intelligenter PC-Autopilot
+# SysPilot 0.9.4.1 beta — Dein intelligenter PC-Autopilot
 
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
 Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
 alles bleibt auf deinem PC.
 
-## Version 0.9.4.1
+## Version 0.9.4.1 beta
 
 SysPilot ist bewusst **keine Electron-App**. Electron würde für diese Anwendung
 mehr als doppelt so viel RAM benötigen, obwohl SysPilot selbst möglichst klein
