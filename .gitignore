@@ -2,6 +2,7 @@
 backup/
 logs/
 tools/
+installer-output/
 *.log
 *.tmp
 .DS_Store
