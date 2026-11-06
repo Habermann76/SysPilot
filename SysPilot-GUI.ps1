@@ -191,6 +191,9 @@ $xaml = @"
       <WrapPanel HorizontalAlignment="Center">
         <Button x:Name="BtnCheckup" Content="CHECKUP" FontWeight="Bold" ToolTip="Automatic Checkup: Komplett-Scan mit Erklaerungen und Reparatur"/>
         <Button x:Name="BtnToolbox" Content="Toolbox" ToolTip="Alle Werkzeuge nach Kategorien"/>
+        <Button x:Name="BtnDns" Content="DNS" ToolTip="DNS je Adapter pruefen, testen, sichern und sicher aendern"/>
+        <Button x:Name="BtnHealth" Content="Health" ToolTip="Smart Health Monitor: CPU, RAM, Disk, Temperatur"/>
+        <Button x:Name="BtnAISearch" Content="KI-Suche" ToolTip="HowTo und Tipps im Browser suchen"/>
         <Button x:Name="BtnAuto" Content="Vollautomatik" FontWeight="Bold" ToolTip="Auto-Optimierung: Backup, Dienste, Features, Tweaks, Prioritaeten - alles in einem Rutsch (Admin)"/>
         <Button x:Name="BtnCool" Content="Kuehl"/>
         <Button x:Name="BtnPerf" Content="Leistung"/>
@@ -224,7 +227,7 @@ $ctrl = @{}
 foreach ($n in 'CpuText','CpuSpeed','CpuBar','RamText','RamDetail','RamBar','DiskText','DiskDetail','DiskBar',
                  'SysCpu','SysProcs','SysBattery','SysUptime','HogList','AdminBadge','PlanBadge','WatchBadge','VersionBadge',
                  'TempBig','TempStatus','TempSource','TempUnitLabel',
-                 'BtnCheckup','BtnToolbox','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin','BtnUpdate') {
+                 'BtnCheckup','BtnToolbox','BtnDns','BtnHealth','BtnAISearch','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin','BtnUpdate') {
     $ctrl[$n] = $win.FindName($n)
 }
 
@@ -686,6 +689,144 @@ function Set-SysPilotGuiUpdateAvailable {
     $ctrl.BtnUpdate.ToolTip = "SysPilot Update verfuegbar!`nInstalliert: $($info.Current) -> Neueste: $($info.Latest)`nKlicken zum Herunterladen und Installieren."
 }
 
+# ---------- Toolbox-GUI (Maussteuerbar) ----------
+function Show-SysPilotToolboxWindow {
+    $tools = Get-SysPilotToolbox
+    $categories = @($tools | Group-Object Category | ForEach-Object { $_.Name })
+
+    $window = New-Object System.Windows.Window
+    $window.Title = 'SysPilot - Toolbox (Maussteuerbar)'
+    $window.Width = 880; $window.Height = 620
+    $window.WindowStartupLocation = 'CenterScreen'
+
+    $grid = New-Object System.Windows.Controls.Grid
+    $grid.Margin = '14'
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Height Auto))
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Height '*'))
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Height Auto))
+
+    # Header
+    $title = New-Object System.Windows.Controls.TextBlock
+    $title.Text = 'Toolbox - Werkzeuge nach Kategorie'
+    $title.FontSize = 20; $title.FontWeight = 'Bold'; $title.Foreground = '#FF4FC3F7'
+    [System.Windows.Controls.Grid]::SetRow($title,0); $grid.Children.Add($title)|Out-Null
+
+    # Category + Tool list
+    $catPanel = New-Object System.Windows.Controls.StackPanel
+    $catPanel.Orientation = 'Vertical'
+    $toolPanel = New-Object System.Windows.Controls.StackPanel
+    $toolPanel.Orientation = 'Vertical'
+
+    $catButtons = @{}
+    foreach ($c in $categories) {
+        $btn = New-Object System.Windows.Controls.Button
+        $btn.Content = "$c"
+        $btn.Margin = '2,0,2,0'
+        $btn.Tag = $c
+        $catButtons[$c] = $btn
+        $catPanel.Children.Add($btn)|Out-Null
+    }
+
+    $toolList = New-Object System.Windows.Controls.ListBox
+    $toolList.DisplayMemberPath = 'Name'
+    $toolList.Margin = '4,0,0,0'
+    [System.Windows.Controls.Grid]::SetRow($toolList,1); $grid.Children.Add($toolList)|Out-Null
+
+    # Tool detail panel
+    $detailPanel = New-Object System.Windows.Controls.StackPanel
+    $detailPanel.Orientation = 'Vertical'
+    $detailPanel.Margin = '8,8,8,8'
+    $detailText = New-Object System.Windows.Controls.TextBlock
+    $detailText.TextWrapping = 'Wrap'
+    $detailText.FontSize = 12
+    $detailPanel.Children.Add($detailText)|Out-Null
+
+    # Buttons
+    $btnPanel = New-Object System.Windows.Controls.StackPanel
+    $btnPanel.Orientation = 'Horizontal'
+    $btnPanel.HorizontalAlignment = 'Center'
+    $btnExplain = New-Object System.Windows.Controls.Button
+    $btnExplain.Content = 'Erklären'
+    $btnExplain.Margin = '4'
+    $btnHowTo = New-Object System.Windows.Controls.Button
+    $btnHowTo.Content = 'HowTo / KI-Suche'
+    $btnHowTo.Margin = '4'
+    $btnRun = New-Object System.Windows.Controls.Button
+    $btnRun.Content = 'Ausführen'
+    $btnRun.Margin = '4'
+    $btnClose = New-Object System.Windows.Controls.Button
+    $btnClose.Content = 'Schließen'
+    $btnClose.Margin = '4'
+    foreach ($b in @($btnExplain,$btnHowTo,$btnRun,$btnClose)) { $btnPanel.Children.Add($b)|Out-Null }
+    [System.Windows.Controls.Grid]::SetRow($btnPanel,2); $grid.Children.Add($btnPanel)|Out-Null
+
+    # State
+    $script:toolboxSelectedTool = $null
+    $script:toolboxCurrentCategory = $null
+
+    # Category click handler
+    foreach ($c in $categories) {
+        $catButtons[$c].Add_Click({
+            param($sender, $e)
+            $script:toolboxCurrentCategory = $sender.Tag
+            $toolList.Items.Clear()
+            foreach ($t in ($tools | Where-Object { $_.Category -eq $script:toolboxCurrentCategory })) {
+                $toolList.Items.Add($t)|Out-Null
+            }
+            $detailText.Text = 'Werkzeug auswählen...'
+        })
+    }
+
+    # Tool selection handler
+    $toolList.Add_SelectionChanged({
+        $t = $toolList.SelectedItem
+        if ($t) {
+            $script:toolboxSelectedTool = $t
+            $detailText.Text = "$($t.Name)`n`n$($t.Desc)`n`nErklärung: $($t.Explanation)`n`nTipp: $($t.Tip)`n`nHowTo: $($t.HowTo)"
+        }
+    })
+
+    # Explain button
+    $btnExplain.Add_Click({
+        $t = $script:toolboxSelectedTool
+        if ($t) {
+            [System.Windows.MessageBox]::Show("$($t.Name)`n`n$($t.Desc)`n`nErklärung: $($t.Explanation)`n`nTipp: $($t.Tip)", 'Erklärung', 'OK', 'Information') | Out-Null
+        }
+    })
+
+    # HowTo / AI Search button
+    $btnHowTo.Add_Click({
+        $t = $script:toolboxSelectedTool
+        if ($t) {
+            $query = if ($t.AISearchQuery) { $t.AISearchQuery } else { $t.Name + ' Windows' }
+            Invoke-SysPilotAISearch -Query $query
+        }
+    })
+
+    # Run button
+    $btnRun.Add_Click({
+        $t = $script:toolboxSelectedTool
+        if ($t) {
+            if ($t.NeedsAdmin -and -not (Test-SysPilotAdmin)) {
+                [System.Windows.MessageBox]::Show('Dieses Werkzeug braucht Admin-Rechte. Bitte als Admin neu starten.', 'Admin noetig', 'OK', 'Warning') | Out-Null
+                return
+            }
+            & $t.Action
+        }
+    })
+
+    # Close button
+    $btnClose.Add_Click({ $window.Close() })
+
+    $window.Content = $grid
+    $window.ShowDialog() | Out-Null
+}
+
+# ---------- Checkup-GUI (implemented in Checkup.psm1 module) ----------
+# Button calls Show-SysPilotCheckupWindow directly (imported globally from Checkup.psm1)
+
+# ---------- Buttons ----------
+
 # Buttons
 $ctrl.BtnUpdate.Add_Click({ Invoke-SysPilotGuiUpdateClick })
 $ctrl.BtnAdmin.Add_Click({
@@ -698,6 +839,9 @@ $ctrl.BtnAdmin.Add_Click({
 })
 $ctrl.BtnCheckup.Add_Click({ Show-SysPilotCheckupWindow })
 $ctrl.BtnToolbox.Add_Click({ Show-SysPilotToolboxWindow })
+$ctrl.BtnDns.Add_Click({ Show-SysPilotWindow; Show-SysPilotDnsWindow })
+$ctrl.BtnHealth.Add_Click({ Show-SysPilotWindow; Show-SysPilotHealthDashboard })
+$ctrl.BtnAISearch.Add_Click({ Show-SysPilotWindow; Invoke-SysPilotAISearch -Query (Read-SysPilotChoice 'Suchbegriff fuer KI-Websuche') })
 $ctrl.BtnAuto.Add_Click({
     $msg = "VOLLAUTOMATIK (Auto-Optimierung)`n`n1. Backup (Dienste, Registry, Energieplaene)`n2. Dienste optimieren (nur gepruefte Empfehlungen)`n3. Sicher unnoetige Windows-Features aus`n4. Tweaks: Game Mode an, Werbung aus, Optik bleibt huebsch`n5. Prozess-Prioritaeten anwenden`n`nBraucht Admin. Jetzt starten?"
     $ans = [System.Windows.MessageBox]::Show($msg, 'Vollautomatik', 'YesNo', 'Question')

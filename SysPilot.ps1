@@ -272,6 +272,9 @@ function Show-SysPilotMenu {
         @{ Key = '23'; Label = 'NETZWERKADAPTER identifizieren (was ist vgate0?)'; Color = 'Cyan' },
         @{ Key = '24'; Label = 'AUTOMATIC CHECKUP (Komplett-Scan, Erklaerungen, Reparatur)'; Color = 'Green' },
         @{ Key = '25'; Label = 'TOOLBOX (alle Werkzeuge nach Kategorien)'; Color = 'Cyan' },
+        @{ Key = '26'; Label = 'SMART HEALTH MONITOR (CPU/RAM/Disk/Temp)'; Color = 'Cyan' },
+        @{ Key = '27'; Label = 'DNS-MANAGER (Adapter, Anbieter, Backup)'; Color = 'Cyan' },
+        @{ Key = '28'; Label = 'KI-SUCHE (HowTo & Tipps im Browser)'; Color = 'Yellow' },
         @{ Key = '0';  Label = 'Beenden'; Color = 'DarkGray' }
     )
 
@@ -360,6 +363,9 @@ function Show-SysPilotMenu {
                     '23' { Show-SysPilotNetworkAdapters }
                     '24' { Show-SysPilotCheckup }
                     '25' { Show-SysPilotToolbox }
+                    '26' { Show-SysPilotHealthDashboard }
+                    '27' { Show-SysPilotDnsManager }
+                    '28' { Invoke-SysPilotAISearch -Query (Read-SysPilotChoice 'Suchbegriff') }
                     '0'  { Close-SysPilotToTray; return }
                 }
             }
