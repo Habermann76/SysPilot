@@ -1,4 +1,4 @@
-﻿# SysPilot GUI - schlanke WPF-Oberflaeche (kein Electron, ~40-60 MB RAM)
+# SysPilot GUI - schlanke WPF-Oberflaeche (kein Electron, ~40-60 MB RAM)
 #Requires -Version 5.1
 param([switch]$AsAdmin, [switch]$StartHidden)
 
@@ -191,6 +191,7 @@ $xaml = @"
       <WrapPanel HorizontalAlignment="Center">
         <Button x:Name="BtnCheckup" Content="CHECKUP" FontWeight="Bold" ToolTip="Automatic Checkup: Komplett-Scan mit Erklaerungen und Reparatur"/>
         <Button x:Name="BtnToolbox" Content="Toolbox" ToolTip="Alle Werkzeuge nach Kategorien"/>
+        <Button x:Name="BtnDns" Content="DNS" ToolTip="DNS je Adapter pruefen, testen, sichern und sicher aendern"/>
         <Button x:Name="BtnAuto" Content="Vollautomatik" FontWeight="Bold" ToolTip="Auto-Optimierung: Backup, Dienste, Features, Tweaks, Prioritaeten - alles in einem Rutsch (Admin)"/>
         <Button x:Name="BtnCool" Content="Kuehl"/>
         <Button x:Name="BtnPerf" Content="Leistung"/>
@@ -224,7 +225,7 @@ $ctrl = @{}
 foreach ($n in 'CpuText','CpuSpeed','CpuBar','RamText','RamDetail','RamBar','DiskText','DiskDetail','DiskBar',
                  'SysCpu','SysProcs','SysBattery','SysUptime','HogList','AdminBadge','PlanBadge','WatchBadge','VersionBadge',
                  'TempBig','TempStatus','TempSource','TempUnitLabel',
-                 'BtnCheckup','BtnToolbox','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin','BtnUpdate') {
+                 'BtnCheckup','BtnToolbox','BtnDns','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin','BtnUpdate') {
     $ctrl[$n] = $win.FindName($n)
 }
 
@@ -698,6 +699,8 @@ $ctrl.BtnAdmin.Add_Click({
 })
 $ctrl.BtnCheckup.Add_Click({ Show-SysPilotCheckupWindow })
 $ctrl.BtnToolbox.Add_Click({ Show-SysPilotToolboxWindow })
+.BtnDns.Add_Click({ Start-SysPilotToolFromGui -Tool 'dns' -FromGui })
+.BtnHealth.Add_Click({ Start-SysPilotToolFromGui -Tool 'health' -FromGui })
 $ctrl.BtnAuto.Add_Click({
     $msg = "VOLLAUTOMATIK (Auto-Optimierung)`n`n1. Backup (Dienste, Registry, Energieplaene)`n2. Dienste optimieren (nur gepruefte Empfehlungen)`n3. Sicher unnoetige Windows-Features aus`n4. Tweaks: Game Mode an, Werbung aus, Optik bleibt huebsch`n5. Prozess-Prioritaeten anwenden`n`nBraucht Admin. Jetzt starten?"
     $ans = [System.Windows.MessageBox]::Show($msg, 'Vollautomatik', 'YesNo', 'Question')
@@ -919,7 +922,7 @@ $win.Add_KeyDown({
     param($s, $e)
     if ($e.Key -eq 'Escape') { $win.Close(); return }
     if ($e.Key -eq 'Left' -or $e.Key -eq 'Right' -or $e.Key -eq 'Up' -or $e.Key -eq 'Down') {
-        $buttons = @($ctrl.BtnCheckup, $ctrl.BtnToolbox, $ctrl.BtnAuto, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
+$buttons = @($ctrl.BtnCheckup,$ctrl.BtnToolbox, $ctrl.BtnDns, $ctrl.BtnHealth, $ctrl.BtnAuto, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
         $buttons = @($ctrl.BtnUpdate) + $buttons
         if ($ctrl.BtnAdmin.Visibility -eq 'Visible') { $buttons = @($ctrl.BtnAdmin) + $buttons }
         $focused = [System.Windows.Input.Keyboard]::FocusedElement

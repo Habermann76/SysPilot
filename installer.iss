@@ -1,8 +1,8 @@
 ; SysPilot Installer (Inno Setup)
-; Version 0.9.4 beta - x64
+; Version 0.9.4.2 beta - x64
 
 #define MyAppName "SysPilot"
-#define MyAppVersion "0.9.4"
+#define MyAppVersion "0.9.4.5"
 #define MyAppPublisher "Habermann76"
 #define MyAppURL "https://github.com/Habermann76/SysPilot"
 #define MyAppExeName "SysPilot-GUI.ps1"
@@ -16,12 +16,12 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={autopf}\\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=installer-output
-OutputBaseFilename=SysPilot-Setup-0.9.4.1-beta-x64
+OutputBaseFilename=SysPilot-Setup-0.9.4.5-x64
 SetupIconFile=
 Compression=lzma
 SolidCompression=yes
@@ -63,10 +63,10 @@ Name: "{app}\logs"
 Name: "{app}\tools"
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Comment: "SysPilot GUI starten"
+Name: "{group}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-STA -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Comment: "SysPilot GUI starten"
 Name: "{group}\{#MyAppName} (Text-Menue)"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\SysPilot.ps1"""; Comment: "SysPilot Text-Menue starten"
 Name: "{group}\{#MyAppName} Dokumentation"; Filename: "{app}\README.md"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-STA -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Tasks: desktopicon
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -RestoreUserSettings"; Flags: runhidden waituntilterminated
@@ -74,9 +74,9 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Win
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -SmartBoost"; Tasks: smartboost; Flags: runhidden waituntilterminated
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -Guardian"; Tasks: guardian; Flags: runhidden waituntilterminated
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -RunAsAdmin"; Tasks: runasadmin; Flags: runhidden waituntilterminated
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Description: "SysPilot jetzt starten"; Flags: nowait postinstall skipifsilent
+Filename: "powershell.exe"; Parameters: "-STA -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Description: "SysPilot jetzt starten"; Flags: nowait postinstall skipifsilent
 ; Stilles Update (z. B. aus SysPilot heraus): SysPilot danach unsichtbar im Tray wieder starten
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"" -StartHidden"; Flags: nowait runhidden; Check: WizardSilent
+Filename: "powershell.exe"; Parameters: "-STA -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"" -StartHidden"; Flags: nowait runhidden; Check: WizardSilent
 
 [UninstallRun]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -Undo"; Flags: runhidden waituntilterminated; RunOnceId: "syspilot-cleanup"
@@ -99,4 +99,3 @@ begin
       FileCopy(ExpandConstant('{app}\config.json'), ExpandConstant('{app}\config.user-backup.json'), False);
   end;
 end;
-

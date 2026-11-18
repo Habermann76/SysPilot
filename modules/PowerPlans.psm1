@@ -1,4 +1,4 @@
-﻿# SysPilot - PowerPlans: Energieplaene + Autopilot (Kuehl/Leistung)
+# SysPilot - PowerPlans: Energieplaene + Autopilot (Kuehl/Leistung)
 #Requires -Version 5.1
 
 # Locale-unabhaengige GUIDs (funktionieren auch auf deutschem Windows)
@@ -45,7 +45,7 @@ function Install-SysPilotPlans {
     <#
     Erstellt zwei Plaene:
       Kuehl & Leise : Boost AUS (Ryzen bleibt auf Basistakt), Max 95%/85%, passive Kuehlung
-      Leistung      : Boost AGGRESSIV, Max 100%, aktive Kuehlung
+Leistungs-Plan: Boost moderat (1), Max 90%, Min 10%, aktive Kuehlung
     #>
     if (-not (Assert-SysPilotAdmin)) { return }
 
@@ -68,8 +68,8 @@ function Install-SysPilotPlans {
         & powercfg /changename $perfGuid $script:PERF_NAME "Volle Leistung fuer Gaming, Kompilieren und Entwicklung" | Out-Null
     }
     # Leistungs-Plan: Boost aggressiv (2), Max 100%, Min 10%, aktive Kuehlung (1)
-    Set-PowerSetting -Scheme $perfGuid -Setting $script:PERFBOOSTMODE   -AC 2   -DC 1
-    Set-PowerSetting -Scheme $perfGuid -Setting $script:PROCTHROTTLEMAX -AC 100 -DC 100
+    Set-PowerSetting -Scheme  -Setting    -AC 1   -DC 1
+    Set-PowerSetting -Scheme  -Setting  -AC 90 -DC 90
     Set-PowerSetting -Scheme $perfGuid -Setting $script:PROCTHROTTLEMIN -AC 10  -DC 5
     Set-PowerSetting -Scheme $perfGuid -Setting $script:SYSCOOLPOL      -AC 1   -DC 1
 
