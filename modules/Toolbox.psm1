@@ -280,6 +280,12 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'winupdate'; Name = 'Windows Update suchen'
         Desc = 'Startet die Update-Suche und oeffnet die Update-Einstellungen.'
         NeedsAdmin = $false; Action = { Update-SysPilotWindows; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'dns'; Name = 'DNS-Manager (Advanced)'
+        Desc = 'DNS-Adapter verwalten, Provider testen, DNS setzen, Cache pruefen, Reverse-Lookup.'
+        NeedsAdmin = $false; Action = { Show-SysPilotDnsWindow; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'Hardware-Gesundheit'; Key = 'health'; Name = 'Smart Health Monitor'
+        Desc = 'CPU, GPU, SSD, Luefter, Temperatur ueberwachen; Warnungen, Ursachen, Reparatur-Howtos, Ersatzteil-Empfehlungen.'
+        NeedsAdmin = $false; Action = { Show-SysPilotHealthDashboard; Read-SysPilotChoice 'Weiter' | Out-Null } }
     $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'backup'; Name = 'Backup erstellen / wiederherstellen'
         Desc = 'Sichert Dienste, Autostart und Energieplaene - der Sicherheitsgurt vor jeder Optimierung.'
         NeedsAdmin = $true; Action = {
@@ -324,6 +330,12 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'Analyse & Info'; Key = 'sysinfo'; Name = 'System-Info'
         Desc = 'CPU, RAM, GPU, Platten, Windows-Version, Laufzeit - kompakt auf einen Blick.'
         NeedsAdmin = $false; Action = { Show-SysPilotSystemInfo; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'Analyse & Info'; Key = 'dns'; Name = 'DNS-Manager'
+        Desc = 'DNS-Adapter verwalten, Provider testen, DNS setzen, Cache prüfen, Reverse-Lookup'
+        NeedsAdmin = $false; Action = { Show-SysPilotDnsWindow; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'Analyse & Info'; Key = 'health'; Name = 'Smart Health Monitor'
+        Desc = 'Überwachung von CPU, GPU, SSD, Lüftern und Temperatur via LibreHardwareMonitor'
+        NeedsAdmin = $false; Action = { Show-SysPilotHealthDashboard; Read-SysPilotChoice 'Weiter' | Out-Null } }
 
     return $tools
 }

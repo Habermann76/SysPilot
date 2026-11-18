@@ -1,4 +1,4 @@
-# SysPilot 0.9.4.1 beta
+# SysPilot 0.9.4.4 beta
 
 - **GUI-Toolbox**: Werkzeuge starten jetzt über einen zentralen, robusten GUI-Launcher mit korrektem Arbeitsordner, Admin-Erhöhung und Fehlermeldungen.
 - **Tooltips & Suche**: Toolbox-Buttons zeigen Erklärungen; per Rechtsklick ist eine KI-/Web-Suche zum Werkzeugthema verfügbar.

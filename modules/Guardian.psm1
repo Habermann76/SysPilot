@@ -97,7 +97,7 @@ function Invoke-SysPilotGuardian {
     Set-Content -Path $stampFile -Value (Get-Date -Format o) -Encoding ASCII -ErrorAction SilentlyContinue
 
     $gui = Join-Path $script:SysPilotRoot 'SysPilot-GUI.ps1'
-    $guiArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui)
+    $guiArgs = @('-STA','-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui)
 
     # SPIELE-SCHUTZ: Wenn ein Spiel laeuft oder Vollbild aktiv ist, IMMER unsichtbar im Tray starten!
     $isGaming = $false
