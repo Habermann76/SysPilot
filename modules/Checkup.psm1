@@ -845,7 +845,143 @@ function Show-SysPilotCheckup {
     }
 }
 
+# ---------- GUI-Window ----------
+function Show-SysPilotCheckupWindow {
+    <# Checkup als WPF-Fenster: Ergebnisse mit Erklaerungen, Tips, HowTo-Links, Checkboxen zum Auswaehlen. #>
+    $results = Invoke-SysPilotCheckupScan
+
+    $window = New-Object System.Windows.Window
+    $window.Title = 'SysPilot - Automatic Checkup'
+    $window.Width = 900; $window.Height = 700
+    $window.WindowStartupLocation = 'CenterScreen'
+
+    $grid = New-Object System.Windows.Controls.Grid
+    $grid.Margin = '14'
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Height Auto))
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Height '*'))
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Height Auto))
+
+    # Header
+    $title = New-Object System.Windows.Controls.TextBlock
+    $title.Text = 'Automatic Checkup - 15 Bereiche mit Erklaerungen'
+    $title.FontSize = 20; $title.FontWeight = 'Bold'; $title.Foreground = '#FF4FC3F7'
+    [System.Windows.Controls.Grid]::SetRow($title,0); $grid.Children.Add($title)|Out-Null
+
+    # Info text
+    $info = New-Object System.Windows.Controls.TextBlock
+    $info.Text = 'Jeder Bereich hat eine ehrliche Erklaerung. Fixes einzeln abwaehlbar. VPN-Adapter werden nie automatisch veraendert.'
+    $info.Margin = '0,4,0,8'; $info.TextWrapping = 'Wrap'
+    [System.Windows.Controls.Grid]::SetRow($info,1); $grid.Children.Add($info)|Out-Null
+
+    # Scrollable list
+    $scroll = New-Object System.Windows.Controls.ScrollViewer
+    $scroll.VerticalScrollBarVisibility = 'Auto'
+    $listPanel = New-Object System.Windows.Controls.StackPanel
+    $listPanel.Orientation = 'Vertical'
+
+    $script:checkupSelectedFixes = @()
+
+    foreach ($r in $results) {
+        $itemPanel = New-Object System.Windows.Controls.StackPanel
+        $itemPanel.Orientation = 'Vertical'
+        $itemPanel.Margin = '0,8,0,8'
+        $itemPanel.Background = if ($r.Found) { '#FF3A3A45' } else { '#FF2A2A30' }
+
+        # Icon + Name + Summary
+        $headerRow = New-Object System.Windows.Controls.DockPanel
+        $icon = New-Object System.Windows.Controls.TextBlock
+        $icon.Text = if ($r.Skipped) { '[?]' } elseif (-not $r.Found) { '[OK]' } elseif ($r.Critical) { '[!]' } else { '[i]' }
+        $icon.FontWeight = 'Bold'; $icon.Width = 30
+        $icon.Foreground = if ($r.Skipped) { 'DarkGray' } elseif (-not $r.Found) { 'Green' } elseif ($r.Critical) { 'Red' } else { 'Yellow' }
+        [System.Windows.Controls.DockPanel]::SetDock($icon,'Left'); $headerRow.Children.Add($icon)|Out-Null
+
+        $nameText = New-Object System.Windows.Controls.TextBlock
+        $nameText.Text = $r.Name; $nameText.FontWeight = 'Bold'; $nameText.Margin = '4,0,0,0'
+        $headerRow.Children.Add($nameText)|Out-Null
+
+        $summaryText = New-Object System.Windows.Controls.TextBlock
+        $summaryText.Text = $r.Summary; $summaryText.Foreground = 'DarkGray'; $summaryText.Margin = '8,0,0,0'
+        $headerRow.Children.Add($summaryText)|Out-Null
+        $itemPanel.Children.Add($headerRow)|Out-Null
+
+        # Erklaerung
+        $explText = New-Object System.Windows.Controls.TextBlock
+        $explText.Text = "Was ist das? $($r.Erklaerung)"
+        $explText.TextWrapping = 'Wrap'; $explText.Margin = '24,2,0,2'; $explText.FontSize = 11; $explText.Foreground = '#FFCCCCCC'
+        $itemPanel.Children.Add($explText)|Out-Null
+
+        # Tip
+        if ($r.Tip) {
+            $tipText = New-Object System.Windows.Controls.TextBlock
+            $tipText.Text = "Tipp: $($r.Tip)"
+            $tipText.TextWrapping = 'Wrap'; $tipText.Margin = '24,0,0,4'; $tipText.FontSize = 10; $tipText.Foreground = '#FFAAAAAA'
+            $itemPanel.Children.Add($tipText)|Out-Null
+        }
+
+        # HowTo link
+        if ($r.HowTo) {
+            $howtoText = New-Object System.Windows.Controls.TextBlock
+            $howtoText.Text = "HowTo: $($r.HowTo)"
+            $howtoText.TextWrapping = 'Wrap'; $howtoText.Margin = '24,0,0,6'; $howtoText.FontSize = 10; $howtoText.Foreground = '#FF4FC3F7'; $howtoText.Cursor = [System.Windows.Input.Cursors]::Hand
+            $howtoText.Add_MouseLeftButtonDown({ Start-Process $r.HowTo })
+            $itemPanel.Children.Add($howtoText)|Out-Null
+        }
+
+        # Checkbox for fix
+        if ($r.Found -and $r.AutoFix) {
+            $chk = New-Object System.Windows.Controls.CheckBox
+            $chk.Content = 'Automatisch beheben'
+            $chk.IsChecked = $true
+            $chk.Margin = '24,2,0,6'
+            $chk.Tag = $r.Id
+            $chk.Add_Checked({ $script:checkupSelectedFixes += $chk.Tag })
+            $chk.Add_Unchecked({ $script:checkupSelectedFixes = @($script:checkupSelectedFixes | Where-Object { $_ -ne $chk.Tag }) })
+            $itemPanel.Children.Add($chk)|Out-Null
+        }
+
+        $scroll.Content = $listPanel
+        $listPanel.Children.Add($itemPanel)|Out-Null
+    }
+
+    [System.Windows.Controls.Grid]::SetRow($scroll,2); $grid.Children.Add($scroll)|Out-Null
+
+    # Buttons
+    $btnPanel = New-Object System.Windows.Controls.StackPanel
+    $btnPanel.Orientation = 'Horizontal'; $btnPanel.HorizontalAlignment = 'Center'
+    $btnFix = New-Object System.Windows.Controls.Button
+    $btnFix.Content = 'Ausgewählte beheben'; $btnFix.Margin = '4'; $btnFix.Width = 140
+    $btnClose = New-Object System.Windows.Controls.Button
+    $btnClose.Content = 'Schließen'; $btnClose.Margin = '4'; $btnClose.Width = 100
+    $btnPanel.Children.Add($btnFix)|Out-Null; $btnPanel.Children.Add($btnClose)|Out-Null
+    [System.Windows.Controls.Grid]::SetRow($btnPanel,3); $grid.Children.Add($btnPanel)|Out-Null
+
+    $btnFix.Add_Click({
+        if ($script:checkupSelectedFixes.Count -eq 0) {
+            [System.Windows.MessageBox]::Show('Bitte waehle mindestens einen Bereich zum Beheben aus.', 'Checkup', 'OK', 'Information') | Out-Null
+            return
+        }
+        $fixable = @($results | Where-Object { $_.Found -and $_.AutoFix -and $script:checkupSelectedFixes -contains $_.Id })
+        if ($fixable.Count -eq 0) {
+            [System.Windows.MessageBox]::Show('Keine automatisch behebbaren Bereiche ausgewaehlt.', 'Checkup', 'OK', 'Information') | Out-Null
+            return
+        }
+        $adminNeeded = @($fixable | Where-Object { $_.NeedsAdmin })
+        if ($adminNeeded.Count -gt 0 -and -not (Test-SysPilotAdmin)) {
+            [System.Windows.MessageBox]::Show("Einige Reparaturen brauchen Admin-Rechte. Bitte als Admin neu starten." + "`n`n" + ($adminNeeded | ForEach-Object { $_.Name } -join ', '), 'Admin noetig', 'OK', 'Warning') | Out-Null
+            return
+        }
+        Invoke-SysPilotCheckupFix -Results $fixable | Out-Null
+        [System.Windows.MessageBox]::Show("Fertig. $($fixable.Count) Bereiche bearbeitet. Starte den Checkup erneut zum Pruefen.", 'Checkup', 'OK', 'Information') | Out-Null
+        $window.Close()
+    })
+
+    $btnClose.Add_Click({ $window.Close() })
+
+    $window.Content = $grid
+    $window.ShowDialog() | Out-Null
+}
+
 Export-ModuleMember -Function Get-SysPilotCheckupItems, Invoke-SysPilotCheckupScan, Invoke-SysPilotCheckupFix,
-    Show-SysPilotCheckup, Find-SysPilotBrokenShortcuts, Get-SysPilotRegistryOrphans, Get-SysPilotSecurityStatus,
+    Show-SysPilotCheckup, Show-SysPilotCheckupWindow, Find-SysPilotBrokenShortcuts, Get-SysPilotRegistryOrphans, Get-SysPilotSecurityStatus,
     Get-SysPilotFolderSizeMB, Get-SysPilotCheckupSchedule, Save-SysPilotCheckupSchedule,
     Install-SysPilotCheckupTask, Remove-SysPilotCheckupTask, Show-SysPilotCheckupScheduleMenu
