@@ -1,7 +1,7 @@
 @echo off
 setlocal
 set "ROOT=C:\Users\haber\SysPilot"
-set "OUT=%ROOT%\installer-output\SysPilot-0.9.4.5-portable.zip"
+set "OUT=%ROOT%\installer-output\SysPilot-0.9.4.5-beta-portable.zip"
 set "STAGE=%TEMP%\SysPilot-portable-0.9.4.5"
 
 if exist "%STAGE%" rmdir /s /q "%STAGE%"

@@ -53,7 +53,7 @@ function Show-SysPilotMenu {
     while ($true) {
         Clear-Host
         Write-Host ""
-        Write-Host "  SysPilot 0.9.4.4 - Dein intelligenter PC-Autopilot" -ForegroundColor Cyan
+        Write-Host "  SysPilot 0.9.4.5 beta - Dein intelligenter PC-Autopilot" -ForegroundColor Cyan
         Write-Host "  ==================================================" -ForegroundColor DarkGray
         Write-Host ""
         Write-Host "   1  Autopilot starten" -ForegroundColor White

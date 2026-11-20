@@ -26,6 +26,6 @@ function Start-SysPilotToolFromGui {
 - Alle Script-Dateien unter C:\Users\haber\SysPilot\ sind UTF-8 (kein BOM)
 - Die installierte Version live unter C:\Program Files\SysPilot\ parallel testen
 - Installer: Inno Setup (C:\Users\haber\SysPilot\installer.iss)
-- Portable: build-portable.bat -> installer-output\SysPilot-0.9.4.4-beta-portable.zip
+- Portable: build-portable.bat -> installer-output\SysPilot-0.9.4.5-beta-portable.zip
 - Release-Checkliste: Syntax-Check -> Funktionsprüfung -> ZIP/EXE -> Versionsnummer
 - version.txt immer mit dem Release-Tag synchron halten

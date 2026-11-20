@@ -1,3 +1,0 @@
-@echo off
-powershell -NoProfile -Command "Compress-Archive -Path 'C:\Users\haber\SysPilot\SysPilot.ps1','C:\Users\haber\SysPilot\SysPilot-GUI.ps1','C:\Users\haber\SysPilot\version.txt','C:\Users\haber\SysPilot\config.json','C:\Users\haber\SysPilot\README.md','C:\Users\haber\SysPilot\INSTALL.md','C:\Users\haber\SysPilot\DEBUG.md','C:\Users\haber\SysPilot\ROADMAP.md','C:\Users\haber\SysPilot\LICENSE','C:\Users\haber\SysPilot\modules\*.psm1','C:\Users\haber\SysPilot\scripts\*.ps1' -DestinationPath 'C:\Users\haber\SysPilot\installer-output\SysPilot-0.9.4.2-beta-portable.zip' -Force"
-echo Fertig: Portable ZIP erstellt

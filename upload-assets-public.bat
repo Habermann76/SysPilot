@@ -1,2 +1,0 @@
-@echo off
-gh release upload v0.9.4.2 C:/Users/haber/SysPilot/installer-output/SysPilot-0.9.4.2-beta-portable.zip C:/Users/haber/SysPilot/installer-output/SysPilot-Setup-0.9.4.2-beta-x64.exe --repo Habermann76/SysPilot
