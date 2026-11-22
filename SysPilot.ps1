@@ -218,6 +218,7 @@ function Show-SysPilotMenu {
         @{ Label = 'Autopilot bei Anmeldung automatisch starten/entfernen'; Color = 'White'; Tag = 'autopilottask' }
         @{ Label = 'RAM freigeben (Working Sets + Standby-Cache)'; Color = 'Green';   Tag = 'freemem' }
         @{ Label = 'Autostart-Manager';                            Color = 'White';    Tag = 'startup' }
+        @{ Label = 'HOSTS-Editor (Eintraege, Sperre, DNS-Flush)';   Color = 'White';    Tag = 'hosts' }
         @{ Label = 'Programme deinstallieren (Bloatware-Finder)';  Color = 'White';    Tag = 'bloat' }
         @{ Label = 'OPTIMIZER AUSMISTEN (auswaehlen, welche bleiben)'; Color = 'Magenta'; Tag = 'optimizers' }
         @{ Label = 'AUTO-OPTIMIERUNG (Dienste + Features + Tweaks, mit Backup)'; Color = 'Green'; Tag = 'autooptimize' }
@@ -234,6 +235,9 @@ function Show-SysPilotMenu {
         @{ Label = 'GRAFISCHE OBERFLAECHE (Live-Dashboard)';       Color = 'Cyan';     Tag = 'gui' }
         @{ Label = 'BROWSER-ERWEITERUNGEN (Duplikate finden)';      Color = 'Yellow';   Tag = 'extensions' }
         @{ Label = 'NETZWERK / INTERNET reparieren';               Color = 'Cyan';     Tag = 'netrepair' }
+        @{ Label = 'SYSTEM-REPARATUR (Dateizuordnungen, Dienste, UAC, WMI)'; Color = 'Yellow'; Tag = 'sysrepair' }
+        @{ Label = 'SYSTEM-TUNING (Netzwerk-, System-, Explorer-Tweaks)'; Color = 'Magenta'; Tag = 'systune' }
+        @{ Label = 'WINDOWS-11-UI (Taskbar, Kontextmenue, Admin-Eintraege)'; Color = 'Cyan'; Tag = 'win11ui' }
         @{ Label = 'NETZWERKADAPTER identifizieren (was ist vgate0?)'; Color = 'Cyan'; Tag = 'adapters' }
         @{ Label = 'AUTOMATIC CHECKUP (Komplett-Scan, Erklaerungen, Reparatur)'; Color = 'Green'; Tag = 'checkup' }
         @{ Label = 'TOOLBOX (alle Werkzeuge nach Kategorien)';     Color = 'Cyan';     Tag = 'toolbox' }
@@ -241,6 +245,9 @@ function Show-SysPilotMenu {
         @{ Label = 'ADVANCED DNS MANAGER';                         Color = 'Cyan';     Tag = 'dns' }
         @{ Label = 'KI-Suche';                                     Color = 'White';    Tag = 'aisearch' }
         @{ Label = 'SPEICHER-ANALYSE (pagefile, hiberfil, Temp, WinSxS)'; Color = 'Cyan'; Tag = 'storage' }
+        @{ Label = 'PC-ANALYSE (CPU, RAM, GPU, Mainboard, Laufwerke)'; Color = 'Cyan'; Tag = 'hardware' }
+        @{ Label = 'TREIBER-WERKSTATT (Problemgeraete, Inventar, Rollback)'; Color = 'Yellow'; Tag = 'drivers' }
+        @{ Label = 'WIZTREE (Festplatten-/Ordneranalyse)';            Color = 'White';    Tag = 'wiztree' }
         @{ Label = 'Beenden (SysPilot laeuft im Tray weiter)';     Color = 'DarkGray'; Tag = 'tray' }
     )
 
@@ -659,13 +666,23 @@ function Invoke-SysPilotTool {
             Read-SysPilotChoice 'Weiter' | Out-Null; return
         }
         'startup'      { Show-SysPilotStartupManager; return }
+        'hosts'        { Show-SysPilotHostsEditor; return }
         'services'     { Show-SysPilotServiceTuner; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'freemem'      { Invoke-SysPilotFreeRam; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'priorities'   { Set-SysPilotPriorities; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'features'     { Show-SysPilotFeaturesMenu; return }
         'scripts'      { Show-SysPilotScriptsMenu; return }
         'security'     { Show-SysPilotSecurityCheck; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'drivers'      { Show-SysPilotDriverMenu; return }
+        'hardware'     { Show-SysPilotHardwareMenu; return }
+        'wiztree'      { Show-SysPilotWizTreeMenu; return }
         'netrepair'    { Show-SysPilotNetworkRepair; return }
+        'sysrepair'    { Show-SysPilotSystemRepair; return }
+        'systune'      { Show-SysPilotSystemTuning; return }
+        'win11ui'      { Show-SysPilotWin11UiMenu; return }
+        'win11taskbar' { Reset-SysPilotWin11Taskbar; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'win11ctx'     { Set-SysPilotContextMenuMode -Mode Toggle; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'win11ctxadmin'{ Show-SysPilotAdminContextMenuManager; return }
         'adapters'     { Show-SysPilotNetworkAdapters; return }
         'winupdate'    { Update-SysPilotWindows; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'backup'       { $b = New-SysPilotBackup -Label 'tool'; Write-Host "  Backup: $b" -ForegroundColor Green; Read-SysPilotChoice 'Weiter' | Out-Null; return }
@@ -695,3 +712,4 @@ if ($Tool) {
 }
 
 Show-SysPilotMenu
+

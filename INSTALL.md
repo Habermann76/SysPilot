@@ -1,20 +1,20 @@
-# SysPilot 0.9.4.6 — Installationsanleitung
+# SysPilot 0.9.4.7 — Installationsanleitung
 
 ## Schnellstart (empfohlen)
 
-1. **Installer herunterladen**: `SysPilot-Setup-0.9.4.6-x64.exe` von den
+1. **Installer herunterladen**: `SysPilot-Setup-0.9.4.7-x64.exe` von den
    [Releases](https://github.com/Habermann76/SysPilot/releases)
 2. **Doppelklick** → installiert nach `C:\Program Files\SysPilot`
-3. **Startmenü** → „SysPilot" öffnen
+3. **Startmenü** → "SysPilot" öffnen
 
 Fertig. SysPilot fragt beim ersten Start, ob es als Administrator laufen soll
 (empfohlen für Energiepläne, Dienste, Deinstallationen).
 
 ## Portable Version (keine Installation)
 
-1. `SysPilot-0.9.4.6-beta-portable.zip` herunterladen
+1. `SysPilot-0.9.4.7-beta-portable.zip` herunterladen
 2. Entpacken (z. B. nach `C:\SysPilot`)
-3. `SysPilot.ps1` → Rechtsklick → **Mit PowerShell ausführen**
+3. `SysPilot.ps1` → Rechtsklick → "Mit PowerShell ausführen"
 
 ## Voraussetzungen
 
@@ -29,7 +29,7 @@ Fertig. SysPilot fragt beim ersten Start, ob es als Administrator laufen soll
 SysPilot schätzt die Temperatur aus Last + Takt. Für **echte** Sensor-Werte
 (auch für den Hitzeschutz):
 
-- Im GUI auf **„Temp-Sensor"** klicken → SysPilot installiert
+- Im GUI auf "Temp-Sensor" klicken → SysPilot installiert
   [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
   vollautomatisch (kostenlos, Open Source, portable, keine Telemetrie)
 
@@ -44,3 +44,12 @@ Installationsordner — kann manuell gelöscht werden).
 ## Probleme?
 
 → [DEBUG.md](DEBUG.md) — Fehler melden, Vorschläge machen
+
+---
+
+### Neue Features in 0.9.4.7
+
+- **WizTree-Integration**: Analyse des Festplattenplatzes via WizTree, optionale stille Installation
+- **SysPilot PC-Analyse**: Umfassender Hardware-Check für CPU, RAM, GPU, Mainboard/BIOS, Laufwerke mit S.M.A.R.T., Netzwerkadapter und Temperatur
+- **Treiber-Werkstatt**: Problemgeräte finden, Treiber-Inventar, Rollback für ältere Treiber, fehlende System/Spiel-Komponenten prüfen
+- **Modul-Erweiterung**: Drei neue Module (`WizTree.psm1`, `HardwareCheck.psm1`, `Drivers.psm1`) stehen im Modulordner bereit

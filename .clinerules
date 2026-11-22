@@ -8,11 +8,17 @@ SysPilot ist ein reiner PowerShell-WPF-Tool zur Systemdiagnose und -automatisier
 - **GUI:** SysPilot-GUI.ps1 – WPF-Layout + Start-SysPilotToolFromGui
 - **Toolbox:** modules/Toolbox.psm1 – Get-SysPilotToolbox mit Action-Blocks
 
-## Menü-System (0.9.4.6)
-- **Alle Auswahlmenüs per Pfeiltasten** über `Show-SysPilotArrowMenu -Items @(@{Label;Color;Tag})` (modules/Common.psm1). Esc = zurück, Enter = Tag zurückgeben.
-- **Keine Nummerneingabe** für Menüauswahl – `Read-SysPilotChoice` nur für Text/Parameter und "Weiter mit Enter"-Pausen.
-- Jeder Menü-Tag braucht einen Case in `Invoke-SysPilotTool`; Toolbox-Keys müssen ebenfalls in `Invoke-SysPilotTool` auflösbar sein (GUI-Toolbox startet `SysPilot.ps1 -Tool '<key>'`).
+## Menü-System (0.9.4.6+)
+- **Alle Auswahlmenüs per Pfeiltasten** über `Show-SysPilotArrowMenu -Items @(@{Label;Color;Tag})` (modules/Common.psm1). Esc = zurück, Enter = Tag zurückgeben. `Read-SysPilotChoice` nur für Text/Parameter und "Weiter mit Enter"-Pausen.
+- Jeder Menü-Tag braucht einen Case in `Invoke-SysPilotTool`; **jeder Toolbox-Key muss ebenfalls in `Invoke-SysPilotTool` auflösbar sein** (GUI-Toolbox startet `SysPilot.ps1 -Tool '<key>'` in eigener Konsole).
 - Energieplan-Kurzwahl (Kuehl/Leistung): `Invoke-SysPilotPlanSwitch` → `Set-SysPilotPlan` (PowerPlans.psm1), mit Admin- und Plan-Fehlerbehandlung.
+
+## Bewährte Methoden (0.9.4.7)
+- **GUI-Toolbox-Buttons**: `Get-SysPilotToolbox` (Toolbox.psm1) ist die EINZIGE Quelle — `SysPilot-GUI.ps1` generiert Buttons automatisch nach Kategorie. Kein separates XAML-Button nötig für Konsolen-Tools; der `Key` muss einen `Invoke-SysPilotTool`-Case haben, der `Action`-Block ist der Fallback für die Konsolen-Toolbox.
+- **Direkt-Tool-Keys**: Für One-Click-Aktionen aus der Toolbox eigene Keys + Cases anlegen (z.B. `win11ui`/`win11taskbar`/`win11ctx`/`win11ctxadmin`), zusätzlich zum „Alles-in-einem"-Key, der das Untermenü öffnet.
+- **Registry-UI-Tweaks**: Bevorzugt HKCU (`HKCU:\SOFTWARE\Classes`, `Explorer\Advanced`) → kein Admin nötig. Vor Änderungen Backup; Explorer-Neustart immer ankündigen + bestätigen. Kontextmenü-Verben: `command`-Key, `%V` = Ordner-Hintergrund, `%1` = Ordner/Laufwerk/Datei; Terminal via `wt.exe`.
+- **Win11-Kontextmenü-Modus**: CLSID-Override `{86ca1aa0-34aa-4e8b-a509-960fe4311b46}` unter HKCU\Classes — `InprocServer32` anlegen = klassisch, löschen = Win11.
+- **Testen nach KI-Änderungen IMMER**: Parser-Check + `Import-Module` aller .psm1 + Funktions-Smoketest + `-Tool '<key>'`-Aufruf + Key-Konsistenz (Menü↔Case↔Toolbox↔GUI). Cline hat 0.9.4.7-Module mit massiven Syntaxfehlern geliefert → nichts ohne Test als fertig bezeichnen.
 
 ## PowerShell-Module
 - **Nur genehmigte Verben** in Funktionsnamen (Get/Set/Invoke/Show/Write/Test/Start/Stop/New/Remove/Clear/Install/Update/Save/Restore/Import/Export/Format/Measure/Compare/Convert/Read/Undo/Watch/Backup/Checkpoint/Resume/Suspend/Debug/Trace/Connect/Disconnect/Enter/Exit/Pop/Push/Redo/StepInto/StepOver). `Toggle-` u.ä. → Start-Warnung.
@@ -55,4 +61,4 @@ function Start-SysPilotToolFromGui {
 - **Grosse PowerShell-Strings**: Cline-Toolkette kann grosse Dateien nicht schreiben → landmark: Datei enthält `[... truncated, this is a large file ...]`. Danach `git show HEAD:<file>` restaurieren und Änderung mit Datei-Tools wiederholen.
 - **Inline-Skripte vermeiden**: komplexe Befehle als .ps1-Datei schreiben und mit `-File` ausführen.
 
-*Erstellt: 09.11.2026 – aktualisiert: 22.11.2026 (0.9.4.6: Pfeiltasten-Menü, StorageCleanup, Release-Ablauf)*
+*Erstellt: 09.11.2026 – aktualisiert: 22.11.2026 (0.9.4.7: WizTree/HardwareCheck/Drivers/SystemRepair/SystemTuning/HostsEditor, Win11-UI-Tools, bewährte Methoden)*

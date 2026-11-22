@@ -1,8 +1,33 @@
-# SysPilot 0.9.4.6 beta — Dein intelligenter PC-Autopilot
+# SysPilot 0.9.4.7 beta — Dein intelligenter PC-Autopilot
 
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
 Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
 alles bleibt auf deinem PC.
+
+## Version 0.9.4.7 beta
+
+### Was ist neu?
+
+- **WizTree-Integration (NEU)**: Erkennt eine vorhandene WizTree-Installation
+  (Pfade + Uninstall-Registry), löst die offizielle Installer-URL dynamisch von
+  `diskanalyzer.com` auf und installiert bei Bedarf silent
+  (`/VERYSILENT /NORESTART`). Im Menü: WizTree starten / installieren /
+  Website öffnen.
+- **PC-Analyse / Hardware-Diagnose (NEU)**: `SysPilot PC-Analyse` zeigt CPU
+  (Kerne, Takt, Last), RAM (Größe, Belegung), GPU(s) inkl. VRAM/Treiber,
+  Mainboard/BIOS, Laufwerke mit Größe/Freiraum/Health, Netzwerkadapter mit
+  IPs, Windows-Version/Build/Laufzeit und CPU-Temperatur (echt via
+  LibreHardwareMonitor oder ehrlich als Schätzung markiert). Nicht messbare
+  Werte werden als „nicht verfügbar" angezeigt — nichts wird erfunden.
+- **Treiber-Werkstatt (NEU)**: Findet Problemgeräte (`Win32_PnPEntity` mit
+  Fehlercode, mit verständlichen Erklärungen), zeigt ein Treiber-Inventar
+  (Version, Datum, Hersteller), markiert Treiber älter als 3 Jahre, prüft
+  deterministisch DirectX und Visual-C++-Runtimes und bietet eine klare
+  Rollback-Anleitung (Gerätemanager → „Vorheriger Treiber") sowie das Neustarten
+  von Problemgeräten. Ehrlich dokumentiert: automatische Treiber-Downloads aus
+  Herstellernetzwerken sind ohne stabile API nicht zuverlässig möglich.
+- Alle drei neuen Werkzeuge sind in **Vollmenü, `-Tool`-Switch und Toolbox**
+  erreichbar (GUI-Toolbox unter dem Button „Toolbox").
 
 ## Version 0.9.4.6 beta
 

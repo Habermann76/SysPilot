@@ -200,6 +200,12 @@ function New-SysPilotBackup {
     return $target
 }
 
+function Get-SysPilotBackupDir {
+    $dir = Join-Path $script:SysPilotRoot "backup"
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+    return $dir
+}
+
 function Get-SysPilotBackups {
     $dir = Join-Path $script:SysPilotRoot "backup"
     if (-not (Test-Path $dir)) { return @() }
@@ -373,7 +379,7 @@ function Show-SysPilotArrowMenu {
 
 Export-ModuleMember -Function ConvertTo-SysPilotArgString, Test-SysPilotAdmin, Assert-SysPilotAdmin, Restart-SysPilotElevated,
     Write-SysPilotLog, Get-SysPilotConfig, Reset-SysPilotConfig, Set-SysPilotConfigValue, Test-NameMatch,
-    Get-SysPilotProcessByName, New-SysPilotBackup, Get-SysPilotBackups, Restore-SysPilotServices,
+    Get-SysPilotProcessByName, New-SysPilotBackup, Get-SysPilotBackupDir, Get-SysPilotBackups, Restore-SysPilotServices,
     Write-SysPilotHeader, Read-SysPilotChoice, Confirm-SysPilot, Show-SysPilotArrowMenu,
     Write-SysPilotProgress, Complete-SysPilotProgress, Get-SysPilotShortcutPaths, Set-SysPilotShortcutRunAs,
     Test-SysPilotGamingActive

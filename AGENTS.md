@@ -91,11 +91,131 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 - Nicht verwenden: Simultanes $args +=-Füllen
 
 ## Aktuelle Version
-- **0.9.4.6** ist der aktuelle Stand (Pfeiltasten-Menü, Speicher-Analyse/StorageCleanup, Ruhezustand an/aus, build.ps1)
+- **0.9.4.7** ist der aktuelle Stand (neu: WizTree.psm1, HardwareCheck.psm1, Drivers.psm1, SystemRepair.psm1, SystemTuning.psm1, HostsEditor.psm1; Win11-UI-Reparatur; weiterhin Pfeiltasten-Menü, StorageCleanup, Ruhezustand an/aus)
 - Alle GUI-Tools im Vollmenü, in der WPF-GUI und in der Toolbox
 - Installierte Version: C:\Program Files\SysPilot\ (auf diesem PC nicht vorhanden – nur Entwicklungsordner)
 
-## Fehlerquellen & Arbeitsweise (Stand 0.9.4.6)
+## Fehlerquellen & Arbeitsweise (Stand 0.9.4.7)
+
+### 0.9.4.7-Falle: KI-generierte Module können komplett unbrauchbar sein
+- `HardwareCheck.psm1` und `Drivers.psm1` wurden von Cline mit massiven Syntaxfehlern
+  geliefert (unmatched try/catch, `[datetime]::Parse(...) -ErrorAction`, `};` in
+  switch-Case, `foreach ($g in $g)`-Shadowing, `$(if...)`-Subexpressions).
+  `Import-Module` schlägt fehl → Funktionen fehlen → Menüs zeigen „Unbekanntes
+  Werkzeug". **Immer Parser-Check + Modul-Import-Test + Funktions-Smoketest
+  durchführen, bevor gebaut wird.**
+- `pnputil /enum-drivers` hat kein `/fo csv` und lokalisierte Ausgabe → Inventar
+  lieber über `Win32_PnPSignedDriver` (Version/Datum/Hersteller).
+- `Win32_PnPSignedDriver`/Inventar braucht **Administratorrechte**, sonst leer.
+- `Get-PSDrive`-Size kann ohne Admin 0 liefern → `Win32_LogicalDisk` verwenden.
+- `Win32_NetworkAdapter.NetConnectionStatus`: 2 = connected (nicht 1!).
+- `LastBootUpTime` ist CIM-Datum → `[Management.ManagementDateTimeConverter]::ToDateTime()`.
+- WizTree-Download: offizielle Installer-URL dynamisch von
+  `https://diskanalyzer.com/download` auflösen (Pattern `files/wiztree_X_YY_setup.exe`).
+
+### Treiber-Quellen (SDI-Analyse, 0.9.4.7)
+- SDI (Snappy Driver Installer, SamLab) wurde per REA/Strings analysiert:
+  DriverPacks = proprietäre .7z-Repack-Archive, Download via integrierter
+  libtorrent-Instanz + HTTP-Updates von sdi.com.ru-Torrents. **Nicht
+  nachgebaut** (Lizenz/Quellen unklar). Ghidra-Vollanalyse (`binary_overview`)
+  lief in REA-Timeout – PE-Imports/Strings genügten für die Bewertung.
+- Stattdessen legitime Quellen in `modules/Drivers.psm1`:
+  `Get-SysPilotWUDriverUpdates`/`Install-SysPilotWUDriverUpdate`
+  (Windows-Update-COM-API, `Type='Driver'`),
+  `Find-SysPilotCatalogDrivers` (MS Update Catalog per Hardware-ID,
+  Katalog listet gleiche Treiber in Sprachvarianten → Dedupe nach
+  Titel+Version), `Get-SysPilotDeviceHardwareIds`
+  (`Get-PnpDeviceProperty DEVPKEY_Device_HardwareIds`),
+  `Get-SysPilotSdiExe` (erkennt SDI-Installation, Desktop liegt oft unter
+  `OneDrive\Desktop`, nicht `Desktop` → `[Environment]::GetFolderPath`).
+- Katalog-Download selbst läuft bewusst über den Browser (Katalog-Mechanismus
+  mit dynamischen Tokens) – keine Fake-Automatik.
+- SDI-Installation: `Get-SysPilotSdiLatestRelease` parst `sdi-tool.org/download`
+  nach `SDI_R<n>.7z|zip` (Link `DriverOff.net/sdi/SDI_R<n>.7z`, Versionslabel
+  `x.y.z (R<n>)`); `Install-SysPilotSdiLatest` lädt, entpackt per 7-Zip
+  (`Get-SysPilot7ZipExe`, Fallback tar) nach `%LOCALAPPDATA%\Programs\SDI`
+  (alte Installation → `.old-<ts>`). SDI ist portabel → kein Inno-Installer;
+  SDI Full nur per Torrent → nicht anbieten. 7z-Inhalt ist das komplette
+  Paket (drivers/, indexes/, tools/, SDI*_drv.exe).
+
+### DriversCloud-Analyse (0.9.4.7)
+- `DriversCloud.exe` = Tauri/Rust-Client; Treiber-API unter
+  `driverscloud.com/api/` (JWT-Auth, `RecevoirConfigurationApiCrypte`,
+  DCCrypt.dll, Kernel-Treiber `DriversCloud_amd64.sys`, WebSocket-Kanal).
+  Proprietär + verschlüsselt → **nicht nachgebaut** (gleiche Kategorie wie
+  Driver-Booster-API). Ghidra-Timeout wie bei SDI → PE-Imports/Strings
+  reichten.
+- Stattdessen `Find-SysPilotDriversCloudManufacturer` (Drivers.psm1):
+  parst `driverscloud.com/en/drivers` (manufacturer/<id>/<slug>), Alias-
+  Tabelle + Token-Overlap; **Slug-Match exakt bevorzugen** ("intel" darf
+  nicht „intellon" treffen). Öffnet Herstellerseite im Browser.
+- REA: `search_strings`/`list_strings` brauchen geöffnetes Target
+  (`open_binary`); `document` = Pfad. Ghidra-Import timeoutet bei >5 MB
+  oft → lokale String-Extraktion per PowerShell genügt für URLs/APIs.
+
+### Hosts-Editor + Autostart-Sicherung (Optimizer-Analyse, 0.9.4.7)
+- `Optimizer_16.7.exe` (deadmoon) = .NET-App; Strings zeigen Cleaner,
+  DNS, Hosts-Editor, Startup-Manager, Dienst-Tweaks — keine proprietäre
+  API. Nützliche Lücken in SysPilot geschlossen:
+  `modules/HostsEditor.psm1` (Key `hosts`) + `Backup-SysPilotStartup`/
+  `Restore-SysPilotStartup` in Startup.psm1 (Menü-Pseudo-Einträge
+  BACKUP/RESTORE; `Show-SysPilotArrowMenu` gibt den **Tag** zurück,
+  nicht das Hashtable-Item — Tag-Vergleiche nutzen!).
+- `Get-SysPilotBackupDir` liegt in Common.psm1 (jedes Modul braucht
+  eigenen `$script:SysPilotRoot` oder die Funktion aus Common).
+
+### Windows Repair + Simple System Tweaker (0.9.4.7)
+- `Repair_Windows.exe` (Tweaking.com 4.14): Funktionsliste komplett in
+  `repairs_info/*.txt` + `repairs_presets/*.ini` lesbar (kein RE noetig).
+  Nachgebaut als `modules/SystemRepair.psm1` (Key `sysrepair`, 11
+  Reparaturen). NICHT nachgebaut: COM-Unmarshaller, MDAC/Jet, CD/DVD,
+  Safe-Mode-Fix, Permissions-Reset (zu riskant ohne PRuefung).
+- `Simple_System_Tweaker.exe` (Tweaking.com 2.2, VB6): Klassische
+  Registry-Tweaks → `modules/SystemTuning.psm1` (Key `systune`, 9 Tweaks).
+- **netsh-Ausgaben sind lokalisiert** (deutsche Windows: „Autom.
+  Abstimmungsgrad..."!) → TCP-Settings IMMER via `Get/Set-NetTCPSetting`
+  (`AutoTuningLevelLocal`, `Timestamps`), nie per netsh-Text parsen.
+- PowerShell-String-Falle: `"$ext:"` in double-quotes = Variablenverweis
+  mit Doppelpunkt → `${ext}:` schreiben.
+- Win11-UI-Funktionen in SystemTuning.psm1: `Reset-SysPilotWin11Taskbar`
+  (HKCU Taskbar-Keys + Explorer-Neustart), `Set-SysPilotContextMenuMode`
+  (klassisch = CLSID `{86ca1aa0-…}` InprocServer32 anlegen, Win11 =
+  löschen), `Add/Remove-SysPilotAdminContextMenus` (HKCU\Classes
+  Directory\Background|Directory|Drive|Folder\shell\TerminalAdmin +
+  SystemFileAssociations\.ps1\shell\PSAdmin — `%V` für Background,
+  `%1` sonst; wt.exe für Terminal). Alles HKCU → kein Admin nötig;
+  neue Win11-Menü zeigt Background-Verben direkt, Ordner/Datei-Verben
+  ggf. unter „Weitere anzeigen".
+
+### Bewährte Methoden (verbindlich für alle neuen Features)
+- **GUI-Toolbox-Buttons**: `Get-SysPilotToolbox` (Toolbox.psm1) ist die
+  EINZIGE Quelle für GUI-Toolbox-Buttons — `SysPilot-GUI.ps1` generiert
+  sie automatisch nach Kategorie. Ein neuer Toolbox-Eintrag mit `Key`
+  erzeugt den Button; der Key MUSS einen Case in `Invoke-SysPilotTool`
+  haben (GUI startet `SysPilot.ps1 -Tool '<key>'` in einer eigenen
+  Konsole). `Action`-Scriptblock = Fallback für die Konsolen-Toolbox.
+- **Pfeiltasten-Menüs**: Jedes Auswahlmenü (Hauptmenü, Tool-Untermenüs,
+  Kategorie-Wahl) nutzt `Show-SysPilotArrowMenu`. `Tag` ist der Rückgabe-
+  wert — Vergleiche auf Tag-Ebene, nicht auf Item-Ebene. `Esc`/`$null` =
+  zurück/zur. Kein `Read-Host` für Menüs.
+- **Direkt-Tool-Keys**: Für Tools, die per Button DIREKT eine Funktion
+  aufrufen sollen (nicht nur ein Untermenü), zusätzlich eigene Keys im
+  `Invoke-SysPilotTool`-Switch anlegen (Beispiel 0.9.4.7:
+  `win11ui`/`win11taskbar`/`win11ctx`/`win11ctxadmin` → je eigener Case).
+  Ein „Alles-in-einem"-Key (`win11ui`) öffnet das Untermenü; die
+  Einzel-Keys ermöglichen One-Click-Aktionen aus der Toolbox.
+- **Registry-UI-Tweaks (Win11 Taskbar/Kontextmenü)**: Bevorzugt HKCU
+  (`HKCU:\SOFTWARE\Classes`, `Explorer\Advanced`) → kein Admin nötig.
+  Vor Änderungen Backup via `New-SysPilotBackup` oder Registry-Export;
+  Explorer-Neustart immer ankündigen und nur nach Bestätigung.
+  Admin-Verben im Kontextmenü: HKCU-Classes-Einträge mit `command`-Key,
+  `%V` für Ordner-Hintergrund, `%1` für Ordner/Laufwerk/Datei;
+  Windows-Terminal via `wt.exe`, PowerShell via `powershell.exe`.
+- **Kontextmenü-Modus Win11↔klassisch**: CLSID-Override
+  `{86ca1aa0-34aa-4e8b-a509-960fe4311b46}` unter `HKCU:\SOFTWARE\Classes`;
+  `InprocServer32` anlegen = klassisch, löschen = Win11.
+
+### Menü-System (0.9.4.6)
 
 ### Menü-System (0.9.4.6)
 - **Alle Auswahlmenüs per Pfeiltasten** über `Show-SysPilotArrowMenu -Items @(@{Label;Color;Tag})`:
@@ -115,7 +235,7 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 - **PowerShell.MCP**: Proxy-Pfad in `C:\Users\haber\.cline\data\settings\cline_mcp_settings.json` muss zur installierten Modulversion passen (`C:\Users\haber\OneDrive\Documents\PowerShell\Modules\PowerShell.MCP\<Version>\bin\win-x64\PowerShell.MCP.Proxy.exe`). Stand 0.9.4.6: 1.17.1.
 - **Inline-PowerShell vermeiden**: komplexe Skripte als `.ps1`-Datei schreiben und per `powershell -NoProfile -ExecutionPolicy Bypass -File <skript>.ps1` ausführen.
 
-## Release-Checkliste (0.9.4.6 & nachfolgend)
+## Release-Checkliste (0.9.4.7 & nachfolgend)
 1. **Syntax-Check** aller betroffenen Dateien (`[void][scriptblock]::Create((Get-Content $f -Raw -Encoding UTF8))`)
 2. **Konsistenzprüfung**: Menü-Tags ↔ `Invoke-SysPilotTool`-Cases ↔ Toolbox-Keys ↔ GUI-Buttons
 3. **Funktionsprüfung**: `SysPilot.ps1 -Tool '<key>'` für geänderte Tools

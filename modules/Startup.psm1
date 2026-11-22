@@ -133,10 +133,113 @@ function Set-SysPilotStartupItem {
     }
 }
 
+function Backup-SysPilotStartup {
+    <# Sichert alle Autostart-Quellen (Run-Keys, Autostart-Ordner,
+       Logon-Aufgaben) als JSON in das SysPilot-Backup-Verzeichnis. #>
+    if (-not (Assert-SysPilotAdmin)) { return $null }
+    $data = [ordered]@{
+        Created   = (Get-Date).ToString('o')
+        RunKeys   = @()
+        Folders   = @()
+        Tasks     = @()
+    }
+    foreach ($rk in $script:RunKeys) {
+        $reg = Get-ItemProperty -Path $rk.Path -ErrorAction SilentlyContinue
+        if (-not $reg) { continue }
+        $approved = Get-ItemProperty -Path $rk.Approved -ErrorAction SilentlyContinue
+        foreach ($prop in $reg.PSObject.Properties) {
+            if ($prop.Name -like 'PS*') { continue }
+            $enabled = $true
+            if ($approved) {
+                $bytes = $approved.PSObject.Properties[$prop.Name]
+                if ($bytes -and $bytes.Value -is [byte[]] -and $bytes.Value.Length -gt 0) { $enabled = ($bytes.Value[0] -eq 2) }
+            }
+            $data.RunKeys += [PSCustomObject]@{
+                Hive = $rk.Hive; Key = $rk.Path; Approved = $rk.Approved
+                Name = $prop.Name; Value = [string]$prop.Value; Enabled = $enabled
+            }
+        }
+    }
+    $folders = @([Environment]::GetFolderPath('Startup'), [Environment]::GetFolderPath('CommonStartup'))
+    foreach ($f in $folders) {
+        Get-ChildItem $f -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
+            $data.Folders += [PSCustomObject]@{ Folder = $f; File = $_.Name; Enabled = $true }
+        }
+        $disDir = Join-Path $f '_deaktiviert'
+        if (Test-Path $disDir) {
+            Get-ChildItem $disDir -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object {
+                $data.Folders += [PSCustomObject]@{ Folder = $f; File = "_deaktiviert\$($_.Name)"; Enabled = $false }
+            }
+        }
+    }
+    Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object {
+        $_.TaskPath -notmatch '^\\Microsoft' -and
+        ($_.Triggers | Where-Object { $_.CimClass.CimClassName -match 'LogonTrigger' })
+    } | ForEach-Object {
+        $data.Tasks += [PSCustomObject]@{ Name = $_.TaskName; Path = $_.TaskPath; Enabled = ($_.State -ne 'Disabled') }
+    }
+
+    $dir = Get-SysPilotBackupDir
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $dest = Join-Path $dir "startup_$stamp.json"
+    try {
+        $data | ConvertTo-Json -Depth 5 | Set-Content $dest -Encoding UTF8
+        Write-Host "  [OK] Autostart-Backup erstellt: $dest" -ForegroundColor Green
+        Write-SysPilotLog "Autostart-Backup: $dest"
+        return $dest
+    } catch {
+        Write-Host "  [!] Backup fehlgeschlagen: $($_.Exception.Message)" -ForegroundColor Red
+        return $null
+    }
+}
+
+function Restore-SysPilotStartup {
+    <# Stellt einen Autostart-Backup-Stand wieder her.
+       Setzt Run-Key-Werte und Aktivierungsstatus; Autostart-Ordner
+       werden nur gemeldet (Dateien werden nicht verschoben). #>
+    param([Parameter(Mandatory)][string]$BackupPath)
+    if (-not (Assert-SysPilotAdmin)) { return }
+    if (-not (Test-Path $BackupPath)) { Write-Host "  [!] Backup nicht gefunden: $BackupPath" -ForegroundColor Red; return }
+    try {
+        $data = Get-Content $BackupPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    } catch {
+        Write-Host "  [!] Backup ungueltig: $($_.Exception.Message)" -ForegroundColor Red
+        return
+    }
+    if (-not (Confirm-SysPilot "Autostart-Stand vom $($data.Created) wiederherstellen?`n(Aktuelle Aenderungen werden ueberschrieben)")) { return }
+
+    $restored = 0; $missing = 0
+    foreach ($rk in $data.RunKeys) {
+        try {
+            if (-not (Test-Path $rk.Key)) { New-Item -Path $rk.Key -Force | Out-Null }
+            Set-ItemProperty -Path $rk.Key -Name $rk.Name -Value $rk.Value -Force
+            if ($rk.Enabled -eq $false -and $rk.Approved) {
+                if (-not (Test-Path $rk.Approved)) { New-Item -Path $rk.Approved -Force | Out-Null }
+                $bytes = New-Object byte[] 12; $bytes[0] = 3
+                Set-ItemProperty -Path $rk.Approved -Name $rk.Name -Value $bytes -Type Binary
+            }
+            $restored++
+        } catch { $missing++ }
+    }
+    foreach ($t in $data.Tasks) {
+        try {
+            $task = Get-ScheduledTask -TaskName $t.Name -TaskPath $t.Path -ErrorAction Stop
+            if ($t.Enabled) { $task | Enable-ScheduledTask | Out-Null } else { $task | Disable-ScheduledTask | Out-Null }
+            $restored++
+        } catch { $missing++ }
+    }
+    Write-Host "  [OK] $restored Eintraege wiederhergestellt, $missing fehlten/konnten nicht gesetzt werden." -ForegroundColor Green
+    Write-Host '  Hinweis: Autostart-Ordner-Verknuepfungen wurden nicht verschoben - bitte manuell pruefen.' -ForegroundColor DarkGray
+    Write-SysPilotLog "Autostart-Restore aus $BackupPath ($restored ok, $missing fehlend)"
+}
+
 function Show-SysPilotStartupManager {
     while ($true) {
         $items = Get-SysPilotStartupItems
-        $menuItems = @()
+        $menuItems = @(
+            @{ Label = '>>> Autostart-Backup erstellen'; Color = 'Green'; Tag = 'BACKUP' },
+            @{ Label = '>>> Autostart-Backup wiederherstellen'; Color = 'Green'; Tag = 'RESTORE' }
+        )
         foreach ($it in ($items | Sort-Object @{e='Aktiv'; Descending=$true}, Name)) {
             $state = if ($it.Aktiv) { "[AN ]" } else { "[aus]" }
             $hint = if ($it.Hinweis) { "  <<< $($it.Hinweis)" } else { "" }
@@ -149,6 +252,15 @@ function Show-SysPilotStartupManager {
         if ($null -eq $sel) { return }
 
         $item = $sel
+        if ($sel -eq 'BACKUP') { [void](Backup-SysPilotStartup); Start-Sleep -Milliseconds 800; continue }
+        if ($sel -eq 'RESTORE') {
+            $dir = Get-SysPilotBackupDir
+            $latest = Get-ChildItem $dir -Filter 'startup_*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if (-not $latest) { Write-Host '  Kein Autostart-Backup vorhanden.' -ForegroundColor Yellow; Read-SysPilotChoice 'Weiter' | Out-Null; continue }
+            Write-Host "  Letztes Backup: $($latest.FullName)" -ForegroundColor Cyan
+            Restore-SysPilotStartup -BackupPath $latest.FullName
+            Start-Sleep -Milliseconds 800; continue
+        }
         if ($item.Aktiv) {
             if ($item.Hinweis) {
                 Write-Host "  Hinweis: $($item.Hinweis)" -ForegroundColor Magenta
@@ -161,4 +273,4 @@ function Show-SysPilotStartupManager {
     }
 }
 
-Export-ModuleMember -Function Get-SysPilotStartupItems, Set-SysPilotStartupItem, Show-SysPilotStartupManager
+Export-ModuleMember -Function Get-SysPilotStartupItems, Set-SysPilotStartupItem, Backup-SysPilotStartup, Restore-SysPilotStartup, Show-SysPilotStartupManager

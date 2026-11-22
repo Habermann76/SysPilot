@@ -249,8 +249,29 @@ function Get-SysPilotToolbox {
         Desc = 'Wacht ueber SysPilot: startet es automatisch neu, falls es nicht laeuft. Waehlbar: GUI offen oder nur im Tray.'
         NeedsAdmin = $true; Action = { Show-SysPilotGuardianMenu } }
     $tools += @{ Category = 'System optimieren'; Key = 'startup'; Name = 'Autostart-Manager'
-        Desc = 'Zeigt alle Autostart-Eintraege, deaktiviert ohne zu loeschen (rueckgaengig moeglich).'
+        Desc = 'Zeigt alle Autostart-Eintraege, deaktiviert ohne zu loeschen (rueckgaengig moeglich). Mit Backup/Wiederherstellung.'
         NeedsAdmin = $false; Action = { Show-SysPilotStartupManager } }
+    $tools += @{ Category = 'System optimieren'; Key = 'sysrepair'; Name = 'System-Reparatur'
+        Desc = 'Gezielte Reparaturen: Proxy/Firewall/Spooler, Infektions-Richtlinien, Dateizuordnungen, MSI, UAC, WMI, Windows Update.'
+        NeedsAdmin = $true; Action = { Show-SysPilotSystemRepair } }
+    $tools += @{ Category = 'System optimieren'; Key = 'systune'; Name = 'System-Tuning'
+        Desc = 'Performance-Tweaks: TCP Auto-Tuning/Timestamps, DNS-TTL, Kernel-Cache, schnelleres Herunterfahren, Explorer-Tweaks.'
+        NeedsAdmin = $false; Action = { Show-SysPilotSystemTuning } }
+    $tools += @{ Category = 'System optimieren'; Key = 'win11ui'; Name = 'Win11-UI reparieren (Taskbar + Kontextmenue)'
+        Desc = 'Taskbar auf Standard zuruecksetzen, Kontextmenue Windows 11/klassisch umschalten, Admin-Kontextmenue-Eintraege.'
+        NeedsAdmin = $false; Action = { Show-SysPilotWin11UiMenu } }
+    $tools += @{ Category = 'System optimieren'; Key = 'win11taskbar'; Name = 'Win11-Taskbar-Standard'
+        Desc = 'Stellt Taskbar-Ausrichtung, Widgets, Chat, Suche u.a. auf Windows-11-Standard zurueck und startet den Explorer neu.'
+        NeedsAdmin = $false; Action = { Reset-SysPilotWin11Taskbar; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'System optimieren'; Key = 'win11ctx'; Name = 'Win11-Kontextmenue-Modus'
+        Desc = 'Schaltet zwischen dem Windows-11-Kontextmenue und dem klassischen vollstaendigen Menue um.'
+        NeedsAdmin = $false; Action = { Set-SysPilotContextMenuMode -Mode Toggle; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'System optimieren'; Key = 'win11ctxadmin'; Name = 'Admin-Kontextmenue-Eintraege'
+        Desc = 'Fuegt „Terminal (Admin) oeffnen" (Ordner/Laufwerk) und „Mit PowerShell (Admin) oeffnen" (.ps1) hinzu oder entfernt sie.'
+        NeedsAdmin = $false; Action = { Show-SysPilotAdminContextMenuManager } }
+    $tools += @{ Category = 'System optimieren'; Key = 'hosts'; Name = 'Hosts-Editor'
+        Desc = 'HOSTS-Datei anzeigen, Eintraege hinzufuegen/entfernen, Datei sperren, DNS-Cache leeren. Mit Backup.'
+        NeedsAdmin = $true; Action = { Show-SysPilotHostsEditor } }
     $tools += @{ Category = 'System optimieren'; Key = 'services'; Name = 'Dienste-Tuner'
         Desc = 'Deaktiviert gepruefte, unnoetige Windows-Dienste. Nur Empfehlungen, die Ressourcen sparen.'
         NeedsAdmin = $true; Action = { Show-SysPilotServiceTuner; Read-SysPilotChoice 'Weiter' | Out-Null } }
@@ -333,6 +354,15 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'Analyse & Info'; Key = 'sysinfo'; Name = 'System-Info'
         Desc = 'CPU, RAM, GPU, Platten, Windows-Version, Laufzeit - kompakt auf einen Blick.'
         NeedsAdmin = $false; Action = { Show-SysPilotSystemInfo; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'Analyse & Info'; Key = 'hardware'; Name = 'PC-Analyse (Hardware-Diagnose)'
+        Desc = 'CPU, RAM, GPU, Mainboard/BIOS, Laufwerke, Netzwerk, Windows-Infos, Temperatur - als Report.'
+        NeedsAdmin = $false; Action = { Show-SysPilotHardwareMenu } }
+    $tools += @{ Category = 'Analyse & Info'; Key = 'wiztree'; Name = 'WizTree-Integration'
+        Desc = 'Festplatten-/Ordneranalyse: vorhandene Installation erkennen, silent installieren, starten.'
+        NeedsAdmin = $false; Action = { Show-SysPilotWizTreeMenu } }
+    $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'drivers'; Name = 'Treiber-Werkstatt'
+        Desc = 'Problemgeraete finden, Treiber-Inventar, veraltete Treiber, fehlende Komponenten, Rollback-Anleitung.'
+        NeedsAdmin = $true; Action = { Show-SysPilotDriverMenu } }
 
     return $tools
 }

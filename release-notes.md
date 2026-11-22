@@ -1,3 +1,121 @@
+# SysPilot 0.9.4.7 beta
+
+- **WizTree-Integration (NEU)**: `modules/WizTree.psm1` erkennt eine vorhandene
+  WizTree-Installation (übliche Pfade + Uninstall-Registry inkl.
+  `InstallLocation`/`DisplayIcon`), löst die aktuelle Installer-URL dynamisch
+  von `diskanalyzer.com/download` auf (Pattern `files/wiztree_X_YY_setup.exe`,
+  höchste Version; Fallback: bekannte Version) und installiert silent
+  (`/VERYSILENT /NORESTART /SUPPRESSMSGBOXES`). Download wird auf Größe
+  geprüft, Erfolg über die resultierende EXE verifiziert. Menü:
+  WizTree starten / installieren / Website öffnen.
+- **SysPilot PC-Analyse (NEU)**: `modules/HardwareCheck.psm1` — CPU
+  (Name/Kerne/Takt/Last), RAM (Größe/Belegung), GPU(s) inkl. VRAM + Treiber,
+  Mainboard/BIOS, Laufwerke (Größe, Freiraum, Health via `Get-PhysicalDisk`),
+  Netzwerkadapter inkl. IPv4-Adressen, Windows-Version/Build/Laufzeit und
+  CPU-Temperatur (echt via LibreHardwareMonitor, sonst ehrlich als
+  „geschaetzt" markiert). Nicht messbare Werte werden als „nicht ermittelt"
+  angezeigt.
+- **Treiber-Werkstatt (NEU)**: `modules/Drivers.psm1` — Problemgeräte via
+  `Win32_PnPEntity` (`ConfigManagerErrorCode <> 0`, mit verständlichen
+  Fehlercode-Erklärungen), Treiber-Inventar via `Win32_PnPSignedDriver`
+  (Version, Datum, Hersteller), Markierung von Treibern älter als 3 Jahre,
+  deterministische Prüfung von DirectX-Registry und Visual-C++-Runtimes
+  (Uninstall-Registry). Aktionen: Problemgerät neu starten (`pnputil
+  /restart-device`, nur mit Bestätigung + Admin) und eine klare
+  Rollback-Anleitung (Gerätemanager → „Vorheriger Treiber", nur wenn ein
+  älterer Treiber im Store liegt). Ehrlich dokumentiert: automatische
+  Treiber-Downloads aus Herstellernetzwerken sind ohne stabile API nicht
+  zuverlässig umsetzbar.
+- **Treiber-Quellen (NEU, nach SDI-Analyse)**: Submenü „TREIBER-QUELLEN" in der
+  Treiber-Werkstatt. (a) **Windows-Update-API**: listet verfügbare
+  Treiber-Updates (COM `Microsoft.Update.Session`, `Type='Driver'`) und
+  installiert sie nach Bestätigung (Download → Install, EULA wird
+  akzeptiert) — legitime, von Microsoft signierte Quelle. (b)
+  **Microsoft Update Catalog**: Hardware-IDs von Problemgeräten
+  (`DEVPKEY_Device_HardwareIds`) werden gegen `catalog.update.microsoft.com`
+  gesucht; Treffer zeigen Titel, Datum, Version, Größe und Detail-URL, erster
+  Treffer kann im Browser geöffnet werden (Download läuft über den Katalog,
+  wie bei SDI). (c) **SDI-Erkennung**: findet eine vorhandene
+  Snappy-Driver-Installer-Installation (Registry + Desktop/PortableApps/
+  Programmverzeichnisse) und kann sie extern starten; Info-Text erklärt,
+  warum SDIs DriverPacks (SamLab-Torrents, proprietäre Repack-Archive)
+  bewusst nicht nachgebaut werden — SysPilot nutzt stattdessen die
+  legitimen Quellen Windows Update + MS-Katalog.
+- **SDI-Installation (NEU)**: Menüpunkt „SDI: neueste Version laden +
+  installieren" ermittelt die neueste SDI-Lite-Version automatisch von
+  `sdi-tool.org/download` (z.B. 1.26.1 / R2601), lädt das ~6-MB-Archiv von
+  `DriverOff.net` herunter, entpackt es mit 7-Zip (Fallback: tar) nach
+  `%LOCALAPPDATA%\Programs\SDI` — eine vorhandene Installation wird vorher
+  gesichert (`.old-<Zeitstempel>`) — und bietet den Start an. SDI ist portabel,
+  daher ist kein stiller Installer nötig; „vollautomatisch" = Download +
+  Extraktion ohne weitere Eingaben nach einer einzigen Bestätigung. SDI Full
+  (50 GB, nur per Torrent) wird bewusst nicht angeboten.
+- **DriversCloud-Analyse + Hersteller-Suche (NEU)**: `DriversCloud.exe` wurde
+  per REA/Strings analysiert — es ist ein Tauri/Rust-Client; die Treiber-API
+  (`driverscloud.com/api/...`) ist JWT-geschützt, verschlüsselt
+  (`RecevoirConfigurationApiCrypte`, DCCrypt.dll) und nutzt einen eigenen
+  Kernel-Treiber zur Geräteerkennung — **nicht reproduzierbar** und wie die
+  Driver-Booster-API proprietär, daher nicht nachgebaut. Stattdessen: neuer
+  Menüpunkt „DriversCloud Herstellerseite (Browser)" in TREIBER-QUELLEN —
+  `Find-SysPilotDriversCloudManufacturer` liest den öffentlichen
+  Hersteller-Index von driverscloud.com, matched per Alias-Tabelle
+  (AMD/Intel/NVIDIA/HP/Qualcomm u.a.) + Token-Overlap und öffnet die
+  jeweilige Hersteller-Treiberseite im Browser. Problemgeräte mit
+  Manufacturer-Angabe werden zur Auswahl angeboten.
+- **Hosts-Editor (NEU, nach Optimizer-Analyse)**: `modules/HostsEditor.psm1`
+  — HOSTS-Datei anzeigen, Einträge hinzufügen (IP + Hostname, mit
+  Validierung + Duplikat-Schutz), nach Hostnamen entfernen, alle aktiven
+  Einträge löschen (Kommentare bleiben), Datei sperren/entsperren
+  (schreibgeschützt), DNS-Cache leeren. Jedes Backup landet in
+  `backup\hosts_<Zeitstempel>.bak`.
+- **Autostart-Sicherung (NEU, nach Optimizer-Analyse)**: der
+  Autostart-Manager bietet jetzt „Backup erstellen" und „Backup
+  wiederherstellen" — Run-Keys (inkl. StartupApproved-Status),
+  Autostart-Ordner und Logon-Aufgaben werden als JSON in
+  `backup\startup_<Zeitstempel>.json` gesichert und können wieder
+  eingespielt werden.
+- **SysPilot System-Reparatur (NEU, nach Windows-Repair-Analyse)**:
+  `modules/SystemRepair.psm1` — 11 gezielte Reparaturen im
+  Pfeiltasten-Menü: Proxy komplett zurücksetzen (WinHTTP + WinINet +
+  AutoConfigURL), Firewall-Dienst/Profile prüfen, Druck-Spooler reparieren
+  (Queue leeren + Neustart), Infektions-Sperrrichtlinien entfernen
+  (NoRun/DisableTaskMgr/NoControlPanel u.a.), Dateizuordnungen prüfen &
+  korrigieren (exe/bat/cmd/lnk/msc/reg/scr/com/inf), MSI neu registrieren,
+  UAC-Standards wiederherstellen, Performance-Counter neu aufbauen
+  (lodctr /R), WMI-Repository verifizieren (verify/salvage), VSS-Dienst
+  prüfen, Windows-Update-Speicher zurücksetzen (SoftwareDistribution +
+  catroot2 umbenennen). Jede Aktion mit Bestätigung, Admin-Check und Log.
+- **SysPilot System-Tuning (NEU, nach Simple-System-Tweaker-Analyse)**:
+  `modules/SystemTuning.psm1` — 9 umschaltbare Tweaks in drei Kategorien
+  (Netzwerk/System/Explorer): TCP Auto-Tuning & Timestamps (via
+  `Get/Set-NetTCPSetting`, lokalisierungsunabhängig), DNS-Cache-TTL 4h,
+  Kernel im RAM, LargeSystemCache, MenuShowDelay=0, schnelles
+  Herunterfahren (AutoEndTasks + Timeouts), Shortcut-Tracking aus,
+  „Mit Notepad öffnen"-Kontextmenü. Statusanzeige aller Werte,
+  jede Änderung geloggt.
+- **Windows-11-UI-Reparatur (NEU, in System-Tuning → Kategorie
+  „Win11-UI")**: Taskbar auf Standard zurücksetzen (Ausrichtung,
+  Widgets, Chat, Suche u.a. + Explorer-Neustart), Kontextmenü-Modus
+  Windows 11 ↔ klassisch umschalten (CLSID-Override), Admin-
+  Kontextmenü-Einträge hinzufügen/entfernen („Terminal (Admin)
+  öffnen" für Ordner-Hintergrund/Ordner/Laufwerk, „Mit PowerShell
+  (Admin) öffnen" für .ps1-Dateien — alles unter HKCU, kein Admin
+  nötig). Zusätzlich als eigene Toolbox-Buttons in der GUI:
+  „Win11-UI reparieren", „Win11-Taskbar-Standard",
+  „Win11-Kontextmenue-Modus" und „Admin-Kontextmenue-Eintraege".
+- **Optimizer-Analyse**: `Optimizer_16.7.exe` (deadmoon, .NET) wurde per
+  Strings analysiert — Features (Cleaner, DNS-Wechsel, Hosts-Editor,
+  Startup-Manager, Dienst-/Feature-Tweaks) sind in SysPilot bereits
+  vorhanden oder wurden oben ergänzt; keine proprietary API gefunden.
+- **Integration**: Alle drei Werkzeuge in Vollmenü (Pfeiltasten-Menü),
+  `$Tool`-Switch (`-Tool drivers|hardware|wiztree`), GUI-Toolbox und
+  `Get-SysPilotToolbox` (Keys: `drivers`, `hardware`, `wiztree`).
+- **Build**: `build.ps1` (Entwickler-Werkzeug, kein Produktbestandteil) baut
+  `SysPilot-Setup-0.9.4.7-x64.exe` + `SysPilot-0.9.4.7-beta-portable.zip`
+  automatisch aus `version.txt`.
+
+---
+
 # SysPilot 0.9.4.6 beta
 
 - **Pfeiltasten-Menü (NEU)**: Das gesamte Vollmenü, das Speicher-Menü, das Skripte-Menü und der Dienste-Tuner werden jetzt per Pfeiltasten (hoch/runter, Bild auf/ab, Pos1/Ende, Enter, Esc) bedient - keine Nummerneingabe mehr. Basis: `Show-SysPilotArrowMenu` in `Common.psm1`.

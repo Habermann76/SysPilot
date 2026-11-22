@@ -1,5 +1,16 @@
 # SysPilot — Roadmap
 
+## Version 0.9.4.7 (NEU)
+
+- ✅ **WizTree-Integration**: Neues Modul `WizTree.psm1` – Festplattenplatz-Analyse via WizTree, stille Installation von `diskanalyzer.com`
+- ✅ **SysPilot PC-Analyse**: Neues Modul `HardwareCheck.psm1` – Hardware-Check für CPU, RAM, GPU, Mainboard/BIOS, Laufwerke mit S.M.A.R.T., Netzwerk, Temperatur
+- ✅ **Treiber-Werkstatt**: Neues Modul `Drivers.psm1` – Problemgeräte finden, Treiber-Inventar, Rollback, fehlende Komponenten-Check
+- ✅ **Vollmenue-Integration**: Alle drei neuen Module in Vollmenue, `-Tool`-Switch und Toolbox (Keys: `wiztree`, `hardware`, `drivers`)
+- ✅ **Build‑Verbesserungen**: `build.ps1` erstellt Installer und Portable ZIP automatisch aus `version.txt`
+- ✅ **Version‑Quelle**: `version.txt` ist die einzige Versionsquelle
+
+---
+
 ## Version 0.9.4.6 beta (aktuell)
 
 - ✅ PowerShell-Kern (Text-Menü mit Pfeiltasten)
@@ -27,6 +38,7 @@
 ## Geplant (nach Beta)
 
 ### Version 1.0
+
 - ⬜ **Electron-Version** (komplett grafisch, mehr RAM ~150-200 MB, aber
   hübscher + plattformübergreifend) — *vorgemerkt auf Nutzerwunsch*
 - ⬜ **Windows-Dienst** (SysPilot dauerhaft im Hintergrund, auch ohne Anmeldung) —
@@ -42,6 +54,7 @@
 - ⬜ **Signierte Installer** (Code-Signing-Zertifikat)
 
 ### Ideen (noch nicht geplant)
+
 - Browser-Extension-**Verwaltung** direkt aus SysPilot (deaktivieren ohne Browser zu öffnen)
 - **Benchmark** (vorher/nachher Vergleich)
 - **Cloud-Backup** der Konfiguration
