@@ -63,31 +63,34 @@ Write-Host "Skript '$name' laeuft..." -ForegroundColor Cyan
 
 function Show-SysPilotScriptsMenu {
     while ($true) {
-        Write-SysPilotHeader "Skripte (vorgefertigt & anpassbar)"
         $scripts = @(Get-SysPilotScripts)
-        if ($scripts.Count -eq 0) {
-            Write-Host "  Keine Skripte gefunden." -ForegroundColor DarkGray
-        } else {
-            $i = 0
-            foreach ($s in $scripts) {
-                $i++
-                Write-Host ("  [{0,2}] {1,-28} {2}" -f $i, $s.Name, $s.Beschreibung) -ForegroundColor White
-            }
+        $items = @()
+        foreach ($s in $scripts) {
+            $items += @{ Label = ("{0,-30} {1}" -f $s.Name, $s.Beschreibung); Color = 'White'; Tag = "run:$($s.Pfad)" }
         }
-        Write-Host ""
-        Write-Host "  Befehle: <Nr> = ausfuehren | E<Nr> = bearbeiten | N = neu | 0 = zurueck" -ForegroundColor Yellow
-        $c = Read-SysPilotChoice "Auswahl"
-        if ($c -eq '0' -or $c -eq '') { return }
-        if ($c -match '^(n|N)$') { New-SysPilotScriptTemplate; continue }
-        if ($c -match '^[eE](\d+)$') {
-            $n = [int]$matches[1]
-            if ($n -ge 1 -and $n -le $scripts.Count) { Start-Process notepad.exe $scripts[$n - 1].Pfad }
+        $items += @{ Label = 'Neues Skript aus Vorlage erstellen'; Color = 'Cyan'; Tag = 'new' }
+        $items += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
+
+        $sel = Show-SysPilotArrowMenu -Items $items -Title 'Skripte (vorgefertigt & anpassbar)' -Footer 'Pfeiltasten, Enter = auswaehlen, Esc = zurueck'
+        if ($null -eq $sel) { return }
+        if ($sel -eq 'new') {
+            New-SysPilotScriptTemplate
+            Read-SysPilotChoice "Weiter mit Enter" | Out-Null
             continue
         }
-        $n = 0
-        if ([int]::TryParse($c, [ref]$n) -and $n -ge 1 -and $n -le $scripts.Count) {
-            Invoke-SysPilotScript -Path $scripts[$n - 1].Pfad
-            Read-SysPilotChoice "Weiter mit Enter" | Out-Null
+        if ($sel -like 'run:*') {
+            $path = $sel.Substring(4)
+            $act = Show-SysPilotArrowMenu -Items @(
+                @{ Label = 'Skript ausfuehren'; Color = 'Green'; Tag = 'run' },
+                @{ Label = 'Im Editor bearbeiten'; Color = 'White'; Tag = 'edit' },
+                @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
+            ) -Title 'Aktion waehlen' -Footer 'Enter = auswaehlen, Esc = zurueck'
+            if ($act -eq 'run') {
+                Invoke-SysPilotScript -Path $path
+                Read-SysPilotChoice "Weiter mit Enter" | Out-Null
+            } elseif ($act -eq 'edit') {
+                Start-Process notepad.exe $path
+            }
         }
     }
 }

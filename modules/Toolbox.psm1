@@ -295,6 +295,9 @@ function Get-SysPilotToolbox {
         } }
 
     # --- System bereinigen ---
+    $tools += @{ Category = 'System bereinigen'; Key = 'storage'; Name = 'Speicher-Analyse'
+        Desc = 'pagefile.sys, hiberfil.sys, Temp, Update-Cache, Dumps - Groessen mit Erklaerungen, sichere Bereinigung.'
+        NeedsAdmin = $false; Action = { Show-SysPilotStorageMenu } }
     $tools += @{ Category = 'System bereinigen'; Key = 'cleanup'; Name = 'Datentraeger bereinigen'
         Desc = 'Temp, Update-Cache, Miniaturbilder, Shader-Cache, Papierkorb - mit Analyse vorher.'
         NeedsAdmin = $false; Action = { Show-SysPilotCleanupMenu; Read-SysPilotChoice 'Weiter' | Out-Null } }
@@ -330,12 +333,6 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'Analyse & Info'; Key = 'sysinfo'; Name = 'System-Info'
         Desc = 'CPU, RAM, GPU, Platten, Windows-Version, Laufzeit - kompakt auf einen Blick.'
         NeedsAdmin = $false; Action = { Show-SysPilotSystemInfo; Read-SysPilotChoice 'Weiter' | Out-Null } }
-    $tools += @{ Category = 'Analyse & Info'; Key = 'dns'; Name = 'DNS-Manager'
-        Desc = 'DNS-Adapter verwalten, Provider testen, DNS setzen, Cache prüfen, Reverse-Lookup'
-        NeedsAdmin = $false; Action = { Show-SysPilotDnsWindow; Read-SysPilotChoice 'Weiter' | Out-Null } }
-    $tools += @{ Category = 'Analyse & Info'; Key = 'health'; Name = 'Smart Health Monitor'
-        Desc = 'Überwachung von CPU, GPU, SSD, Lüftern und Temperatur via LibreHardwareMonitor'
-        NeedsAdmin = $false; Action = { Show-SysPilotHealthDashboard; Read-SysPilotChoice 'Weiter' | Out-Null } }
 
     return $tools
 }

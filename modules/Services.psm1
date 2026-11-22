@@ -80,8 +80,8 @@ function Set-SysPilotService {
 
 function Show-SysPilotServiceTuner {
     Write-SysPilotHeader "Dienste optimieren"
-    $plan = Get-SysPilotServicePlan
-    $changes = $plan | Where-Object { $_.Aenderung }
+    $plan = @(Get-SysPilotServicePlan)
+    $changes = @($plan | Where-Object { $_.Aenderung })
 
     if ($changes.Count -eq 0) {
         Write-Host "  Alle empfohlenen Dienste sind bereits optimal eingestellt." -ForegroundColor Green
@@ -90,33 +90,35 @@ function Show-SysPilotServiceTuner {
 
     Write-Host "  Folgende $($changes.Count) Aenderungen werden empfohlen:" -ForegroundColor Cyan
     Write-Host ""
-    $i = 0
     foreach ($r in $changes) {
-        $i++
-        Write-Host ("  [{0,2}] {1,-38} {2,-10} -> {3,-10}" -f $i, $r.Name, $r.Ist, $r.Soll) -ForegroundColor White
-        Write-Host ("       $($r.Grund)") -ForegroundColor DarkGray
+        Write-Host ("       {0,-38} {1,-10} -> {2,-10}  ({3})" -f $r.Name, $r.Ist, $r.Soll, $r.Grund) -ForegroundColor DarkGray
     }
     Write-Host ""
-    Write-Host "  Befehle: A = alle anwenden | <Nr> = einzeln anwenden | 0 = zurueck" -ForegroundColor Yellow
-    $c = Read-SysPilotChoice "Auswahl"
-    if ($c -eq '0' -or $c -eq '') { return }
+
+    $items = @()
+    foreach ($r in $changes) {
+        $items += @{ Label = ("{0,-38} {1,-10} -> {2,-10}" -f $r.Name, $r.Ist, $r.Soll); Color = 'White'; Tag = $r }
+    }
+    $items += @{ Label = 'ALLE Aenderungen anwenden'; Color = 'Green'; Tag = 'all' }
+    $items += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
+
+    $sel = Show-SysPilotArrowMenu -Items $items -Title 'Dienste-Optimierung' -Footer 'Pfeiltasten, Enter = anwenden, Esc = zurueck'
+    if ($null -eq $sel) { return }
     if (-not (Assert-SysPilotAdmin)) { return }
 
     $backup = New-SysPilotBackup -Label "services"
     Write-Host "  Backup: $backup" -ForegroundColor DarkGray
 
-    if ($c -match '^(a|A)$') {
+    if ($sel -eq 'all') {
         $ok = 0
         foreach ($r in $changes) { if (Set-SysPilotService -Row $r) { $ok++ } }
         Write-Host "  [OK] $ok von $($changes.Count) Diensten optimiert." -ForegroundColor Green
     } else {
-        $n = 0
-        if ([int]::TryParse($c, [ref]$n) -and $n -ge 1 -and $n -le $changes.Count) {
-            if (Set-SysPilotService -Row $changes[$n - 1]) {
-                Write-Host "  [OK] $($changes[$n - 1].Name) -> $($changes[$n - 1].Soll)" -ForegroundColor Green
-            }
+        if (Set-SysPilotService -Row $sel) {
+            Write-Host "  [OK] $($sel.Name) -> $($sel.Soll)" -ForegroundColor Green
         }
     }
+    Read-SysPilotChoice "Weiter mit Enter" | Out-Null
 }
 
 Export-ModuleMember -Function Get-SysPilotServicePlan, Set-SysPilotService, Show-SysPilotServiceTuner

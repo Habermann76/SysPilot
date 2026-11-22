@@ -47,101 +47,208 @@ if ($CheckupAuto) {
 }
 
 # =======================================================================
-# HAUPTMENUE
+# HAUPTMENUE (Pfeiltasten-Auswahl via Show-SysPilotArrowMenu)
 # =======================================================================
-function Show-SysPilotMenu {
-    while ($true) {
-        Clear-Host
-        Write-Host ""
-        Write-Host "  SysPilot 0.9.4.5 beta - Dein intelligenter PC-Autopilot" -ForegroundColor Cyan
-        Write-Host "  ==================================================" -ForegroundColor DarkGray
-        Write-Host ""
-        Write-Host "   1  Autopilot starten" -ForegroundColor White
-        Write-Host "   2  Kuehl-Modus (Temperatur-Schutz)" -ForegroundColor White
-        Write-Host "   3  Performance-Modus" -ForegroundColor White
-        Write-Host "   4  RAM freigeben" -ForegroundColor White
-        Write-Host "   5  Autostart-Manager" -ForegroundColor White
-        Write-Host "   6  Bloatware-Manager" -ForegroundColor White
-        Write-Host "   7  Optimizer-Manager" -ForegroundColor White
-        Write-Host "   8  Auto-Optimierung" -ForegroundColor White
-        Write-Host "   9  Dienste-Tuner" -ForegroundColor White
-        Write-Host "  10  Windows-Features" -ForegroundColor White
-        Write-Host "  11  Cleanup-Menue" -ForegroundColor White
-        Write-Host "  12  RAM freigeben (Sofort)" -ForegroundColor White
-        Write-Host "  13  Prozess-Prioritaeten" -ForegroundColor White
-        Write-Host "  14  Einstellungen" -ForegroundColor White
-        Write-Host "  15  Backup / Wiederherstellung" -ForegroundColor White
-        Write-Host "  16  Als Administrator neu starten" -ForegroundColor White
-        Write-Host "  17  Ressourcen-Fresser" -ForegroundColor White
-        Write-Host "  18  Statistiken" -ForegroundColor White
-        Write-Host "  19  Skripte" -ForegroundColor White
-        Write-Host "  20  GUI oeffnen" -ForegroundColor White
-        Write-Host "  21  Erweiterungen" -ForegroundColor White
-        Write-Host "  22  Netzwerk-Reparatur" -ForegroundColor White
-        Write-Host "  23  Netzwerkadapter" -ForegroundColor White
-        Write-Host "  24  Checkup" -ForegroundColor White
-        Write-Host "  25  Toolbox" -ForegroundColor White
-        Write-Host "  26  Smart Health Monitor" -ForegroundColor Cyan
-        Write-Host "  27  Advanced DNS Manager" -ForegroundColor Cyan
-        Write-Host "  28  KI-Suche" -ForegroundColor White
-        Write-Host "   0  In Tray minimieren / Beenden" -ForegroundColor DarkGray
-        Write-Host ""
+function Close-SysPilotToTray {
+    <# "Beenden" = SysPilot laeuft im Hintergrund weiter: GUI im Tray starten (falls nicht schon offen). #>
+    $cfg = (Get-SysPilotConfig).Start
+    if ($cfg -and $cfg.PSObject.Properties['GuiOnExit'] -and -not $cfg.GuiOnExit) { return }
 
-        $wahl = Read-SysPilotChoice 'Auswahl'
-        switch ($wahl) {
-            '1'  { Start-SysPilotAutopilot; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '2'  { Start-SysPilotCoolMode; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '3'  { Start-SysPilotPerfMode; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '4'  { Invoke-SysPilotFreeRam; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '5'  { Show-SysPilotStartupManager; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '6'  { Show-SysPilotBloatManager; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '7'  { Show-SysPilotOptimizerManager; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '8'  { Invoke-SysPilotAutoOptimize; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '9'  { Show-SysPilotServiceTuner; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '10' { Show-SysPilotFeaturesMenu; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '11' { Show-SysPilotCleanupMenu; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '12' { Invoke-SysPilotFreeRam; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '13' { Set-SysPilotPriorities; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '14' { Show-SysPilotSettingsMenu; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '15' {
-                if (Assert-SysPilotAdmin) {
-                    $b = New-SysPilotBackup -Label "menu"
-                    Write-Host "  Backup erstellt: $b" -ForegroundColor Green
-                    $backups = Get-SysPilotBackups
-                    if ($backups.Count -gt 1) {
-                        Write-Host "  Vorhandene Backups:" -ForegroundColor DarkGray
-                        $backups | ForEach-Object { Write-Host "    $($_.Name)" -ForegroundColor DarkGray }
-                        if (Confirm-SysPilot "Dienste aus einem Backup wiederherstellen?") {
-                            $bn = Read-SysPilotChoice "Backup-Name"
-                            $bp = Join-Path $script:Root "backup\$bn"
-                            if (Test-Path $bp) { Restore-SysPilotServices -BackupPath $bp }
-                        }
-                    }
-                }
-                Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
-            }
-            '16' { Restart-SysPilotElevated }
-            '17' { Show-SysPilotHogs; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '18' { Show-SysPilotStats; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '19' { Show-SysPilotScriptsMenu; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '20' {
-                $gui = Join-Path $script:Root 'SysPilot-GUI.ps1'
-                if (Test-SysPilotAdmin) {
-                    Start-Process powershell.exe -Verb RunAs -ArgumentList (ConvertTo-SysPilotArgString @('-STA','-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui))
-                } else {
-                    Start-Process powershell.exe -ArgumentList (ConvertTo-SysPilotArgString @('-STA','-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui))
-                }
-            }
-            '21' { Show-SysPilotExtensionManager; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '22' { Show-SysPilotNetworkRepair; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '23' { Show-SysPilotNetworkAdapters; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '24' { Show-SysPilotCheckup; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '25' { Show-SysPilotToolbox; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '26' { Show-SysPilotHealthDashboard; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '27' { Show-SysPilotDnsWindow; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '28' { $q = Read-SysPilotChoice 'KI-Suche (Begriff)' 'SysPilot DNS Manager'; Start-Process 'https://duckduckgo.com/?q=' + [Uri]::EscapeDataString($q); Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
-            '0'  { Close-SysPilotToTray; return }
+    $guiRunning = Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match 'SysPilot-GUI\.ps1' -and $_.ProcessId -ne $PID }
+    if ($guiRunning) {
+        Write-Host '  SysPilot laeuft bereits im Hintergrund (Tray-Symbol).' -ForegroundColor DarkGray
+        return
+    }
+    $gui = Join-Path $script:Root 'SysPilot-GUI.ps1'
+    Write-Host ''
+    Write-Host '  SysPilot laeuft im Hintergrund weiter (Tray-Symbol neben der Uhr).' -ForegroundColor DarkCyan
+    Write-Host '  Doppelklick aufs Symbol = Dashboard. Rechtsklick = Beenden.' -ForegroundColor DarkGray
+    Write-Host '  (Abschalten: Einstellungen -> "Beim Beenden im Hintergrund weiterlaufen")' -ForegroundColor DarkGray
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList (ConvertTo-SysPilotArgString @('-NoProfile','-ExecutionPolicy','Bypass','-File',$gui,'-StartHidden'))
+}
+
+function Edit-SysPilotConfig {
+    while ($true) {
+        $cfg = Get-SysPilotConfig
+        $items = @(
+            @{ Label = "Wichtige Programme anzeigen/ergaenzen  ($($cfg.ImportantProcesses.Count) Eintraege)"; Color = 'White'; Tag = 'ImportantProcesses' },
+            @{ Label = "Spiele anzeigen/ergaenzen              ($($cfg.GameProcesses.Count) Eintraege)"; Color = 'White'; Tag = 'GameProcesses' },
+            @{ Label = "Ballast-Prozesse anzeigen/ergaenzen    ($($cfg.JunkProcesses.Count) Eintraege)"; Color = 'White'; Tag = 'JunkProcesses' },
+            @{ Label = "config.json im Editor oeffnen"; Color = 'White'; Tag = 'edit' },
+            @{ Label = "Zurueck"; Color = 'DarkGray'; Tag = $null }
+        )
+        $sel = Show-SysPilotArrowMenu -Items $items -Title 'Konfiguration'
+        if ($null -eq $sel) { return }
+        $path = Join-Path $script:Root 'config.json'
+        if ($sel -eq 'edit') {
+            Start-Process notepad.exe $path
+            Write-Host "  Nach dem Speichern Menue erneut oeffnen (Config wird neu geladen)." -ForegroundColor DarkGray
+            Reset-SysPilotConfig
+            Read-SysPilotChoice "Weiter" | Out-Null
+            continue
         }
+        $field = $sel
+        Write-Host "  Aktuell: $($cfg.$field -join ', ')" -ForegroundColor DarkGray
+        $new = Read-SysPilotChoice "Neuer Prozessname (ohne .exe, leer = abbrechen)"
+        if ($new) {
+            $json = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json
+            $json.$field = @($json.$field) + $new
+            $json | ConvertTo-Json -Depth 10 | Set-Content $path -Encoding UTF8
+            Reset-SysPilotConfig
+            Write-Host "  [OK] '$new' hinzugefuegt." -ForegroundColor Green
+            Read-SysPilotChoice "Weiter" | Out-Null
+        }
+    }
+}
+
+function Show-SysPilotSettingsMenu {
+    while ($true) {
+        $lang = Get-SysPilotLang
+        $unit = Get-SysPilotTempUnit
+        $langTxt = if ($lang -eq 'de') { 'Deutsch' } else { 'English' }
+        $unitTxt = if ($unit -eq 'C') { 'Celsius (C)' } else { 'Fahrenheit (F)' }
+
+        $startCfg = (Get-SysPilotConfig).Start
+        $alwaysAdmin = [bool]$startCfg.AlwaysAdmin
+        $guiOnExit = if ($null -ne $startCfg.GuiOnExit) { [bool]$startCfg.GuiOnExit } else { $true }
+        $aaTxt = if ($alwaysAdmin) { 'AN' } else { 'AUS' }
+        $geTxt = if ($guiOnExit) { 'AN' } else { 'AUS' }
+        $trayStart = [bool]($startCfg.PSObject.Properties['StartInTray'] -and $startCfg.StartInTray)
+        $tsTxt = if ($trayStart) { 'AN' } else { 'AUS' }
+
+        $items = @(
+            @{ Label = "Sprache / Language: $langTxt"; Color = 'White'; Tag = 'lang' },
+            @{ Label = "Temperatureinheit: $unitTxt"; Color = 'White'; Tag = 'unit' },
+            @{ Label = "Immer als Administrator starten: $aaTxt"; Color = 'White'; Tag = 'alwaysadmin' },
+            @{ Label = "Beim Beenden im Hintergrund weiterlaufen (Tray): $geTxt"; Color = 'White'; Tag = 'guionexit' },
+            @{ Label = "GUI beim Start nur im Tray (ohne Fenster): $tsTxt"; Color = 'White'; Tag = 'traystart' },
+            @{ Label = "Konfiguration (Programme, Spiele, Ballast)"; Color = 'White'; Tag = 'config' },
+            @{ Label = "Zurueck"; Color = 'DarkGray'; Tag = $null }
+        )
+        $sel = Show-SysPilotArrowMenu -Items $items -Title 'Einstellungen'
+        if ($null -eq $sel) { return }
+        switch ($sel) {
+            'alwaysadmin' {
+                $new = -not $alwaysAdmin
+                Set-SysPilotConfigValue -Section 'Start' -Key 'AlwaysAdmin' -Value $new
+                if ($new) {
+                    $n = Set-SysPilotShortcutRunAs -RunAs $true
+                    Write-Host "  [OK] Immer als Administrator: AN (ab naechstem Start)." -ForegroundColor Green
+                    if ($n -gt 0) { Write-Host "  [OK] $n Verknuepfung(en) auf 'Als Administrator ausfuehren' gesetzt." -ForegroundColor Green }
+                    else { Write-Host "  [i] Keine Verknuepfungen gefunden - gilt trotzdem beim Start von SysPilot." -ForegroundColor DarkGray }
+                } else {
+                    Set-SysPilotShortcutRunAs -RunAs $false | Out-Null
+                    Write-Host "  [OK] Immer als Administrator: AUS." -ForegroundColor Green
+                }
+                Read-SysPilotChoice "Weiter" | Out-Null
+            }
+            'traystart' {
+                $new = -not $trayStart
+                Set-SysPilotConfigValue -Section 'Start' -Key 'StartInTray' -Value $new
+                if ($new) {
+                    Write-Host '  [OK] GUI-Start: nur im Tray (Symbol neben der Uhr, ggf. unter ^ "Ausgeblendete Symbole").' -ForegroundColor Green
+                    Write-Host '  Fenster oeffnen: Doppelklick aufs Symbol, oder die Verknuepfung nochmal starten.' -ForegroundColor DarkGray
+                } else {
+                    Write-Host '  [OK] GUI-Start: Fenster oeffnet sich (Symbol bleibt im Tray).' -ForegroundColor Green
+                }
+                Read-SysPilotChoice "Weiter" | Out-Null
+            }
+            'guionexit' {
+                $new = -not $guiOnExit
+                Set-SysPilotConfigValue -Section 'Start' -Key 'GuiOnExit' -Value $new
+                Write-Host ("  [OK] Beim Beenden im Hintergrund weiterlaufen: " + $(if ($new) { 'AN' } else { 'AUS' })) -ForegroundColor Green
+                Read-SysPilotChoice "Weiter" | Out-Null
+            }
+            'lang' {
+                $new = if ($lang -eq 'de') { 'en' } else { 'de' }
+                Set-SysPilotLanguage -Lang $new
+                $newTxt = if ($new -eq 'de') { 'Deutsch' } else { 'English' }
+                Write-Host "  [OK] Sprache: $newTxt" -ForegroundColor Green
+                Read-SysPilotChoice "Weiter" | Out-Null
+            }
+            'unit' {
+                $new = if ($unit -eq 'C') { 'F' } else { 'C' }
+                Set-SysPilotTempUnit -Unit $new
+                $newTxt = if ($new -eq 'C') { 'Celsius' } else { 'Fahrenheit' }
+                Write-Host "  [OK] Temperatureinheit: $newTxt" -ForegroundColor Green
+                Read-SysPilotChoice "Weiter" | Out-Null
+            }
+            'config' { Edit-SysPilotConfig }
+        }
+    }
+}
+
+function Invoke-SysPilotPlanSwitch {
+    <# Wechselt den Energieplan (Cool/Performance). Fehlender Plan -> Angebot zum Einrichten,
+       fehlende Admin-Rechte -> Angebot zum Neustart. #>
+    param([ValidateSet('Cool','Performance')][string]$Mode)
+    $name = if ($Mode -eq 'Cool') { 'SysPilot Kuehl & Leise' } else { 'SysPilot Leistung' }
+    if (-not (Get-SysPilotPlanGuid -Name $name)) {
+        Write-Host "  Plan '$name' existiert noch nicht." -ForegroundColor Yellow
+        if (Confirm-SysPilot 'Energieplaene jetzt einrichten? (braucht Admin)') {
+            Install-SysPilotPlans
+        } else { return }
+    }
+    if (-not (Test-SysPilotAdmin)) {
+        Write-Host "  Plan-Wechsel braucht Administrator-Rechte." -ForegroundColor Yellow
+        if (Confirm-SysPilot 'SysPilot jetzt als Administrator neu starten?') {
+            Restart-SysPilotElevated
+        }
+        return
+    }
+    Set-SysPilotPlan -Mode $Mode | Out-Null
+    $now = Get-SysPilotActiveMode
+    if ($now -eq $Mode) {
+        Write-Host "  [OK] Energieplan aktiv: $name" -ForegroundColor Green
+    } else {
+        Write-Host "  [!] Wechsel hat nicht geklappt (aktuell: $now)." -ForegroundColor Yellow
+    }
+}
+
+function Show-SysPilotMenu {
+    $isAdmin = Test-SysPilotAdmin
+    $adminTag = if ($isAdmin) { "ADMIN" } else { "eingeschraenkt" }
+
+    $items = @(
+        @{ Label = 'System-Analyse (Was bremst meinen PC?)';      Color = 'White';    Tag = 'report' }
+        @{ Label = 'AUTOPILOT starten (Live-Umschaltung + Prioritaeten)'; Color = 'Green'; Tag = 'autopilot' }
+        @{ Label = 'Energieplan: Kuehl & Leise (Temperatur-Schutz)'; Color = 'White'; Tag = 'cool' }
+        @{ Label = 'Energieplan: Leistung';                        Color = 'White';    Tag = 'perf' }
+        @{ Label = 'Autopilot bei Anmeldung automatisch starten/entfernen'; Color = 'White'; Tag = 'autopilottask' }
+        @{ Label = 'RAM freigeben (Working Sets + Standby-Cache)'; Color = 'Green';   Tag = 'freemem' }
+        @{ Label = 'Autostart-Manager';                            Color = 'White';    Tag = 'startup' }
+        @{ Label = 'Programme deinstallieren (Bloatware-Finder)';  Color = 'White';    Tag = 'bloat' }
+        @{ Label = 'OPTIMIZER AUSMISTEN (auswaehlen, welche bleiben)'; Color = 'Magenta'; Tag = 'optimizers' }
+        @{ Label = 'AUTO-OPTIMIERUNG (Dienste + Features + Tweaks, mit Backup)'; Color = 'Green'; Tag = 'autooptimize' }
+        @{ Label = 'Dienste optimieren';                           Color = 'White';    Tag = 'services' }
+        @{ Label = 'Windows-Funktionen & Gaming-Tweaks';           Color = 'White';    Tag = 'features' }
+        @{ Label = 'Datentraeger bereinigen';                      Color = 'White';    Tag = 'cleanup' }
+        @{ Label = 'Prozess-Prioritaeten einmalig anwenden';       Color = 'White';    Tag = 'priorities' }
+        @{ Label = 'Einstellungen (Sprache, Einheiten, Konfiguration)'; Color = 'White'; Tag = 'settings' }
+        @{ Label = 'Backup erstellen / Dienste wiederherstellen'; Color = 'White';    Tag = 'backupmenu' }
+        @{ Label = 'Als Administrator neu starten';                Color = 'White';    Tag = 'admin' }
+        @{ Label = 'RESSOURCEN-FRESSER & Massnahmen';              Color = 'Yellow';   Tag = 'hogs' }
+        @{ Label = 'Statistiken (Verlauf)';                        Color = 'White';    Tag = 'stats' }
+        @{ Label = 'SKRIPTE (Gaming/Arbeit/Kuehl/Nacht - anpassbar)'; Color = 'Green'; Tag = 'scripts' }
+        @{ Label = 'GRAFISCHE OBERFLAECHE (Live-Dashboard)';       Color = 'Cyan';     Tag = 'gui' }
+        @{ Label = 'BROWSER-ERWEITERUNGEN (Duplikate finden)';      Color = 'Yellow';   Tag = 'extensions' }
+        @{ Label = 'NETZWERK / INTERNET reparieren';               Color = 'Cyan';     Tag = 'netrepair' }
+        @{ Label = 'NETZWERKADAPTER identifizieren (was ist vgate0?)'; Color = 'Cyan'; Tag = 'adapters' }
+        @{ Label = 'AUTOMATIC CHECKUP (Komplett-Scan, Erklaerungen, Reparatur)'; Color = 'Green'; Tag = 'checkup' }
+        @{ Label = 'TOOLBOX (alle Werkzeuge nach Kategorien)';     Color = 'Cyan';     Tag = 'toolbox' }
+        @{ Label = 'SMART HEALTH MONITOR';                         Color = 'Cyan';     Tag = 'health' }
+        @{ Label = 'ADVANCED DNS MANAGER';                         Color = 'Cyan';     Tag = 'dns' }
+        @{ Label = 'KI-Suche';                                     Color = 'White';    Tag = 'aisearch' }
+        @{ Label = 'SPEICHER-ANALYSE (pagefile, hiberfil, Temp, WinSxS)'; Color = 'Cyan'; Tag = 'storage' }
+        @{ Label = 'Beenden (SysPilot laeuft im Tray weiter)';     Color = 'DarkGray'; Tag = 'tray' }
+    )
+
+    while ($true) {
+        $sel = Show-SysPilotArrowMenu -Items $items -Title "SysPilot $(Get-SysPilotVersion) - PC-Autopilot [$adminTag]" -Footer 'Pfeiltasten hoch/runter, Enter = ausfuehren, Esc = beenden'
+        if ($null -eq $sel) { Close-SysPilotToTray; return }
+        if ($sel -eq 'tray') { Close-SysPilotToTray; return }
+        Invoke-SysPilotTool -Name $sel
     }
 }
 
@@ -511,6 +618,46 @@ function Invoke-SysPilotTool {
         'toolbox'      { Show-SysPilotToolbox; return }
         'plans'        { Install-SysPilotPlans; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'autopilot'    { Start-SysPilotAutopilot; return }
+        'cool'         { Invoke-SysPilotPlanSwitch -Mode Cool; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'perf'         { Invoke-SysPilotPlanSwitch -Mode Performance; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'autopilottask' {
+            $t = Get-ScheduledTask -TaskName 'SysPilot Autopilot' -ErrorAction SilentlyContinue
+            if ($t) { Remove-SysPilotAutopilotTask } else { Install-SysPilotAutopilotTask }
+            Read-SysPilotChoice 'Weiter' | Out-Null; return
+        }
+        'settings'     { Show-SysPilotSettingsMenu; return }
+        'admin'        { Restart-SysPilotElevated; return }
+        'gui'          {
+            $gui = Join-Path $script:Root 'SysPilot-GUI.ps1'
+            if (Test-SysPilotAdmin) {
+                Start-Process powershell.exe -Verb RunAs -ArgumentList (ConvertTo-SysPilotArgString @('-STA','-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui))
+            } else {
+                Start-Process powershell.exe -ArgumentList (ConvertTo-SysPilotArgString @('-STA','-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$gui))
+            }
+            return
+        }
+        'backupmenu'   {
+            if (Assert-SysPilotAdmin) {
+                $b = New-SysPilotBackup -Label "menu"
+                Write-Host "  Backup erstellt: $b" -ForegroundColor Green
+                $backups = Get-SysPilotBackups
+                if ($backups.Count -gt 1) {
+                    Write-Host "  Vorhandene Backups:" -ForegroundColor DarkGray
+                    $backups | ForEach-Object { Write-Host "    $($_.Name)" -ForegroundColor DarkGray }
+                    if (Confirm-SysPilot "Dienste aus einem Backup wiederherstellen?") {
+                        $bn = Read-SysPilotChoice "Backup-Name"
+                        $bp = Join-Path $script:Root "backup\$bn"
+                        if (Test-Path $bp) { Restore-SysPilotServices -BackupPath $bp }
+                    }
+                }
+            }
+            Read-SysPilotChoice 'Weiter' | Out-Null; return
+        }
+        'aisearch'     {
+            $q = Read-SysPilotChoice 'KI-Suche (Begriff)' 'SysPilot'
+            if ($q) { Start-Process 'https://duckduckgo.com/?q=' + [Uri]::EscapeDataString($q) }
+            Read-SysPilotChoice 'Weiter' | Out-Null; return
+        }
         'startup'      { Show-SysPilotStartupManager; return }
         'services'     { Show-SysPilotServiceTuner; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'freemem'      { Invoke-SysPilotFreeRam; Read-SysPilotChoice 'Weiter' | Out-Null; return }
@@ -537,6 +684,7 @@ function Invoke-SysPilotTool {
         'autooptimize' { Invoke-SysPilotAutoOptimize; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'dns'          { Show-SysPilotDnsWindow; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'health'       { Show-SysPilotHealthDashboard; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'storage'      { Show-SysPilotStorageMenu; return }
         default        { Write-Host "  [!] Unbekanntes Werkzeug: $Name" -ForegroundColor Yellow; Read-SysPilotChoice 'Weiter' | Out-Null; return }
     }
 }

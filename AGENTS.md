@@ -17,7 +17,7 @@ Diese Datei ist vor Änderungen am Projekt zu lesen.
 - Entwicklungsordner: `C:\Users\haber\SysPilot`.
 - Installierte Version: `C:\Program Files\SysPilot`.
 - Änderungen der installierten Version prüfen und sinnvoll in die Entwicklung übernehmen.
-- `version.txt`, Installer, README, Installationshinweise und Release-Notizen synchron halten.
+- `version.txt`, README, ROADMAP, INSTALL, release-notes.md und `.clinerules` synchron halten. Installer und Portable werden von `build.ps1` automatisch mit der Version aus `version.txt` benannt.
 
 ## Neue Module und Tools integrieren (verbindliche Vorgehensweise)
 
@@ -30,12 +30,10 @@ erreichtbar sein. Die folgende Reihenfolge ist verbindlich:
 - Modul testen (Syntax-Check, Funktionsaufruf)
 
 ### 2. Vollmenü (`SysPilot.ps1`)
-- **`$Tool`-Switch** (Zeile ~49-80): Eintrag hinzufügen:
-  ```
-  '<key>' { Show-SysPilot<Name>Window; Read-SysPilotChoice 'Weiter' | Out-Null }
-  ```
-- **`Show-SysPilotMenu`**: Menüpunkt mit `Write-Host` + switch-Case hinzufügen
-- **Wrapper-Funktion** `Show-SysPilot<Name>Window` definieren (falls interaktive Konsole nötig)
+- **`Invoke-SysPilotTool`-Switch**: Case für den Key hinzufügen (z.B. `'storage' { Show-SysPilotStorageMenu; return }`)
+- **`Show-SysPilotMenu`**: Eintrag im `$items`-Array ergänzen: `@{ Label='...'; Color='White'; Tag='<key>' }`
+  - **Key-Konsistenz prüfen**: Jeder `Tag` im Menü braucht einen Case in `Invoke-SysPilotTool` (und umgekehrt nur die im Menü verwendeten).
+- **Auswahl per Pfeiltasten**: Menüs nutzen `Show-SysPilotArrowMenu` (Common.psm1) – keine Nummerneingabe. `Read-SysPilotChoice` nur noch für Text-/Parameter-Eingaben und "Weiter mit Enter"-Pausen.
 
 ### 3. GUI (`SysPilot-GUI.ps1`)
 - **Button** erstellen: `$ctrl.Btn<Name>.Add_Click({ Show-SysPilot<Name>Window })`
@@ -93,18 +91,39 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 - Nicht verwenden: Simultanes $args +=-Füllen
 
 ## Aktuelle Version
-- **0.9.4.5** ist die letzte **funktionsreife** Version (kein WIP mehr)
+- **0.9.4.6** ist der aktuelle Stand (Pfeiltasten-Menü, Speicher-Analyse/StorageCleanup, Ruhezustand an/aus, build.ps1)
 - Alle GUI-Tools im Vollmenü, in der WPF-GUI und in der Toolbox
-- Installierte Version: C:\Program Files\SysPilot\
+- Installierte Version: C:\Program Files\SysPilot\ (auf diesem PC nicht vorhanden – nur Entwicklungsordner)
 
-## Release-Checkliste (0.9.4.5 & nachfolgend)
-1. **Syntax-Check** aller betroffenen Dateien
-2. **GUI-Buttons testen** (mit -FromGui berprfen)
-3. Portable (build-portable.bat) + Installer (Inno Setup) bauen
-4. Versionsnr. in version.txt aktualisieren
-5. Release-Notizen aktualisieren
-6. Installierte Version als ZIP/EXE vorbereiten
-7. Version nicht erhhen, bevor Tests fehlschlagen
+## Fehlerquellen & Arbeitsweise (Stand 0.9.4.6)
+
+### Menü-System (0.9.4.6)
+- **Alle Auswahlmenüs per Pfeiltasten** über `Show-SysPilotArrowMenu -Items @(@{Label;Color;Tag})`:
+  Hauptmenü (`Show-SysPilotMenu`), Speicher-Menü, Skripte-Menü, Dienste-Tuner, Einstellungen, Konfiguration.
+  `Tag` wird zurückgegeben; `Esc`/`$null` = zurück.
+- **Keine Nummerneingabe** mehr für Menüauswahl – nur noch für Parameter (z.B. Prozessname, Uhrzeit, Backup-Name).
+- **Menü-Aktionen laufen über `Invoke-SysPilotTool -Name '<key>'`** – neue Menüpunkte brauchen einen Case dort.
+- Historischer Fehler (behoben): Menü rief `Start-SysPilotCoolMode`, `Start-SysPilotPerfMode`, `Show-SysPilotSettingsMenu`, `Close-SysPilotToTray` auf, die nicht existierten → "Die Benennung wurde nicht erkannt". Energieplan-Kurzwahl läuft jetzt über `Invoke-SysPilotPlanSwitch` → `Set-SysPilotPlan` (mit Admin-/Plan-Fehlerbehandlung).
+
+### PowerShell-Module
+- **Nur genehmigte Verben** in exportierten Funktionsnamen (Get/Set/Invoke/Show/Write/Test/Start/Stop/New/Remove/Clear/Install/Update/Save/Restore/Import/Export/Format/Measure/Compare/Convert/Read/Hire/Undo/Watch/Backup/Checkpoint/Resume/Suspend/Debug/Trace/Connect/Disconnect/Enter/Exit/Pop/Push/Redo/StepInto/StepOver).
+  Unzulässig z.B. `Toggle-` → Warnung "Namen enthalten nicht genehmigte Verben" bei jedem Start.
+- Alle `.ps1`/`.psm1` **ASCII-sicher** schreiben (ae/oe/ue/ss statt Umlaute, keine Grad-Symbole) – sonst Mojibake ohne BOM.
+
+### KI-Werkzeuge (Cline & Co.)
+- **Grosse Dateien nie als ein String schreiben**: Cline hat `SysPilot.ps1` mit `[... truncated, this is a large file ...]` überschrieben → Skript unbrauchbar. Nach jeder KI-Änderung Dateigröße/Inhalt prüfen; bei Verdacht `git diff`/`git show HEAD:<file>` zum Restore nutzen.
+- **PowerShell.MCP**: Proxy-Pfad in `C:\Users\haber\.cline\data\settings\cline_mcp_settings.json` muss zur installierten Modulversion passen (`C:\Users\haber\OneDrive\Documents\PowerShell\Modules\PowerShell.MCP\<Version>\bin\win-x64\PowerShell.MCP.Proxy.exe`). Stand 0.9.4.6: 1.17.1.
+- **Inline-PowerShell vermeiden**: komplexe Skripte als `.ps1`-Datei schreiben und per `powershell -NoProfile -ExecutionPolicy Bypass -File <skript>.ps1` ausführen.
+
+## Release-Checkliste (0.9.4.6 & nachfolgend)
+1. **Syntax-Check** aller betroffenen Dateien (`[void][scriptblock]::Create((Get-Content $f -Raw -Encoding UTF8))`)
+2. **Konsistenzprüfung**: Menü-Tags ↔ `Invoke-SysPilotTool`-Cases ↔ Toolbox-Keys ↔ GUI-Buttons
+3. **Funktionsprüfung**: `SysPilot.ps1 -Tool '<key>'` für geänderte Tools
+4. **Build**: `powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1` → `installer-output\SysPilot-Setup-<Version>-x64.exe` + `SysPilot-<Version>-beta-portable.zip` (Version kommt aus `version.txt`)
+5. **Artefakte verifizieren**: ZIP-Inhalt (SysPilot.ps1 nicht trivial klein, StorageCleanup.psm1 enthalten), Version korrekt
+6. **Docs synchron**: version.txt, README, ROADMAP, INSTALL, release-notes.md, .clinerules, AGENTS.md
+7. **Erst dann** (nach ausdrücklicher Freigabe): Commit → Push → `gh release create` mit Artefakten + GitHub-Beschreibung/README aktualisieren
+8. Version nicht erhöhen, bevor Tests fehlschlagen
 
 ## Workflow beim Wiederstart auf stabile Version
 - Vor jedem neuen Release prüfen: `git log`, `git tag`, `gh release list` → keine Dopplungen.

@@ -7,7 +7,7 @@
 
 function Get-SysPilotModuleInfo {
     return [PSCustomObject]@{
-        Name='ModuleRegistry'; Version='0.9.4.2';
+        Name='ModuleRegistry'; Version=$(if (Get-Command Get-SysPilotVersion -ErrorAction SilentlyContinue) { Get-SysPilotVersion } else { '0.9.4.6' });
         Description='Module discovery and registration'; HasGUI=$false; IsConsoleOnly=$true
     }
 }

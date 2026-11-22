@@ -1,3 +1,14 @@
+# SysPilot 0.9.4.6 beta
+
+- **Pfeiltasten-Menü (NEU)**: Das gesamte Vollmenü, das Speicher-Menü, das Skripte-Menü und der Dienste-Tuner werden jetzt per Pfeiltasten (hoch/runter, Bild auf/ab, Pos1/Ende, Enter, Esc) bedient - keine Nummerneingabe mehr. Basis: `Show-SysPilotArrowMenu` in `Common.psm1`.
+- **Speicher-Analyse (NEU)**: Neues Modul `StorageCleanup.psm1` - analysiert pagefile.sys, hiberfil.sys, swapfile.sys, Temp-Ordner, Windows-Update-Cache, WinSxS, WER, Dumps u.v.m. mit Groessen und verstaendlichen deutschen Erklaerungen. Integriert in Vollmenue, `$Tool`-Switch (`-Tool storage`) und Toolbox (Kategorie "System bereinigen"). Optionale Aktionen: Ruhezustand an/aus, Pagefile-Anleitung, DISM Component Cleanup - riskante Schritte nur mit Bestaetigung.
+- **Ruhezustand-Schalter**: `powercfg /h off` UND `powercfg /h on` - der Ruhezustand lässt sich jetzt in beide Richtungen umschalten.
+- **Menu-Reparaturen**: Fehlende Funktionen `Close-SysPilotToTray`, `Show-SysPilotSettingsMenu`, `Edit-SysPilotConfig` wiederhergestellt (waren im numerischen Menüumbau verloren gegangen und verursachten "Benennung nicht erkannt"-Fehler). Energieplan-Kurzwahl `Kuehl`/`Leistung` über `Set-SysPilotPlan` mit Admin-/Plan-Fehlerbehandlung. Doppelte Toolbox-Einträge (DNS, Health) entfernt, doppelter RAM-freigeben-Menüpunkt entfernt, System-Analyse wieder ins Menü aufgenommen.
+- **Build**: Neues Skript `build.ps1` baut Installer (EXE) und Portable (ZIP) automatisch aus `version.txt`. Die Versionsnummer steht nicht mehr fest in Installer- und Bat-Dateien.
+- **Banner/Module**: Versionsanzeige im Titel kommt aus `version.txt`.
+
+---
+
 # SysPilot 0.9.4.4 beta
 
 - **GUI-Toolbox**: Werkzeuge starten jetzt über einen zentralen, robusten GUI-Launcher mit korrektem Arbeitsordner, Admin-Erhöhung und Fehlermeldungen.

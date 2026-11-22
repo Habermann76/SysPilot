@@ -4,9 +4,20 @@
 SysPilot ist ein reiner PowerShell-WPF-Tool zur Systemdiagnose und -automatisierung.
 
 ## Aufbau
-- **Vollmenü:** SysPilot.ps1 – $Tool-Switch-Case + Show-SysPilot<Name>Window
+- **Vollmenü:** SysPilot.ps1 – `Invoke-SysPilotTool`-Switch (Cases pro Key) + `Show-SysPilotMenu` ($items-Array mit Tag=Key)
 - **GUI:** SysPilot-GUI.ps1 – WPF-Layout + Start-SysPilotToolFromGui
 - **Toolbox:** modules/Toolbox.psm1 – Get-SysPilotToolbox mit Action-Blocks
+
+## Menü-System (0.9.4.6)
+- **Alle Auswahlmenüs per Pfeiltasten** über `Show-SysPilotArrowMenu -Items @(@{Label;Color;Tag})` (modules/Common.psm1). Esc = zurück, Enter = Tag zurückgeben.
+- **Keine Nummerneingabe** für Menüauswahl – `Read-SysPilotChoice` nur für Text/Parameter und "Weiter mit Enter"-Pausen.
+- Jeder Menü-Tag braucht einen Case in `Invoke-SysPilotTool`; Toolbox-Keys müssen ebenfalls in `Invoke-SysPilotTool` auflösbar sein (GUI-Toolbox startet `SysPilot.ps1 -Tool '<key>'`).
+- Energieplan-Kurzwahl (Kuehl/Leistung): `Invoke-SysPilotPlanSwitch` → `Set-SysPilotPlan` (PowerPlans.psm1), mit Admin- und Plan-Fehlerbehandlung.
+
+## PowerShell-Module
+- **Nur genehmigte Verben** in Funktionsnamen (Get/Set/Invoke/Show/Write/Test/Start/Stop/New/Remove/Clear/Install/Update/Save/Restore/Import/Export/Format/Measure/Compare/Convert/Read/Undo/Watch/Backup/Checkpoint/Resume/Suspend/Debug/Trace/Connect/Disconnect/Enter/Exit/Pop/Push/Redo/StepInto/StepOver). `Toggle-` u.ä. → Start-Warnung.
+- **ASCII-sicher** schreiben: ae/oe/ue/ss statt Umlaute, keine Grad-Symbole (°), keine Smartquotes – PowerShell 5.1 ohne BOM liest ANSI → Mojibake.
+- Syntax-Check nach jeder Änderung: `[void][scriptblock]::Create((Get-Content $f -Raw -Encoding UTF8))`
 
 ## Start-SysPilotToolFromGui-Mechanismus (0.9.4.5)
 ```powershell
@@ -16,16 +27,32 @@ function Start-SysPilotToolFromGui {
     # -VisibleConsole bewirkt, dass die Konsole sichtbar bleibt
 }
 ```
-- GUI-Buttons müssen -FromGui an Start-SysPilotToolFromGui bergeben
-- Read-Host oder Read-SysPilotChoice verblocken das WPF-Fenster
+- GUI-Buttons müssen -FromGui an Start-SysPilotToolFromGui übergeben
+- Read-Host oder Read-SysPilotChoice blockieren das WPF-Fenster → in GUI-Kontext InputBox/MessageBox verwenden
+- `Join-Path` verwenden, nicht `Join-Pfad` (nicht existierendes Cmdlet)
 - Nicht-ASCII-Zeichen (→, —, ä, ü, ö) in Attributen des WPF-XAML verursachen Parser-Fehler unter PowerShell 5.1
 
-## clinerules.md für SysPilot-Entwicklung
-*Erstellt: 09.11.2026 – basierend auf erfolgreicher 0.9.4.5-Deployment*
+## Release-Ablauf (verbindliche Reihenfolge, 0.9.4.6)
+1. **version.txt** auf Zielversion setzen (einzige Versionsquelle)
+2. Features/Änderungen implementieren + in allen drei Oberflächen integrieren
+3. **Syntax-Check** aller geänderten Dateien
+4. **Konsistenzprüfung**: Menü-Tags ↔ Invoke-SysPilotTool ↔ Toolbox-Keys ↔ GUI-Buttons
+5. **Funktionsprüfung**: `powershell -NoProfile -ExecutionPolicy Bypass -File SysPilot.ps1 -Tool '<key>'`
+6. **Build**: `powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1` → installer-output\SysPilot-Setup-<Version>-x64.exe + SysPilot-<Version>-beta-portable.zip
+7. **Artefakte verifizieren**: ZIP enthält SysPilot.ps1 (vollständig, >10 KB), modules\StorageCleanup.psm1, version.txt korrekt
+8. **Docs synchron**: release-notes.md, README, ROADMAP, INSTALL, AGENTS.md, .clinerules
+9. **Erst nach ausdrücklicher Freigabe**: git commit → push → GitHub-Release (`gh release create` mit beiden Artefakten) + Repository-Beschreibung/README auf GitHub aktualisieren
 
-- Alle Script-Dateien unter C:\Users\haber\SysPilot\ sind UTF-8 (kein BOM)
-- Die installierte Version live unter C:\Program Files\SysPilot\ parallel testen
-- Installer: Inno Setup (C:\Users\haber\SysPilot\installer.iss)
-- Portable: build-portable.bat -> installer-output\SysPilot-0.9.4.5-beta-portable.zip
-- Release-Checkliste: Syntax-Check -> Funktionsprüfung -> ZIP/EXE -> Versionsnummer
-- version.txt immer mit dem Release-Tag synchron halten
+## Build & Install
+- Alle Script-Dateien unter C:\Users\haber\SysPilot\ sind UTF-8 (ASCII-sicher, siehe oben)
+- Auf diesem PC ist SysPilot **nicht** unter C:\Program Files\SysPilot installiert – nur der Entwicklungsordner
+- Installer: Inno Setup (C:\Users\haber\SysPilot\installer.iss, ISCC.exe unter %LOCALAPPDATA%\Programs\Inno Setup 6\)
+- Portable/Installer-Dateinamen kommen aus version.txt – Versionsnummern NIEMALS fest in installer.iss oder .bat-Dateien eintragen
+- Inno-Setup-Hinweis "FileCopy → CopyFile" ist nur ein Hint, kein Fehler
+
+## Bekannte externe Fehler (0.9.4.6)
+- **PowerShell.MCP**: Der MCP-Server-Pfad in `C:\Users\haber\.cline\data\settings\cline_mcp_settings.json` muss zur installierten Modulversion passen (`...\PowerShell.MCP\<Version>\bin\win-x64\PowerShell.MCP.Proxy.exe`). Modul 1.17.1 installiert → Proxy muss 1.17.1 sein.
+- **Grosse PowerShell-Strings**: Cline-Toolkette kann grosse Dateien nicht schreiben → landmark: Datei enthält `[... truncated, this is a large file ...]`. Danach `git show HEAD:<file>` restaurieren und Änderung mit Datei-Tools wiederholen.
+- **Inline-Skripte vermeiden**: komplexe Befehle als .ps1-Datei schreiben und mit `-File` ausführen.
+
+*Erstellt: 09.11.2026 – aktualisiert: 22.11.2026 (0.9.4.6: Pfeiltasten-Menü, StorageCleanup, Release-Ablauf)*
