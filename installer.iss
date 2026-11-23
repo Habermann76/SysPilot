@@ -51,6 +51,7 @@ Source: "setup-automation.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "config.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "version.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "stop-syspilot.ps1"; Flags: dontcopy
+Source: "Restart-SysPilot.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "INSTALL.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "DEBUG.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -67,6 +68,7 @@ Name: "{app}\tools"
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-STA -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Comment: "SysPilot GUI starten"
 Name: "{group}\{#MyAppName} (Text-Menue)"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\SysPilot.ps1"""; Comment: "SysPilot Text-Menue starten"
+Name: "{group}\{#MyAppName} Neustart"; Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\Restart-SysPilot.ps1"""; Comment: "Alle SysPilot-Prozesse beenden und neu starten"
 Name: "{group}\{#MyAppName} Dokumentation"; Filename: "{app}\README.md"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "powershell.exe"; Parameters: "-STA -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Tasks: desktopicon
 

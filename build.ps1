@@ -23,7 +23,7 @@ if ($LASTEXITCODE -ne 0) { throw "ISCC fehlgeschlagen (Exit $LASTEXITCODE)" }
 $stage = Join-Path $env:TEMP "SysPilot-portable-$Version"
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force "$stage\modules","$stage\scripts" | Out-Null
-foreach ($f in 'SysPilot.ps1','SysPilot-GUI.ps1','setup-automation.ps1','stop-syspilot.ps1','version.txt','config.json','README.md','INSTALL.md','DEBUG.md','ROADMAP.md','LICENSE') {
+foreach ($f in 'SysPilot.ps1','SysPilot-GUI.ps1','setup-automation.ps1','stop-syspilot.ps1','Restart-SysPilot.ps1','version.txt','config.json','README.md','INSTALL.md','DEBUG.md','ROADMAP.md','LICENSE') {
   $p = Join-Path $root $f; if (Test-Path $p) { Copy-Item $p $stage }
 }
 Copy-Item (Join-Path $root 'modules\*.psm1') "$stage\modules"

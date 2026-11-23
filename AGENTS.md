@@ -91,9 +91,48 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 - Nicht verwenden: Simultanes $args +=-Füllen
 
 ## Aktuelle Version
-- **0.9.4.7** ist der aktuelle Stand (neu: WizTree.psm1, HardwareCheck.psm1, Drivers.psm1, SystemRepair.psm1, SystemTuning.psm1, HostsEditor.psm1; Win11-UI-Reparatur; weiterhin Pfeiltasten-Menü, StorageCleanup, Ruhezustand an/aus)
+- **0.9.4.8** ist der aktuelle Stand (neu: Runtimes.psm1 – VC++/.NET/.NET
+  Framework/AIO-Manager; RootCertificates.psm1 – portable
+  UpdateRootCertificates-Tool-Verwaltung; PortableTools.psm1 –
+  UniGetUI/Komi-Store/Uptodown-Desktop/WinUtil portable Apps + WinToys
+  (App-Typ 'winget': winget install, Start via shell:AppsFolder
+  oder EXE-Pfad aus Uninstall-Registry/.lnk; Source-Feld
+  'msstore'|'winget'); iTop Easy Desktop, Ferdium (winget);
+  Flipboard (nur Web — offizieller Client eingestellt);
+  **Ultimate Windows Tweaker 5** (DownloadMode='majorgeeks':
+  `Get-SysPilotMajorGeeksAsset` parst Version+Mirror-URL von der
+  Detailseite, `Save-SysPilotMajorGeeksFile` lädt ueber
+  WebRequestSession — Cookie von getmirror-Seite, dann
+  `index.php?ct=files&action=download` → 302 auf files*.majorgeeks.com;
+  thewindowsclub.com selbst blockiert per Cloudflare mit 403);
+  **Microsoft PC Manager = Type 'storeapp'** (Erkennung+Start via
+  Get-StartApps/shell:AppsFolder, `MatchName` für abweichende
+  Startmenü-Namen; Installation regionsbeschränkt → öffnet
+  Uptodown-Downloadseite; aka.ms-Links abgelaufen, Turnstile);
+  **Uptodown Desktop = Type 'installer'** (`Install-SysPilotInstallerApp`:
+  `download.uptodown.app/windows-client` liefert aktuellen Installer
+  ohne Cloudflare-Block; SHA256-Feld = offizielle Prüfsumme; Inno
+  `/VERYSILENT`; Erkennung+Start ueber Uninstall-Registry —
+  DisplayIcon/InstallLocation werden getrimmt, weil sie quotiert sind;
+  winget-Paket `Uptodown.UptodownClient` ist VERALTET (0.6.0 vs. 1.1.1));
+  EXE-Fallback in Find-SysPilotPortableApp sucht bei Bedarf
+  rekursiv (UWT entpackt in Versions-Unterordner `UWT 5.2\`);
+  PrivacyFix.psm1 – 32 Datenschutz-/Werbe-Tweaks (Eigenname
+  „PrivacyGuard", eigene Registry-Engine); PortableApps-Konvention;
+  Runtimes jetzt **winget-first** (`Install-SysPilotRuntimeWinget`:
+  Microsoft.VCRedist.2015+.x64/.x86, Microsoft.DotNet.DesktopRuntime.8/9/10/11,
+  Microsoft.DotNet.Framework.Runtime = .NET FX 4.8.1), lokale Installer und
+  offizielle Downloads als Fallback; Exit-Code 1638 = Erfolg; .NET-Framework-
+  Installer brauchen `/q` nicht `/S`; Menüs leeren Tastenpuffer via
+  `Clear-SysPilotPendingKeys` (Common.psm1); PortableApps-Scan cached
+  `Get-StartApps` 20s (`$script:_startAppsCache` in PortableTools.psm1);
+  0.9.4.7: WizTree, HardwareCheck, Drivers, SystemRepair, SystemTuning,
+  HostsEditor, Win11-UI)
 - Alle GUI-Tools im Vollmenü, in der WPF-GUI und in der Toolbox
-- Installierte Version: C:\Program Files\SysPilot\ (auf diesem PC nicht vorhanden – nur Entwicklungsordner)
+- **Installierte Version IMMER synchron halten**: nach Änderungen
+  `powershell -File _sync_installed.ps1` elevated ausführen
+  (`Start-Process powershell -Verb RunAs -ArgumentList ... -Wait`),
+  danach `_sync_check.ps1` (Hash-Vergleich). Program Files braucht Admin.
 
 ## Fehlerquellen & Arbeitsweise (Stand 0.9.4.7)
 
@@ -177,6 +216,14 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
   (`AutoTuningLevelLocal`, `Timestamps`), nie per netsh-Text parsen.
 - PowerShell-String-Falle: `"$ext:"` in double-quotes = Variablenverweis
   mit Doppelpunkt → `${ext}:` schreiben.
+- **PortableApps-Konvention (0.9.4.8)**: NIEMALS hartcodierte Pfade wie
+  `C:\Users\haber\...` oder `$env:LOCALAPPDATA\Programs` für portable
+  Tools verwenden. `Get-SysPilotPortableAppsDir` (Common.psm1) löst das
+  Benutzer-PortableApps-Verzeichnis auf (OneDrive-Desktop falls
+  umgeleitet), `Get-SysPilotLocalSearchDirs` = Downloads + PortableApps
+  für Installer-Suchen. Portable Tools (SDI, LibreHardwareMonitor,
+  Runtime-Installer) gehören dorthin; Erkennungs-Pfade müssen den Helper
+  nutzen.
 - Win11-UI-Funktionen in SystemTuning.psm1: `Reset-SysPilotWin11Taskbar`
   (HKCU Taskbar-Keys + Explorer-Neustart), `Set-SysPilotContextMenuMode`
   (klassisch = CLSID `{86ca1aa0-…}` InprocServer32 anlegen, Win11 =
@@ -198,10 +245,90 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
   Kategorie-Wahl) nutzt `Show-SysPilotArrowMenu`. `Tag` ist der Rückgabe-
   wert — Vergleiche auf Tag-Ebene, nicht auf Item-Ebene. `Esc`/`$null` =
   zurück/zur. Kein `Read-Host` für Menüs.
+- **Maussteuerung in Konsolen-Menüs (0.9.4.8)**: `Show-SysPilotArrowMenu`
+  und `Show-SysPilotMultiSelectMenu` lesen Eingaben über
+  `Read-SysPilotMenuEvent` (Common.psm1) statt `ReadKey` — das puffert
+  Tastatur- UND Maus-Events aus `ReadConsoleInput` (P/Invoke
+  `SysPilotConsoleInput`, ENABLE_MOUSE_INPUT). **Wichtig:**
+  `ReadConsoleInput` liefert bis zu 32 Records pro Call — ALLE müssen
+  in `$script:_menuEventQueue` (`System.Collections.Queue`) gepuffert
+  werden (`ConvertTo-SysPilotMenuEventRecord`); nur das erste Event
+  zurückzugeben verschluckt den Rest (Pfeiltasten/Klicks gingen in
+  echten Tests „manchmal" verloren). Move-Events bei voller Queue
+  (>100) verwerfen. Queue wird in `Clear-SysPilotConsoleInputBuffer`
+  geleert. Linksklick = auswählen
+  (Single) / Haken umschalten (Multi), Mausrad = blättern, Hover =
+  Markierung (nur bei Zeilenwechsel wird neu gezeichnet, `$needDraw`).
+  Eintragsposition wird live via `CursorPosition.Y` als `$itemStartRow`
+  erfasst (deckt umbrochene/laengere Titel ab).
+  `WaitForSingleObject`-Timeout als `[uint32]::MaxValue` übergeben
+  (0xFFFFFFFF wird von PS als -1 geparst → uint32-Konvertierungsfehler).
+  **`CursorPosition` ist `Coordinates` mit NUR `.X`/`.Y` — `.Top`
+  gibt $null** (Maus-Klicks landen dann auf keiner Zeile).
+  Modus wird im `finally` via `Restore-SysPilotConsoleInput` restauriert
+  (sonst bleibt QuickEdit-Markierung in conhost deaktiviert). Ohne echte
+  Konsole (ISE, Remoting, Pipes) liefert `Initialize-` `$false` →
+  Fallback auf `ReadKey` = Tastatur-only. Nie `ReadKey` UND
+  `ReadConsoleInput` parallel mischen — die Menüs nutzen ausschließlich
+  `Read-SysPilotMenuEvent`.
+- **Maus-Ja/Nein-Dialog (0.9.4.8)**: `Confirm-SysPilot` nutzt jetzt
+  `Read-SysPilotYesNo` (Common.psm1) — `[ Ja ]`/`[ Nein ]` per Klick
+  (Zones: col 3-10 = Ja, 11-18 = Nein auf der Optionszeile `$optRow`),
+  Mausrad = umschalten, j/y/n-Tasten, Pfeile+Enter, Esc = Nein.
+  Default = Nein (sicher). **INLINE ohne Clear-Host** — Kontext (z.B.
+  Liste der zu löschenden Dateien) bleibt sichtbar; Optionszeile wird
+  per `CursorPosition = Coordinates(0, $optRow)` partiell neu gezeichnet.
+  `$optRow`/`$restRow` werden LIVE via `CursorPosition.Y` erfasst
+  (Questions mit Newlines/Wrap sind damit abgedeckt). Ohne Console-API
+  Fallback auf altes `Read-Host`-j/n.
+- **„Weiter mit Enter" pausieren (0.9.4.8)**: `Read-SysPilotChoice`
+  erkennt Prompts mit `^weiter` und wartet dann mausfaehig auf
+  Klick/beliebige Taste (statt Read-Host); gibt `''` zurueck wie
+  bloßes Enter. Echte Texteingabe-Prompts (z.B. `... (j/n)`,
+  IP-Adresse, Suchbegriff) bleiben unveraendert auf Read-Host.
+  `$hadApi` muss VOR `Initialize-SysPilotConsoleInput` gesichert
+  werden, sonst wird der Console-Modus nie restauriert (QuickEdit
+  bliebe dauerhaft aus!).
+- **QuickEdit-Falle (0.9.4.8, kritisch)**: `ENABLE_QUICK_EDIT_MODE`
+  (0x40) muss beim Aktivieren der Maus unbedingt deaktiviert werden —
+  conhost behandelt die Maus sonst selbst (Textauswahl) und liefert
+  NULL Mouse-Records an die App (Klicks/Rad wirkungslos, ohne
+  Fehlermeldung). `Initialize-SysPilotConsoleInput` setzt daher
+  `(mode -bor 0x10) -band (-bnot 0x40)`; Original-Modus wird in
+  `Restore-SysPilotConsoleInput` zurückgesetzt. MAUSRAD-Flag ist
+  `dwEventFlags=0x0004` (MOUSE_WHEELED), NICHT 0x0002 (Double-Click);
+  Delta steckt im HIWORD von dwButtonState (vorzeichenbehaftet).
+  Live-Test: injizierte Events in Conhost — ohne QuickEdit-Fix 0
+  Records, danach Move/Click/Wheel korrekt; `Show-SysPilotArrowMenu`
+  per Mausklick → TAG_C.
+- **Launchable-Pfad-Filter (0.9.4.8)**: `Test-SysPilotLaunchablePath`
+  (Common.psm1, exportiert) erlaubt nur `.exe/.bat/.cmd/.com/.ps1/.lnk/
+  .url/.msc/.reg` — wird in `Find-SysPilotStoreApp`,
+  `Find-SysPilotPortableApp` (PortableTools), `Get-SysPilotSdiExe`
+  (Drivers) und WizTree-Erkennung genutzt. **Ohne Filter** nahm
+  `(Get-Item $cand) -is [IO.FileInfo]` jede Datei — z.B. Flipboards
+  alter Store-Eintrag zeigte auf `...\Web Applications\...\Flipboard.ico`
+  → `Start-Process` auf .ico → Windows-„Oeffnen mit"-Dialog.
+  `Type='web'`-Apps (Flipboard): `Find-SysPilotPortableApp` gibt $null
+  (kein lokales Install), `Start-SysPilotPortableApp` sucht zuerst per
+  `Find-SysPilotStoreApp`/`Get-StartApps` nach Browser-PWA
+  (`shell:AppsFolder\<AppId>`, z.B. `Brave._crx_...`), sonst Web-URL.
+- **SysPilot-Neustart (0.9.4.8)**: `Restart-SysPilot.ps1` (Repo-Wurzel,
+  wird installiert + als „SysPilot Neustart"-Verknüpfung auf dem
+  Desktop und im Startmenü bereitgestellt) beendet alle SysPilot-
+  Prozesse und startet die GUI neu. **Wichtig**: elevated Instanzen
+  (z.B. GUI im Tray) liefern ohne Adminrechte `CommandLine=$null` und
+  sind per `Win32_Process`-Match unsichtbar — deshalb prüft das Skript
+  zusätzlich den Single-Instance-Mutex `Local\SysPilotGUI-SingleInstance`
+  (`Mutex.WaitOne(0)`); ist er belegt oder bleiben sichtbare Prozesse
+  übrig, wird das Skript elevated neu gestartet (UAC) und tötet dann
+  alles. `stop-syspilot.ps1` (Installer-Helfer) nutzt denselben
+  CommandLine-Filter — beide schließen sich per `-notmatch` selbst aus.
 - **Direkt-Tool-Keys**: Für Tools, die per Button DIREKT eine Funktion
   aufrufen sollen (nicht nur ein Untermenü), zusätzlich eigene Keys im
   `Invoke-SysPilotTool`-Switch anlegen (Beispiel 0.9.4.7:
-  `win11ui`/`win11taskbar`/`win11ctx`/`win11ctxadmin` → je eigener Case).
+  `win11ui`/`win11taskbar`/`win11ctx`/`win11ctxadmin`/`win11ctxrestore`
+  → je eigener Case).
   Ein „Alles-in-einem"-Key (`win11ui`) öffnet das Untermenü; die
   Einzel-Keys ermöglichen One-Click-Aktionen aus der Toolbox.
 - **Registry-UI-Tweaks (Win11 Taskbar/Kontextmenü)**: Bevorzugt HKCU
@@ -214,6 +341,15 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 - **Kontextmenü-Modus Win11↔klassisch**: CLSID-Override
   `{86ca1aa0-34aa-4e8b-a509-960fe4311b46}` unter `HKCU:\SOFTWARE\Classes`;
   `InprocServer32` anlegen = klassisch, löschen = Win11.
+- **Win11-Kontextmenue-Reparatur (0.9.4.8)**: `Restore-SysPilotWin11ContextMenu`
+  (SystemTuning.psm1, Key `win11ctxrestore`) diagnostiziert und entfernt
+  Tweaker-Schaeden: CLSID-Override in HKCU **und** HKLM/WOW6432Node,
+  blockierte Shell-Erweiterungen (`Shell Extensions\Blocked`), prueft
+  FileExplorer-DLLs (`FileExplorerExtensions.dll`/
+  `FileExplorerManaged.dll` in `MicrosoftWindows.Client.FileExp_*` —
+  NICHT `Windows.UI.FileExplorer.dll`, das existiert nicht), startet
+  Explorer neu. HKLM-Befunde loesen Admin-Neustart-Angebot aus.
+  Live getestet: Override anlegen → Classic, Funktion → Win11.
 
 ### Menü-System (0.9.4.6)
 
@@ -233,6 +369,12 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 ### KI-Werkzeuge (Cline & Co.)
 - **Grosse Dateien nie als ein String schreiben**: Cline hat `SysPilot.ps1` mit `[... truncated, this is a large file ...]` überschrieben → Skript unbrauchbar. Nach jeder KI-Änderung Dateigröße/Inhalt prüfen; bei Verdacht `git diff`/`git show HEAD:<file>` zum Restore nutzen.
 - **PowerShell.MCP**: Proxy-Pfad in `C:\Users\haber\.cline\data\settings\cline_mcp_settings.json` muss zur installierten Modulversion passen (`C:\Users\haber\OneDrive\Documents\PowerShell\Modules\PowerShell.MCP\<Version>\bin\win-x64\PowerShell.MCP.Proxy.exe`). Stand 0.9.4.6: 1.17.1.
+- **Group-Object auf Hashtables**: `Get-SysPilotToolbox` liefert
+  `[pscustomobject]`e — `Group-Object Category` sieht Hashtable-Keys
+  in PS 5.1 NICHT als Eigenschaften (alle landeten in einer
+  namenlosen Gruppe → Toolbox zeigte keine Kategorien). Nie
+  `Group-Object` auf Hashtable-Arrays anwenden; Module geben
+  pscustomobject zurück.
 - **Inline-PowerShell vermeiden**: komplexe Skripte als `.ps1`-Datei schreiben und per `powershell -NoProfile -ExecutionPolicy Bypass -File <skript>.ps1` ausführen.
 
 ## Release-Checkliste (0.9.4.7 & nachfolgend)

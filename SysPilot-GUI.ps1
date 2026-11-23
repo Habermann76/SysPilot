@@ -54,12 +54,20 @@ if (-not $script:guiMutex.WaitOne(0)) {
         if (Get-Command Test-SysPilotGamingActive -ErrorAction SilentlyContinue) { $isGamingNow = Test-SysPilotGamingActive }
     } catch { }
 
-    if (-not $StartHidden -and -not $isGamingNow) {
+    if (-not $StartHidden) {
+        # Expliziter Nutzer-Klick (Verknuepfung) holt das Fenster IMMER zurueck.
+        # Nur der Fokus wird beim Spielen geschont (Fenster erscheint ohne
+        # Aktivierung im Vordergrund, Ballons/Auto-Popups bleiben weiterhin
+        # durch den Gaming-Schutz unterdrueckt).
         try { $evt = New-Object System.Threading.EventWaitHandle($false, 'AutoReset', 'Local\SysPilotGUI-Show'); $evt.Set() | Out-Null } catch { }
         $existing = [SysPilotWin]::FindGuiWindow()
         if ($existing -ne [IntPtr]::Zero) {
-            [SysPilotWin]::ShowWindow($existing, 9) | Out-Null   # SW_RESTORE
-            [SysPilotWin]::SetForegroundWindow($existing) | Out-Null
+            if ($isGamingNow) {
+                [SysPilotWin]::ShowWindow($existing, 4) | Out-Null    # SW_SHOWNOACTIVATE
+            } else {
+                [SysPilotWin]::ShowWindow($existing, 9) | Out-Null    # SW_RESTORE
+                [SysPilotWin]::SetForegroundWindow($existing) | Out-Null
+            }
         }
     }
     exit
@@ -687,6 +695,39 @@ function Set-SysPilotGuiUpdateAvailable {
     $ctrl.BtnUpdate.ToolTip = "SysPilot Update verfuegbar!`nInstalliert: $($info.Current) -> Neueste: $($info.Latest)`nKlicken zum Herunterladen und Installieren."
 }
 
+function Start-SysPilotToolFromGui {
+    <# Startet ein Konsolen-Werkzeug aus der GUI heraus in einem eigenen
+       PowerShell-Fenster. Admin-Pflicht wird ueber die Toolbox-Metadaten
+       (Get-SysPilotToolbox -> NeedsAdmin) erkannt und elevated gestartet. #>
+    param(
+        [Parameter(Mandatory)][string]$Tool,
+        [switch]$FromGui,
+        [switch]$VisibleConsole
+    )
+    $root = $script:Root
+    if (-not $root) { $root = Split-Path -Parent $PSCommandPath }
+    if (-not $root) {
+        [System.Windows.MessageBox]::Show('Installationspfad nicht gefunden. Bitte GUI neu starten.', 'SysPilot', 'OK', 'Warning') | Out-Null
+        return
+    }
+    $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File', (Join-Path $root 'SysPilot.ps1'), '-Tool', $Tool)
+    $cmdLine = ConvertTo-SysPilotArgString $argList
+    $needsAdmin = $false
+    try {
+        $tb = @(Get-SysPilotToolbox | Where-Object { $_.Key -eq $Tool }) | Select-Object -First 1
+        if ($tb) { $needsAdmin = [bool]$tb.NeedsAdmin }
+    } catch { }
+    try {
+        if ($needsAdmin -and -not (Test-SysPilotAdmin)) {
+            Start-Process powershell.exe -Verb RunAs -ArgumentList $cmdLine
+        } else {
+            Start-Process powershell.exe -ArgumentList $cmdLine
+        }
+    } catch {
+        [System.Windows.MessageBox]::Show("Das Werkzeug konnte nicht gestartet werden:`n$($_.Exception.Message)", 'SysPilot', 'OK', 'Warning') | Out-Null
+    }
+}
+
 # Buttons
 $ctrl.BtnUpdate.Add_Click({ Invoke-SysPilotGuiUpdateClick })
 $ctrl.BtnAdmin.Add_Click({
@@ -699,8 +740,8 @@ $ctrl.BtnAdmin.Add_Click({
 })
 $ctrl.BtnCheckup.Add_Click({ Show-SysPilotCheckupWindow })
 $ctrl.BtnToolbox.Add_Click({ Show-SysPilotToolboxWindow })
-.BtnDns.Add_Click({ Start-SysPilotToolFromGui -Tool 'dns' -FromGui })
-.BtnHealth.Add_Click({ Start-SysPilotToolFromGui -Tool 'health' -FromGui })
+$ctrl.BtnDns.Add_Click({ Start-SysPilotToolFromGui -Tool 'dns' -FromGui })
+$ctrl.BtnHealth.Add_Click({ Start-SysPilotToolFromGui -Tool 'health' -FromGui })
 $ctrl.BtnAuto.Add_Click({
     $msg = "VOLLAUTOMATIK (Auto-Optimierung)`n`n1. Backup (Dienste, Registry, Energieplaene)`n2. Dienste optimieren (nur gepruefte Empfehlungen)`n3. Sicher unnoetige Windows-Features aus`n4. Tweaks: Game Mode an, Werbung aus, Optik bleibt huebsch`n5. Prozess-Prioritaeten anwenden`n`nBraucht Admin. Jetzt starten?"
     $ans = [System.Windows.MessageBox]::Show($msg, 'Vollautomatik', 'YesNo', 'Question')
@@ -946,9 +987,11 @@ $showTimer = New-Object System.Windows.Threading.DispatcherTimer
 $showTimer.Interval = [TimeSpan]::FromMilliseconds(400)
 $showTimer.Add_Tick({
     if ($script:showEvt -and $script:showEvt.WaitOne(0)) {
-        if (-not (Test-SysPilotGamingActive)) {
-            $win.Show(); $win.WindowState = 'Normal'; $win.Activate() | Out-Null
-        }
+        # Expliziter Zweitstart = Nutzer will das Fenster: immer zeigen,
+        # beim Spielen nur ohne Fokus-Vergiff aktivieren.
+        $gamingNow = Test-SysPilotGamingActive
+        $win.Show(); $win.WindowState = 'Normal'
+        if (-not $gamingNow) { $win.Activate() | Out-Null }
     }
 })
 $showTimer.Start()
@@ -1017,10 +1060,9 @@ if ($startInTray) {
     if (-not $isGameActive) {
         $script:notifyIcon.ShowBalloonTip(2500, 'SysPilot', 'Laeuft im Hintergrund weiter. Doppelklick aufs Tray-Symbol oeffnet das Dashboard.', 'Info')
     }
-} else {
-    $win.Show()
 }
-
+# ShowDialog zeigt das Fenster selbst an (bzw. laesst es versteckt bei Tray);
+# Show() vorher wirft "ShowDialog kann nur fuer ausgeblendete Fenster".
 $win.ShowDialog() | Out-Null
 $timer.Stop()
 $showTimer.Stop()
@@ -1030,7 +1072,4 @@ if ($script:updPs) {
 }
 $script:notifyIcon.Visible = $false
 $script:notifyIcon.Dispose()
-if ($script:guiMutex) { $script:guiMutex.ReleaseMutex() | Out-Null; $script:guiMutex.Dispose() }
-Icon.Visible = $false
-$script:notifyIcon.Dispose()
-if ($script:guiMutex) { $script:guiMutex.ReleaseMutex() | Out-Null; $script:guiMutex.Dispose() }
+if ($script:guiMutex) { try { $script:guiMutex.ReleaseMutex() | Out-Null } catch { }; $script:guiMutex.Dispose() }

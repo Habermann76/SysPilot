@@ -1,8 +1,44 @@
-# SysPilot 0.9.4.7 beta — Dein intelligenter PC-Autopilot
+# SysPilot 0.9.4.8 beta — Dein intelligenter PC-Autopilot
 
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
 Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
 alles bleibt auf deinem PC.
+
+## Version 0.9.4.8 beta
+
+### Was ist neu?
+
+- **Maussteuerung im Textmenü (NEU)**: Alle Pfeiltasten-Menüs, die
+  Ja/Nein-Abfragen und die „Weiter mit Enter"-Pausen (~160 Stellen) sind
+  jetzt mausbedienbar — Klick auf Einträge/[ Ja ]/[ Nein ], Mausrad,
+  Hover-Markierung. Technisch über die Windows Console API (P/Invoke,
+  kein externes Tool). Funktioniert in conhost und Windows Terminal.
+- **Portable Apps & Store-Clients (NEU)**: `PortableTools.psm1` verwaltet
+  portablen Tools und Store-Clients mit Statusanzeige, Download
+  (mit Fortschrittsbalken), Installation und Start: UniGetUI, Komi Store,
+  Uptodown Desktop, Chris Titus WinUtil, WinToys, iTop Easy Desktop,
+  Ferdium, Flipboard (PWA), **Ultimate Windows Tweaker 5** und
+  **Microsoft PC Manager** — plus **Vollpaket**-Auswahl per Checkbox.
+- **Laufzeiten-Manager (NEU)**: VC++-Redistributables, .NET Desktop
+  Runtime und .NET Framework — **winget-first** mit lokalen Installern
+  und offiziellen Downloads als Fallback.
+- **PrivacyGuard (NEU)**: `PrivacyFix.psm1` — 32 reversible
+  Datenschutz-/Werbe-Tweaks in 5 Kategorien mit Statusanzeige.
+- **Root-Zertifikate (NEU)**: `RootCertificates.psm1` — portable
+  UpdateRootCertificates-Verwaltung.
+- **Win11-Kontextmenü reparieren (NEU)**: stellt das moderne
+  Windows-11-Kontextmenü nach Tweaker-Schäden wieder her
+  (HKCU/HKLM/WOW6432Node-Diagnose, Explorer-Neustart).
+- **SysPilot-Neustart-Verknüpfung (NEU)**: beendet alle SysPilot-Prozesse
+  (auch unsichtbare elevated Instanzen) und startet die GUI neu —
+  Desktop-Verknüpfung „SysPilot Neustart".
+- **SDI & Treiber**: neueste SDI-Version automatisch laden/installieren
+  (Versionserkennung, 7-Zip, portabel), Windows-Update- und
+  Update-Catalog-Treiberquellen.
+- **Fixes**: Maus-Event-Queue (verlorene Tastendrücke), QuickEdit-Falle
+  (Maus-Events wurden verschluckt), Flipboard-„Oeffnen mit"-Dialog
+  (.ico statt PWA), Uptodown-Start, Runtime-Installation, Vollpaket-
+  Auswahl, GUI-Start bei festhängender Tray-Instanz.
 
 ## Version 0.9.4.7 beta
 
@@ -130,11 +166,12 @@ Ohne Admin laufen Analyse, Autostart, Prioritäten und Skripte trotzdem.
 (Wer die alte Start-Abfrage will: `config.json` → `Start.AskForAdmin = true`.
 Wer SysPilot immer erhöht will: Einstellungen → „Immer als Administrator starten".)
 
-**Steuerung im Text-Menü:**
+**Steuerung im Text-Menü — Maus ODER Tastatur:**
+- **Maus**: Eintrag anklicken = auswählen, Mausrad = blättern,
+  `[ Ja ]`/`[ Nein ]` anklicken, Klick = „Weiter"-Pause überspringen
 - **Pfeiltasten ↑ ↓** = Auswahl bewegen
-- **Enter** = ausführen
-- **Esc** = beenden (SysPilot läuft im Hintergrund weiter — Tray-Symbol)
-- (Maus geht in der Konsole leider nicht — dafür ist die GUI da, Menü **20**)
+- **Enter** = ausführen, **Leertaste** = Haken (Mehrfachauswahl)
+- **Esc** = zurück/beenden (SysPilot läuft im Hintergrund weiter — Tray-Symbol)
 
 Oder im Terminal:
 

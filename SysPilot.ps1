@@ -238,6 +238,10 @@ function Show-SysPilotMenu {
         @{ Label = 'SYSTEM-REPARATUR (Dateizuordnungen, Dienste, UAC, WMI)'; Color = 'Yellow'; Tag = 'sysrepair' }
         @{ Label = 'SYSTEM-TUNING (Netzwerk-, System-, Explorer-Tweaks)'; Color = 'Magenta'; Tag = 'systune' }
         @{ Label = 'WINDOWS-11-UI (Taskbar, Kontextmenue, Admin-Eintraege)'; Color = 'Cyan'; Tag = 'win11ui' }
+        @{ Label = 'LAUFZEITEN (VC++, .NET, .NET Framework, AIO Runtimes)'; Color = 'Green'; Tag = 'runtimes' }
+        @{ Label = 'STAMMZERTIFIKATE aktualisieren (Root-Certs)'; Color = 'Yellow'; Tag = 'rootcerts' }
+        @{ Label = 'PORTABLE APPS & STORE-CLIENTS (UniGetUI, Komi, Uptodown, WinUtil, WinToys, iTop Easy Desktop, Ferdium, Flipboard)'; Color = 'Green'; Tag = 'papps' }
+        @{ Label = 'DATENSCHUTZ & WERBE-FIX (PrivacyGuard)'; Color = 'Magenta'; Tag = 'privacyfix' }
         @{ Label = 'NETZWERKADAPTER identifizieren (was ist vgate0?)'; Color = 'Cyan'; Tag = 'adapters' }
         @{ Label = 'AUTOMATIC CHECKUP (Komplett-Scan, Erklaerungen, Reparatur)'; Color = 'Green'; Tag = 'checkup' }
         @{ Label = 'TOOLBOX (alle Werkzeuge nach Kategorien)';     Color = 'Cyan';     Tag = 'toolbox' }
@@ -682,7 +686,12 @@ function Invoke-SysPilotTool {
         'win11ui'      { Show-SysPilotWin11UiMenu; return }
         'win11taskbar' { Reset-SysPilotWin11Taskbar; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'win11ctx'     { Set-SysPilotContextMenuMode -Mode Toggle; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'win11ctxrestore' { Restore-SysPilotWin11ContextMenu; return }
         'win11ctxadmin'{ Show-SysPilotAdminContextMenuManager; return }
+        'runtimes'     { Show-SysPilotRuntimesMenu; return }
+        'rootcerts'    { Show-SysPilotRootCertMenu; return }
+        'papps'        { Show-SysPilotPortableAppsMenu; return }
+        'privacyfix'   { Show-SysPilotPrivacyFix; return }
         'adapters'     { Show-SysPilotNetworkAdapters; return }
         'winupdate'    { Update-SysPilotWindows; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'backup'       { $b = New-SysPilotBackup -Label 'tool'; Write-Host "  Backup: $b" -ForegroundColor Green; Read-SysPilotChoice 'Weiter' | Out-Null; return }

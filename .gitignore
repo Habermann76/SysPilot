@@ -7,3 +7,8 @@ installer-output/
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Lokale Dev-/Test-Skripte (Unterstrich-Praefix, nicht versionieren)
+/_*.ps1
+/_*.txt
+/_*.log

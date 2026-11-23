@@ -1,8 +1,8 @@
-# SysPilot 0.9.4.7 — Installationsanleitung
+# SysPilot 0.9.4.8 — Installationsanleitung
 
 ## Schnellstart (empfohlen)
 
-1. **Installer herunterladen**: `SysPilot-Setup-0.9.4.7-x64.exe` von den
+1. **Installer herunterladen**: `SysPilot-Setup-0.9.4.8-x64.exe` von den
    [Releases](https://github.com/Habermann76/SysPilot/releases)
 2. **Doppelklick** → installiert nach `C:\Program Files\SysPilot`
 3. **Startmenü** → "SysPilot" öffnen
@@ -12,7 +12,7 @@ Fertig. SysPilot fragt beim ersten Start, ob es als Administrator laufen soll
 
 ## Portable Version (keine Installation)
 
-1. `SysPilot-0.9.4.7-beta-portable.zip` herunterladen
+1. `SysPilot-0.9.4.8-beta-portable.zip` herunterladen
 2. Entpacken (z. B. nach `C:\SysPilot`)
 3. `SysPilot.ps1` → Rechtsklick → "Mit PowerShell ausführen"
 
@@ -46,6 +46,16 @@ Installationsordner — kann manuell gelöscht werden).
 → [DEBUG.md](DEBUG.md) — Fehler melden, Vorschläge machen
 
 ---
+
+### Neue Features in 0.9.4.8
+
+- **Maussteuerung im Textmenü**: Menüs, Ja/Nein-Dialoge und „Weiter"-Pausen per Klick/Mausrad bedienbar
+- **Portable Apps & Store-Clients**: UniGetUI, Komi Store, Uptodown Desktop, WinUtil, WinToys, iTop, Ferdium, Flipboard, Ultimate Windows Tweaker 5, Microsoft PC Manager + Vollpaket-Auswahl
+- **Laufzeiten-Manager**: VC++/.NET/.NET Framework — winget-first mit Fallbacks
+- **PrivacyGuard**: 32 reversible Datenschutz-/Werbe-Tweaks
+- **Root-Zertifikate**: portable UpdateRootCertificates-Verwaltung
+- **Win11-Kontextmenü reparieren**: moderne Win11-Oberfläche nach Tweaker-Schäden wiederherstellen
+- **SysPilot-Neustart**: Desktop-Verknüpfung beendet alle SysPilot-Prozesse und startet neu
 
 ### Neue Features in 0.9.4.7
 

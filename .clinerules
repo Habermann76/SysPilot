@@ -18,6 +18,7 @@ SysPilot ist ein reiner PowerShell-WPF-Tool zur Systemdiagnose und -automatisier
 - **Direkt-Tool-Keys**: Für One-Click-Aktionen aus der Toolbox eigene Keys + Cases anlegen (z.B. `win11ui`/`win11taskbar`/`win11ctx`/`win11ctxadmin`), zusätzlich zum „Alles-in-einem"-Key, der das Untermenü öffnet.
 - **Registry-UI-Tweaks**: Bevorzugt HKCU (`HKCU:\SOFTWARE\Classes`, `Explorer\Advanced`) → kein Admin nötig. Vor Änderungen Backup; Explorer-Neustart immer ankündigen + bestätigen. Kontextmenü-Verben: `command`-Key, `%V` = Ordner-Hintergrund, `%1` = Ordner/Laufwerk/Datei; Terminal via `wt.exe`.
 - **Win11-Kontextmenü-Modus**: CLSID-Override `{86ca1aa0-34aa-4e8b-a509-960fe4311b46}` unter HKCU\Classes — `InprocServer32` anlegen = klassisch, löschen = Win11.
+- **PortableApps-Konvention**: Portable Tools/Installer → `Get-SysPilotPortableAppsDir` (Common.psm1, löst OneDrive-Desktop auf), Installer-Suche → `Get-SysPilotLocalSearchDirs` (Downloads + PortableApps). Keine hartcodierten Benutzerpfade.
 - **Testen nach KI-Änderungen IMMER**: Parser-Check + `Import-Module` aller .psm1 + Funktions-Smoketest + `-Tool '<key>'`-Aufruf + Key-Konsistenz (Menü↔Case↔Toolbox↔GUI). Cline hat 0.9.4.7-Module mit massiven Syntaxfehlern geliefert → nichts ohne Test als fertig bezeichnen.
 
 ## PowerShell-Module
@@ -50,15 +51,26 @@ function Start-SysPilotToolFromGui {
 9. **Erst nach ausdrücklicher Freigabe**: git commit → push → GitHub-Release (`gh release create` mit beiden Artefakten) + Repository-Beschreibung/README auf GitHub aktualisieren
 
 ## Build & Install
-- Alle Script-Dateien unter C:\Users\haber\SysPilot\ sind UTF-8 (ASCII-sicher, siehe oben)
-- Auf diesem PC ist SysPilot **nicht** unter C:\Program Files\SysPilot installiert – nur der Entwicklungsordner
-- Installer: Inno Setup (C:\Users\haber\SysPilot\installer.iss, ISCC.exe unter %LOCALAPPDATA%\Programs\Inno Setup 6\)
-- Portable/Installer-Dateinamen kommen aus version.txt – Versionsnummern NIEMALS fest in installer.iss oder .bat-Dateien eintragen
+- Alle Script-Dateien unter C:\Users\haber\SysPilot\ sind UTF-8 (ASCII-sicher, siehe ohne Umlaute)
+- Installierte Version: `C:\Program Files\SysPilot` – nach Änderungen IMMER synchronisieren: `powershell -File _sync_installed.ps1` elevated (`Start-Process powershell -Verb RunAs -ArgumentList ... -Wait`), danach `_sync_check.ps1`/Hash-Vergleich
+- Installer: Inno Setup (installer.iss, ISCC.exe); Portable/Installer-Namen aus version.txt – Versionsnummern NIEMALS fest eintragen
 - Inno-Setup-Hinweis "FileCopy → CopyFile" ist nur ein Hint, kein Fehler
+- `Restart-SysPilot.ps1` + Verknüpfung „SysPilot Neustart" beendet alle SysPilot-Prozesse (auch unsichtbare elevated: per `Local\SysPilotGUI-SingleInstance`-Mutex-Test + Self-Elevation) und startet die GUI neu
+
+## Maussteuerung im Textmenü (0.9.4.8, verbindlich)
+- Console-API via P/Invoke in `modules/Common.psm1`: `Initialize-/Restore-/Clear-/Read-SysPilotMenuEvent`, Typ `SysPilotConsoleInput`
+- **KRITISCH**: `ENABLE_QUICK_EDIT_MODE` (0x40) muss beim Maus-Aktivieren AUS sein — sonst liefert conhost null Mouse-Records. Modus: `(mode -bor 0x10) -band (-bnot 0x40)`; Restore in `finally` (auch in Read-SysPilotYesNo/Read-SysPilotChoice-Pause)
+- `ReadConsoleInput` liefert Batches → Events in `$script:_menuEventQueue` puffern, Move-Events bei >100 verwerfen
+- Mausrad-Flag = `dwEventFlags 0x0004` (NICHT 0x0002); Delta = HIWORD von dwButtonState (signed)
+- Cursor-Koordinaten: `.Y` (nicht `.Top`); Koordinaten sind Puffer-relativ
+- `WaitForSingleObject`-Timeout: `[uint32]::MaxValue` (0xFFFFFFFF wird sonst -1)
+- `Read-SysPilotChoice` erkennt `^weiter`-Prompts → mausfähige Pause (Klick/Taste = weiter, Rückgabe `''`); `$hadApi` VOR Initialize sichern
+- Launchable-Pfade: nur `Test-SysPilotLaunchablePath`-Extensions (.exe/.bat/.cmd/.com/.ps1/.lnk/.url/.msc/.reg) — nie .ico starten ("Oeffnen mit"-Dialog); PWA/Store-Apps via `Find-SysPilotStoreApp`/`shell:AppsFolder`
+- Portable-App-Typen in PortableTools.psm1: zip/script/winget/web/installer/majorgeeks/storeapp; `Get-StartApps` 20s-Cache ($script:_startAppsCache)
 
 ## Bekannte externe Fehler (0.9.4.6)
 - **PowerShell.MCP**: Der MCP-Server-Pfad in `C:\Users\haber\.cline\data\settings\cline_mcp_settings.json` muss zur installierten Modulversion passen (`...\PowerShell.MCP\<Version>\bin\win-x64\PowerShell.MCP.Proxy.exe`). Modul 1.17.1 installiert → Proxy muss 1.17.1 sein.
 - **Grosse PowerShell-Strings**: Cline-Toolkette kann grosse Dateien nicht schreiben → landmark: Datei enthält `[... truncated, this is a large file ...]`. Danach `git show HEAD:<file>` restaurieren und Änderung mit Datei-Tools wiederholen.
 - **Inline-Skripte vermeiden**: komplexe Befehle als .ps1-Datei schreiben und mit `-File` ausführen.
 
-*Erstellt: 09.11.2026 – aktualisiert: 22.11.2026 (0.9.4.7: WizTree/HardwareCheck/Drivers/SystemRepair/SystemTuning/HostsEditor, Win11-UI-Tools, bewährte Methoden)*
+*Erstellt: 09.11.2026 – aktualisiert: 23.11.2026 (0.9.4.8: Maussteuerung im Textmenü, PortableTools/Runtimes/PrivacyFix/RootCertificates, Win11-Kontextmenü-Reparatur, Restart-SysPilot, QuickEdit/Event-Queue-Fixes, Sync installierte Version)*

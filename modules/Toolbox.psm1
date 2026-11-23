@@ -266,9 +266,21 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'System optimieren'; Key = 'win11ctx'; Name = 'Win11-Kontextmenue-Modus'
         Desc = 'Schaltet zwischen dem Windows-11-Kontextmenue und dem klassischen vollstaendigen Menue um.'
         NeedsAdmin = $false; Action = { Set-SysPilotContextMenuMode -Mode Toggle; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'System optimieren'; Key = 'win11ctxrestore'; Name = 'Win11-Kontextmenue reparieren (modern)'
+        Desc = 'Stellt das moderne Windows-11-Kontextmenue mit Befehlsleiste wieder her - entfernt Tweaker-CLSIDs (HKCU+HKLM), blockierte Erweiterungen, startet Explorer neu.'
+        NeedsAdmin = $false; Action = { Restore-SysPilotWin11ContextMenu } }
     $tools += @{ Category = 'System optimieren'; Key = 'win11ctxadmin'; Name = 'Admin-Kontextmenue-Eintraege'
         Desc = 'Fuegt „Terminal (Admin) oeffnen" (Ordner/Laufwerk) und „Mit PowerShell (Admin) oeffnen" (.ps1) hinzu oder entfernt sie.'
         NeedsAdmin = $false; Action = { Show-SysPilotAdminContextMenuManager } }
+    $tools += @{ Category = 'System optimieren'; Key = 'runtimes'; Name = 'Laufzeiten (Runtimes)'
+        Desc = 'VC++ Redistributables, .NET Desktop Runtime, .NET Framework, All in One Runtimes - Status, lokale Installer nutzen oder offiziell herunterladen.'
+        NeedsAdmin = $true; Action = { Show-SysPilotRuntimesMenu } }
+    $tools += @{ Category = 'System optimieren'; Key = 'papps'; Name = 'Portable Apps & Store-Clients'
+        Desc = 'UniGetUI, Komi Store (ehem. GitHub Store), Uptodown Desktop (offizieller Installer, SHA256-geprueft), Chris Titus WinUtil, Ultimate Windows Tweaker 5, Microsoft PC Manager (Store-App, regionsbeschraenkt), WinToys (winget/Store), iTop Easy Desktop (winget), Ferdium (winget), Flipboard (Web) - herunterladen, installieren, starten.'
+        NeedsAdmin = $false; Action = { Show-SysPilotPortableAppsMenu } }
+    $tools += @{ Category = 'System optimieren'; Key = 'privacyfix'; Name = 'Datenschutz & Werbe-Fix'
+        Desc = 'PrivacyGuard: Werbe-ID, Telemetrie, Copilot, Recall, Werbe-Flags, Edge-Tweaks, GameDVR, Taskbar - mit Status und Batch-Fix.'
+        NeedsAdmin = $false; Action = { Show-SysPilotPrivacyFix } }
     $tools += @{ Category = 'System optimieren'; Key = 'hosts'; Name = 'Hosts-Editor'
         Desc = 'HOSTS-Datei anzeigen, Eintraege hinzufuegen/entfernen, Datei sperren, DNS-Cache leeren. Mit Backup.'
         NeedsAdmin = $true; Action = { Show-SysPilotHostsEditor } }
@@ -360,11 +372,16 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'Analyse & Info'; Key = 'wiztree'; Name = 'WizTree-Integration'
         Desc = 'Festplatten-/Ordneranalyse: vorhandene Installation erkennen, silent installieren, starten.'
         NeedsAdmin = $false; Action = { Show-SysPilotWizTreeMenu } }
+    $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'rootcerts'; Name = 'Stammzertifikate aktualisieren'
+        Desc = 'Lädt das portable UpdateRootCertificates-Tool (GitHub) nach PortableApps und aktualisiert Windows-Root-Zertifikate.'
+        NeedsAdmin = $true; Action = { Show-SysPilotRootCertMenu } }
     $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'drivers'; Name = 'Treiber-Werkstatt'
         Desc = 'Problemgeraete finden, Treiber-Inventar, veraltete Treiber, fehlende Komponenten, Rollback-Anleitung.'
         NeedsAdmin = $true; Action = { Show-SysPilotDriverMenu } }
 
-    return $tools
+    # Als Objekte zurueckgeben: Group-Object Category funktioniert nur
+    # mit echten Eigenschaften, nicht mit Hashtable-Keys (PS 5.1).
+    return @($tools | ForEach-Object { [pscustomobject]$_ })
 }
 
 function Show-SysPilotToolbox {

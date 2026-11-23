@@ -399,7 +399,7 @@ function Show-SysPilotDriverSourcesMenu {
                 }
                 Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
             }
-            'sdidownload' { Invoke-SysPilotSdiInstall }
+            'sdidownload' { Install-SysPilotSdiLatest }
             'sdiinfo' {
                 Write-Host '  SDI (Snappy Driver Installer, SamLab) analysiert:' -ForegroundColor Cyan
                 Write-Host '  - DriverPacks: SamLab-eigene Treiber-Repacks als .7z-Archive' -ForegroundColor Gray
@@ -438,7 +438,7 @@ function Get-SysPilotSdiExe {
                 $val = $app.$prop
                 if (-not $val) { continue }
                 $val = ($val -split ',')[0].Trim('"')
-                if ($val -and (Test-Path $val -PathType Leaf)) { return $val }
+                if ($val -and (Test-Path $val -PathType Leaf) -and (Test-SysPilotLaunchablePath $val)) { return $val }
                 if ($val -and (Test-Path $val -PathType Container)) {
                     $exe = Get-ChildItem -Path $val -Filter 'SDI*.exe' -ErrorAction SilentlyContinue |
                         Where-Object { $_.Name -match '64|drv' } | Select-Object -First 1
@@ -447,20 +447,20 @@ function Get-SysPilotSdiExe {
             }
         }
     } catch { }
-    $desktop = [Environment]::GetFolderPath('Desktop')
-    $candidates = @(
-        "$desktop\PortableApps\SDI*\SDI64-drv.exe",
-        "$desktop\PortableApps\SDI*\SDI-drv.exe",
-        "$env:USERPROFILE\OneDrive\Desktop\PortableApps\SDI*\SDI64-drv.exe",
-        "$env:USERPROFILE\OneDrive\Desktop\PortableApps\SDI*\SDI-drv.exe",
-        'C:\Program Files\SDI\SDI64-drv.exe',
-        'C:\Program Files (x86)\SDI\SDI-drv.exe'
-    )
-    foreach ($pat in $candidates) {
-        $hits = @(Get-Item $pat -ErrorAction SilentlyContinue)
-        foreach ($hit in $hits) {
-            if (-not $hit.PSIsContainer) { return $hit.FullName }
-        }
+    $paDir = $null
+    try { $paDir = Get-SysPilotPortableAppsDir } catch { }
+    $dirs = @()
+    if ($paDir) { $dirs += Get-ChildItem $paDir -Directory -Filter 'SDI*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } }
+    $dirs += 'C:\Program Files\SDI', 'C:\Program Files (x86)\SDI',
+             (Join-Path $env:LOCALAPPDATA 'Programs\SDI')
+    foreach ($d in $dirs) {
+        if (-not (Test-Path $d)) { continue }
+        # Bevorzugt 64-bit/treiberdir-namen; neuere Releases: SDI_x64_Rxxxx.exe
+        $exe = Get-ChildItem -Path $d -Recurse -Filter 'SDI*.exe' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch 'unins|uninstall|update' } |
+            Sort-Object { if ($_.Name -match 'x64|64') { 0 } elseif ($_.Name -match 'drv') { 1 } else { 2 } } |
+            Select-Object -First 1
+        if ($exe) { return $exe.FullName }
     }
     return $null
 }
@@ -521,6 +521,25 @@ function Install-SysPilotSdiLatest {
         Read-SysPilotChoice 'Weiter' | Out-Null
         return
     }
+
+    # Bereits aktuelle Version installiert? -> Download ueberspringen
+    $existing = Get-SysPilotSdiExe
+    if ($existing) {
+        $exVer = (Get-Item $existing).VersionInfo.FileVersion
+        $exProd = (Get-Item $existing).VersionInfo.ProductVersion
+        $installedRev = $null
+        foreach ($v in @($exVer, $exProd)) {
+            if ($v -match 'R?(\d{4})') { $installedRev = [int]$Matches[1]; break }
+        }
+        if ($installedRev -eq $release.Rev) {
+            Write-Host "  SDI $($release.Version) ist bereits installiert: $existing" -ForegroundColor Green
+            if (Confirm-SysPilot 'SDI jetzt starten?') { Start-Process $existing }
+            Read-SysPilotChoice 'Weiter' | Out-Null
+            return
+        }
+        Write-Host "  Installiert: $existing (Rev $installedRev) -> Update auf $($release.Version)" -ForegroundColor Cyan
+    }
+
     Write-Host "  Neueste Version: $($release.Version)" -ForegroundColor Cyan
     Write-Host "  Download: $($release.Url)" -ForegroundColor DarkGray
 
@@ -529,16 +548,24 @@ function Install-SysPilotSdiLatest {
     $archive = Join-Path $tmpDir ("SDI_R$($release.Rev)." + ($release.Url -replace '.*\.', ''))
     try {
         Write-Host '  Lade Archiv herunter ...' -ForegroundColor Cyan
-        Invoke-WebRequest -Uri $release.Url -OutFile $archive -UseBasicParsing -TimeoutSec 300
+        if (-not (Save-SysPilotUrlToFile -Uri $release.Url -OutFile $archive -TimeoutSec 300 -Label 'SDI-Archiv')) { throw 'Download fehlgeschlagen' }
         $sizeMB = [math]::Round((Get-Item $archive).Length / 1MB, 1)
         Write-Host "  Download fertig ($sizeMB MB)." -ForegroundColor Green
 
-        $target = Join-Path $env:LOCALAPPDATA 'Programs\SDI'
+        # SDI ist portabel -> Installation in das PortableApps-Verzeichnis
+        # des Benutzers (OneDrive-Desktop-bewusst, nutzerunabhaengig)
+        $paRoot = Get-SysPilotPortableAppsDir
+        $target = Join-Path $paRoot 'SDI'
         $backup = $null
         if (Test-Path $target) {
             $backup = "$target.old-" + (Get-Date -Format 'yyyyMMdd-HHmmss')
             Rename-Item $target $backup
             Write-Host "  Vorhandene Installation gesichert nach: $backup" -ForegroundColor DarkGray
+        }
+        # Hinweis auf aeltere Installation im bisherigen Ziel
+        $oldTarget = Join-Path $env:LOCALAPPDATA 'Programs\SDI'
+        if ((Test-Path $oldTarget) -and -not $backup) {
+            Write-Host "  Hinweis: aeltere SDI-Installation unter $oldTarget bleibt bestehen." -ForegroundColor DarkGray
         }
         New-Item -ItemType Directory -Path $target -Force | Out-Null
 
@@ -553,13 +580,16 @@ function Install-SysPilotSdiLatest {
             if ($LASTEXITCODE -ne 0) { throw 'Entpacken fehlgeschlagen (kein 7-Zip/tar)' }
         }
 
-        # SDI-Dateien liegen ggf. in einem Unterordner - eine Ebene hochsuchen
-        $exe = Get-ChildItem -Path $target -Recurse -Filter 'SDI64-drv.exe' -ErrorAction SilentlyContinue |
+        # SDI-Dateien liegen ggf. in einem Unterordner - eine Ebene hochsuchen.
+        # EXE-Namen variieren je nach Release: SDI64-drv.exe (alt),
+        # SDI_x64_R2601.exe / SDI_R2601.exe (neu) - priorisiert 64-bit.
+        $candidates = Get-ChildItem -Path $target -Recurse -Filter 'SDI*.exe' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch 'unins|uninstall|update' }
+        $exe = $candidates |
+            Where-Object { $_.Name -match 'x64|64|drv' } |
+            Sort-Object { if ($_.Name -match 'x64|64') { 0 } else { 1 } } |
             Select-Object -First 1
-        if (-not $exe) {
-            $exe = Get-ChildItem -Path $target -Recurse -Filter 'SDI-drv.exe' -ErrorAction SilentlyContinue |
-                Select-Object -First 1
-        }
+        if (-not $exe) { $exe = $candidates | Select-Object -First 1 }
         if (-not $exe) { throw 'SDI-Ausfuehrung nach dem Entpacken nicht gefunden.' }
 
         Write-Host "  [OK] SDI $($release.Version) installiert: $($exe.FullName)" -ForegroundColor Green

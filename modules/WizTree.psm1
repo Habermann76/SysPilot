@@ -27,7 +27,7 @@ function Get-SysPilotWizTreeExe {
                 $val = $app.$prop
                 if (-not $val) { continue }
                 $val = ($val -split ',')[0].Trim('"')
-                if ($val -and (Test-Path $val -PathType Leaf)) { return $val }
+                if ($val -and (Test-Path $val -PathType Leaf) -and (Test-SysPilotLaunchablePath $val)) { return $val }
                 if ($val -and (Test-Path $val -PathType Container)) {
                     $exe = Get-ChildItem -Path $val -Filter 'WizTree*.exe' -ErrorAction SilentlyContinue |
                         Where-Object { $_.Name -match '64' } | Select-Object -First 1
@@ -77,9 +77,7 @@ function Install-SysPilotWizTree {
     New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
     $installerPath = Join-Path $tempDir 'wiztree-setup.exe'
 
-    try {
-        Invoke-WebRequest -Uri $url -OutFile $installerPath -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
-    } catch {
+    if (-not (Save-SysPilotUrlToFile -Uri $url -OutFile $installerPath -TimeoutSec 120 -Label 'WizTree')) {
         Write-Host '  [FEHLER] Download fehlgeschlagen.' -ForegroundColor Red
         Write-Host '  Bitte WizTree manuell von https://diskanalyzer.com/download installieren.' -ForegroundColor Yellow
         Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue

@@ -5,7 +5,9 @@
 
 $script:SysPilotRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $script:HealthStateFile = Join-Path $script:SysPilotRoot 'logs\health-state.json'
-$script:LhmExe = Join-Path $script:SysPilotRoot 'tools\LibreHardwareMonitor\LibreHardwareMonitor.exe'
+$script:LhmExe = $null
+try { $script:LhmExe = Join-Path (Get-SysPilotPortableAppsDir) 'LibreHardwareMonitor\LibreHardwareMonitor.exe' } catch { }
+if (-not $script:LhmExe) { $script:LhmExe = Join-Path $script:SysPilotRoot 'tools\LibreHardwareMonitor\LibreHardwareMonitor.exe' }
 
 # ---------- Schwellenwerte ----------
 $script:HealthThresholds = @{

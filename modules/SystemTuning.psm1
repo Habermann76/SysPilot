@@ -212,6 +212,115 @@ function Get-SysPilotContextMenuMode {
     if (Test-Path $clsid) { return 'Classic' } else { return 'Win11' }
 }
 
+function Restore-SysPilotWin11ContextMenu {
+    <# Repariert das moderne Windows-11-Kontextmenue (mit Befehlsleiste
+       oben) nach Schaeden durch Tweaking-Tools. Prueft und entfernt:
+       - CLSID-Override-Keys in HKCU UND HKLM (Tweaker nutzen beides)
+       - blockierte Shell-Erweiterungen (Windows.UI.FileExplorer)
+       - fehlt die System-DLL selbst, wird auf sfc/DISM verwiesen.
+       Startet den Explorer danach neu (Fenster schliessen sich). #>
+
+    $clsidGuid = '{86ca1aa0-34aa-4e8b-a509-960fe4311b46}'
+    $found = @()
+
+    # 1) Diagnose: alle bekannten Schaedigungsstellen pruefen
+    $paths = @(
+        @{ Path = "HKCU:\SOFTWARE\Classes\CLSID\$clsidGuid";                Scope = 'Benutzer (HKCU)' }
+        @{ Path = "HKLM:\SOFTWARE\Classes\CLSID\$clsidGuid";                Scope = 'Systemweit (HKLM)' }
+        @{ Path = "HKLM:\SOFTWARE\WOW6432Node\Classes\CLSID\$clsidGuid";    Scope = 'Systemweit 32-bit (HKLM)' }
+    )
+    foreach ($p in $paths) {
+        if (Test-Path $p.Path) { $found += [pscustomobject]@{ Art = 'CLSIDs-Override'; Ort = $p.Path; Scope = $p.Scope } }
+    }
+
+    # 2) Blockierte Shell-Erweiterungen (z.B. durch 'Shell Extensions\Blocked')
+    $blocked = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked'
+    if (Test-Path $blocked) {
+        $bp = Get-ItemProperty $blocked -ErrorAction SilentlyContinue
+        if ($bp) {
+            foreach ($prop in $bp.PSObject.Properties) {
+                if ($prop.Name -notmatch '^PS' -and ($prop.Name -match 'FileExplorer|ContextMenu|86ca1aa0|ShellExperience' -or [string]$prop.Value -match 'FileExplorer|ContextMenu')) {
+                    $found += [pscustomobject]@{ Art = 'Blockierte Erweiterung'; Ort = "$blocked -> $($prop.Name)"; Scope = 'Systemweit (HKLM)' }
+                }
+            }
+        }
+    }
+
+    # 3) DLLs des modernen Menues vorhanden? (FileExplorerExtensions/
+    #    FileExplorerManaged in MicrosoftWindows.Client.FileExp_*)
+    $dll = Get-ChildItem 'C:\Windows\SystemApps' -Recurse -Include 'FileExplorerExtensions.dll','FileExplorerManaged.dll' -ErrorAction SilentlyContinue | Select-Object -First 1
+    $dllOk = [bool]$dll
+
+    Write-Host ''
+    Write-Host '  === Diagnose: Windows-11-Kontextmenue ===' -ForegroundColor Cyan
+    if ($found.Count -eq 0 -and $dllOk) {
+        Write-Host '  Keine Defekte gefunden - das Registry-Override ist nicht aktiv.' -ForegroundColor Green
+        Write-Host '  Falls das Menue trotzdem klassisch aussieht: Explorer neu starten oder' -ForegroundColor DarkGray
+        Write-Host '  pruefen, ob ein.andere Software (z.B. Start11, ExplorerPatcher) das Menue ersetzt.' -ForegroundColor DarkGray
+        Write-Host ''
+        Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+        return
+    }
+    foreach ($f in $found) {
+        Write-Host ("  [!] {0} ({1})" -f $f.Art, $f.Scope) -ForegroundColor Yellow
+        Write-Host ("      {0}" -f $f.Ort) -ForegroundColor DarkGray
+    }
+    if (-not $dllOk) {
+        Write-Host '  [!!] FileExplorerExtensions.dll fehlt komplett!' -ForegroundColor Red
+        Write-Host '       Das moderne Menue wurde evtl. geloescht - reparieren mit:' -ForegroundColor Yellow
+        Write-Host '       sfc /scannow  und  DISM /Online /Cleanup-Image /RestoreHealth' -ForegroundColor Yellow
+    }
+
+    if (-not (Confirm-SysPilot "Defekte entfernen und Explorer neu starten?`n`nAchtung: Alle Explorer-Fenster schliessen sich.")) { return }
+
+    # Admin noetig wenn HKLM-Befunde oder DLL-Problem
+    $needAdmin = ($found | Where-Object { $_.Scope -like '*HKLM*' }).Count -gt 0 -or -not $dllOk
+    if ($needAdmin -and -not (Test-SysPilotAdmin)) {
+        if (Confirm-SysPilot 'Systemweite Aenderungen brauchen Administrator-Rechte. SysPilot jetzt als Administrator neu starten?') {
+            Restart-SysPilotElevated
+        }
+        return
+    }
+
+    $removed = 0
+    foreach ($p in $paths) {
+        if (Test-Path $p.Path) {
+            try { Remove-Item $p.Path -Recurse -Force -ErrorAction Stop; $removed++; Write-Host "  [OK] Entfernt: $($p.Path)" -ForegroundColor Green }
+            catch { Write-Host "  [!] Konnte nicht entfernen: $($p.Path) ($($_.Exception.Message))" -ForegroundColor Red }
+        }
+    }
+    # Blockierte Eintraege entfernen
+    if (Test-Path $blocked) {
+        $bp = Get-ItemProperty $blocked -ErrorAction SilentlyContinue
+        if ($bp) {
+            foreach ($prop in @($bp.PSObject.Properties)) {
+                if ($prop.Name -notmatch '^PS' -and ($prop.Name -match 'FileExplorer|ContextMenu|86ca1aa0|ShellExperience' -or [string]$prop.Value -match 'FileExplorer|ContextMenu')) {
+                    try { Remove-ItemProperty $blocked -Name $prop.Name -Force -ErrorAction Stop; $removed++; Write-Host "  [OK] Blockierung aufgehoben: $($prop.Name)" -ForegroundColor Green }
+                    catch { Write-Host "  [!] Blockierung bleibt: $($prop.Name)" -ForegroundColor Yellow }
+                }
+            }
+        }
+    }
+
+    Write-Host '  Starte Explorer neu ...' -ForegroundColor Cyan
+    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Start-Process explorer.exe
+
+    $mode = Get-SysPilotContextMenuMode
+    Write-Host ''
+    if ($mode -eq 'Win11') {
+        Write-Host '  [OK] Modernes Windows-11-Kontextmenue wiederhergestellt.' -ForegroundColor Green
+        Write-Host '      Tipp: Rechtsklick auf eine Datei/Ordner - das neue Menue erscheint sofort.' -ForegroundColor DarkGray
+    } else {
+        Write-Host '  [!] Registry ist sauber, aber der Modus meldet noch Classic.' -ForegroundColor Yellow
+        Write-Host '      Eventuell blockiert eine andere Software das Menue (Start11, ExplorerPatcher).' -ForegroundColor DarkGray
+    }
+    Write-SysPilotLog "Win11-Kontextmenue-Reparatur: $removed Eintraege entfernt"
+    Write-Host ''
+    Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+}
+
 function Add-SysPilotAdminContextMenus {
     <# Fuegt Admin-Kontextmenue-Eintraege hinzu:
        - Ordner-Hintergrund: „Terminal (Admin) oeffnen"
@@ -302,6 +411,7 @@ function Show-SysPilotWin11UiMenu {
         $items = @(
             @{ Label = 'Taskbar-Standard wiederherstellen (Explorer-Neustart)'; Color = 'White';  Tag = 'taskbar' }
             @{ Label = "Kontextmenue-Modus: $modeTxt -> umschalten";                     Color = 'Cyan';   Tag = 'ctxmode' }
+            @{ Label = 'Modernes Win11-Kontextmenue reparieren (nach Tweaker-Schaden)'; Color = 'Green';  Tag = 'ctxrestore' }
             @{ Label = 'Admin-Kontextmenue-Eintraege verwalten (Terminal + PS-Admin)'; Color = 'Green';  Tag = 'addctx' }
             @{ Label = 'Admin-Kontextmenue-Eintraege entfernen';                          Color = 'Yellow'; Tag = 'rmctx' }
             @{ Label = 'Zurueck';                                                          Color = 'DarkGray'; Tag = $null }
@@ -310,6 +420,7 @@ function Show-SysPilotWin11UiMenu {
         if ($null -eq $sel) { return }
         switch ($sel) {
             'taskbar' { Reset-SysPilotWin11Taskbar }
+            'ctxrestore' { Restore-SysPilotWin11ContextMenu }
             'ctxmode' {
                 $new = if ($mode -eq 'Classic') { 'Win11' } else { 'Classic' }
                 if (Confirm-SysPilot "Kontextmenue auf '$new' umstellen?") { Set-SysPilotContextMenuMode -Mode $new }
@@ -366,4 +477,4 @@ function Show-SysPilotSystemTuning {
 Export-ModuleMember -Function Get-SysPilotTuningStatus, Set-SysPilotTuningItem, Show-SysPilotSystemTuning,
     Reset-SysPilotWin11Taskbar, Set-SysPilotContextMenuMode, Get-SysPilotContextMenuMode,
     Add-SysPilotAdminContextMenus, Remove-SysPilotAdminContextMenus, Show-SysPilotWin11UiMenu,
-    Show-SysPilotAdminContextMenuManager
+    Show-SysPilotAdminContextMenuManager, Restore-SysPilotWin11ContextMenu

@@ -101,7 +101,7 @@ function Install-SysPilotLHM {
     Write-Host "  LibreHardwareMonitor wird eingerichtet ..." -ForegroundColor Cyan
     Write-Host "  (kostenlos, Open Source, portable - keine Installation, keine Telemetrie)" -ForegroundColor DarkGray
 
-    $dest = 'C:\Users\haber\SysPilot\tools\LibreHardwareMonitor'
+    $dest = Join-Path (Get-SysPilotPortableAppsDir) 'LibreHardwareMonitor'
     $exe = Join-Path $dest 'LibreHardwareMonitor.exe'
     if (Test-Path $exe) {
         Write-Host "  Bereits vorhanden: $exe" -ForegroundColor Green

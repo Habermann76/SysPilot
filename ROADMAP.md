@@ -1,5 +1,22 @@
 # SysPilot — Roadmap
 
+## Version 0.9.4.8 (NEU)
+
+- ✅ **Maussteuerung im Textmenü**: Console-API (P/Invoke) — Klick, Mausrad,
+  Hover in allen Arrow-/Multiselect-Menüs + Ja/Nein-Dialoge + „Weiter"-Pausen;
+  Event-Queue gegen verlorene Tastendrücke; QuickEdit-Falle behoben
+- ✅ **PortableTools.psm1**: 10 Apps (UniGetUI, Komi Store, Uptodown Desktop,
+  WinUtil, WinToys, iTop, Ferdium, Flipboard, UWT5, PC Manager) mit
+  Download-Fortschritt, SHA256-Check, App-Typen zip/script/winget/web/
+  installer/majorgeeks/storeapp, Vollpaket-Checkbox-Auswahl
+- ✅ **Runtimes.psm1**: Laufzeiten-Manager winget-first (VC++/.NET/.NET FX)
+- ✅ **PrivacyFix.psm1**: PrivacyGuard — 32 reversible Tweaks
+- ✅ **RootCertificates.psm1**: portable Zertifikats-Verwaltung
+- ✅ **Win11-Kontextmenü-Reparatur** (`win11ctxrestore`)
+- ✅ **Restart-SysPilot.ps1** + Desktop-Verknüpfung „SysPilot Neustart"
+- ✅ **Treiber**: SDI-Download/Versionserkennung, WU + Update-Catalog-Quellen
+- ✅ Build: Inno-Setup-Installer + portables ZIP aus version.txt
+
 ## Version 0.9.4.7 (NEU)
 
 - ✅ **WizTree-Integration**: Neues Modul `WizTree.psm1` – Festplattenplatz-Analyse via WizTree, stille Installation von `diskanalyzer.com`
