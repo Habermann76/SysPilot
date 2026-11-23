@@ -1,3 +1,321 @@
+# SysPilot 0.9.4.9 beta
+
+- **CleanSweep — Deinstallations-Center (NEU)**: `modules/UninstallManager.psm1`
+  ist eine eigenständige SysPilot-Implementierung der IObit-Uninstaller-
+  Kernfunktionen (Funktionsanalyse per REA an `IObitUninstaler.exe` —
+  Delphi/VCL-Binary, Ghidra-Timeout wie bei SDI → PE-Resources +
+  String-Extraktion; kein Code kopiert, eigener Name „CleanSweep"):
+  - **Programme deinstallieren**: Inventar aus allen 4 Uninstall-
+    Registry-Sichten (HKLM 64/32 + HKCU 64/32), Bevorzugung von
+    QuietUninstallString, MSI-Erkennung (`msiexec /x {GUID} /qn`),
+    Silent-Args-Heuristik (Inno `/VERYSILENT`, NSIS `/S`,
+    InstallShield `/s /v"/qn"`), Silent/Normal-Wahl, Nummern-Mehrfach-
+    auswahl mit Suchfilter, Batch-Modus, Exit-Code 3010/1641 =
+    „Neustart nötig", optionaler Wiederherstellungspunkt vor Batch.
+    Unquotierte UninstallStrings mit Leerzeichen werden korrekt geparst
+    (bis zum ersten `.exe`-Token).
+  - **Windows-Apps**: `Get-AppxPackage` (Optional `-AllUsers` bei Admin),
+    Frameworks/Ressourcen-Pakete ausgeblendet, `NonRemovable` markiert
+    und mit Warnung, `Remove-AppxPackage`, plus provisionierte Pakete
+    (`Get-AppxProvisionedPackage`/`Remove-AppxProvisionedPackage`, Admin).
+  - **Browser-Erweiterungen**: Inventar + Entfernen für Chromium
+    (Chrome/Edge/Brave/Opera via `Secure Preferences`/`Preferences`
+    JSON — `extensions.settings.<id>` + `extensions.alerts.<id>` werden
+    entfernt, `Extensions\<id>`-Ordner + `Local/Sync Extension Settings`
+    in den Papierkorb; Datei-Backups unter `backup\extensions`) und
+    Firefox (`extensions.json`-Eintrag + XPI-Dateien in Profil und
+    Browser-Installationsordner). Läuft-Browser-Warnung.
+  - **Reste-Scanner**: nach Programmname ( oder automatisch nach jeder
+    Deinstallation) scannt Dateien/Ordner (InstallLocation, Publisher-
+    Ordner in Program Files/AppData/ProgramData), Registry
+    (`Software\<token>` in 4 Sichten, Run/RunOnce-Werte, App Paths,
+    MUICache), Dienste, geplante Aufgaben, Startmenü-/Desktop-Shortcuts
+    und den Uninstall-Key selbst — jeder Fund mit Sicherheits-Score
+    (0-100), Auswahl per Nummern oder „A"; Dateien→Papierkorb,
+    Registry→`.reg`-Export nach `backup\leftovers`, Dienste/Aufgaben
+    gelöscht, alles geloggt.
+  - **Verwaiste Programme**: Ordner in `Program Files`, `Program Files
+    (x86)`, `%LOCALAPPDATA%\Programs`, `ProgramData` ohne passenden
+    Uninstall-Eintrag (normalisierter Namensabgleich gegen Inventar,
+    Windows-Inbox-/Systemordner ausgeblendet) → Force-Uninstall.
+  - **Defekte Einträge**: Uninstall-Keys ohne UninstallString oder mit
+    nicht mehr vorhandenem Programm — Registry-Entfernung mit
+    `.reg`-Backup oder Force-Uninstall des Install-Ordners.
+  - **Force-Uninstall**: beliebiger Pfad → löscht Ziel + alle per
+    Scanner gefundenen Reste (Papierkorb/Registry-Backup).
+  - **Windows-Updates**: KB-Liste via `Win32_QuickFixEngineering`,
+    `wusa.exe /uninstall /kb:<n> /quiet /norestart` (Admin).
+  - **Wiederherstellungspunkt**: `Checkpoint-Computer` auf Wunsch vor
+    Batch-Deinstallationen (Admin).
+- **Tests**: Parse + Modul-Import OK; Inventar live: 222 Programme,
+  280 AppX-Pakete, 425 Browser-Erweiterungen (Chrome 168, Brave 257),
+  9 „defekte" Kandidaten (alles Fehlalarme durch unquotierte
+  UninstallStrings — Parser gefixt → 0), ~50 verwaiste Kandidaten,
+  7 Windows-Updates; Leftover-Scan an SysPilot selbst: 9 Funde
+  (Ordner, 2 geplante Aufgaben, Uninstall-Key, 5 Shortcuts).
+  `-Tool uninstall` zeigt das CleanSweep-Menü korrekt.
+- **Fixes (0.9.4.9, Iteration 2)**: **Edge lieferte 0 Erweiterungen** —
+  Edge-`Secure Preferences` enthalten doppelte JSON-Schlüssel
+  (`macroEnabled.12`/`macroenabled.12`) → `ConvertFrom-Json` scheitert
+  komplett. Neuer Scanner-Parser in `Common.psm1`
+  (`Get-SysPilotJsonChildProperties`, `Get-SysPilotChromiumExtension
+  Settings`) + roh-Text-Entfernung (`Remove-SysPilotPrefExtensionEntry`,
+  settings+alerts inkl. Komma). Edge jetzt **248** Extensions, Gesamt
+  **674** (vorher 425). **Tor Browser** wird erkannt (Firefox-basiert,
+  `TorBrowser\Data\Browser\profile*`). **Flacker-Fix**: Multiselect-Menü
+  zeigt bei >25 Einträgen nur ein Scroll-Fenster statt jedes Mal alle
+  ~400 Zeilen neu zu zeichnen; Taste `A` = alle abhaken. **Bedienung**:
+  Extension-Liste ist jetzt eine Endlosschleife — mehrere markieren +
+  Enter („remove marked") ODER einzeln nach und nach; Filter bleibt.
+  **Iteration 3**: Extension-Bereinigung komplett mausfuehrbar —
+  Browser-Auswahlliste zum Anklicken (alle erkannten Browser mit
+  Anzahl + „Alle Browser", keine Textfilter noetig), Multiselect mit
+  eingebauten klickbaren Buttons „Markierte entfernen"/„Abbrechen"
+  (neu: `-Actions`-Parameter in `Show-SysPilotMultiSelectMenu`,
+  Ziffern 1-9 als Tastatur-Alternative), und nach der Auswahl die
+  Frage ob gleiche Erweiterungen (Match per ID oder normalisiertem
+  Namen) auch in anderen Browsern entfernt werden sollen.
+  **Iteration 4 (Maus-Koordinaten-Fix)**: `Show-SysPilotMultiSelectMenu`
+  zeigte bei langen Listen + niedrigem Fenster zu viele Zeilen → die
+  Konsole scrollte beim Zeichnen und die gespeicherten Zeilenpositionen
+  (itemStartRow/actionStartRow) drifteten von den Mausklick-Koordinaten
+  ab → Highlight sprang auf falsche Zeile, Klicks markierten falsche
+  Einträge, Buttons unerreichbar. Sichtbare Listengröße wird jetzt aus
+  `[Console]::WindowHeight` berechnet (wie bei `Show-SysPilotArrowMenu`),
+  damit nie gescrollt wird; Action-Buttons geben die abgehakten Tags mit
+  zurück, Klick auf markierten Eintrag schaltet Haken aus.
+  **Iteration 5**: Extension-Entfernung wurde unwirksam, weil **laufende
+  Browser** (Chrome/Edge/Brave/Firefox) ihre Preferences im Speicher
+  halten und die Datei-Änderung beim Beenden überschreiben — neuer
+  Gate vor dem Entfernen: Browser beenden / trotzdem versuchen /
+  Einträge überspringen (inkl. Hinweis auf Sync-Restore). Viewport-
+  Höhe kommt jetzt aus `GetConsoleScreenBufferInfo` (srWindow) statt
+  `[Console]::WindowHeight` — in Windows Terminal kann Letzteres die
+  Buffer-Höhe liefern → alle ~248 Einträge wurden gezeichnet und die
+  Buttons landeten unterhalb des Fensters. Multiselect hat jetzt
+  PageUp/PageDown und einen größeren Mausrad-Schritt.
+  **Iteration 6 (Sync-Schutz)**: Aufgeräumte lokale Entfernung nutzte
+  nur Datei-Edits — bei angemeldeten Browserninstalliert Sync die
+  Extension erneut. Neu: `Test-SysPilotBrowserProfileSignedIn` erkennt
+  Login über `Local State → profile.info_cache` (gaia_id /
+  edge_account_cid / edge_sync_enabled, Fallback account_info.email);
+  `Set-SysPilotExtensionPolicyBlock` schreibt
+  `installation_mode=blocked` in die `ExtensionSettings`-Policy
+  (HKCU\SOFTWARE\Policies\<Browser>, merge-basiert, bestehende
+  Einträge bleiben) → Sync kann die ID nicht erneut installieren.
+  `Remove-SysPilotExtensionPolicyBlock` hebt Blocks wieder auf;
+  SysPilot protokolliert gesetzte IDs in
+  `backup\extension-policy-blocks.json`. Policy-Schreiben braucht
+  Admin (HKCU\Policies ist sonst schreibgeschützt) — ohne Admin
+  Hinweis statt Angebot. Live getestet: Chrome+Edge angemeldet,
+  Brave nicht; kompletter Set/Merge/Remove-Zyklus verifiziert.
+  **Iteration 7 (ROOT CAUSE „Extensions bleiben")**: `"extensions"`
+  kommt in Chromium-Prefs **mehrfach** vor — `account_values.
+  extensions.ui` (winzig, Index ~19), echtes `extensions.settings`,
+  `protection.macs.extensions`. `Find-SysPilotJsonSection` griff den
+  ERSTEN Treffer → Extension-Entfernung lief ins Leere
+  („Secure Preferences konnte nicht aktualisiert werden"). Neu:
+  `-MustContain`-Parameter — die Sektion wird nur akzeptiert, wenn
+  sie den gesuchten Unter-Key (`settings`/`alerts`) wirklich enthält.
+  Zusätzlich: Prefs-Dateien werden jetzt **ohne BOM** geschrieben
+  (`Write-SysPilotFileRaw`, FileShare.ReadWrite + Retry) — PS5.1
+  `Set-Content -Encoding UTF8` hatte einen BOM ergänzt, den Chromium
+  als Dateibeschädigung werten kann. Live verifiziert: Chrome-Kopie
+  224 Settings-Einträge, Ziel-ID entfernt, JSON valide.
+  **Iteration 8**: `Backup-SysPilotFile` warf bei jedem Aufruf
+  `ParameterBindingException` — `Join-Path $bak "$stamp-" + (...)`
+  parsed das `+` als eigenes Positionsargument → Exception →
+  try/catch hat sie verschluckt → **Extension-Entfernung lief nie**
+  (deshalb „konnte nicht aktualisiert werden / kein
+  Positionsparameter +"). Fix: Konkat in Variable ausgelagert.
+  Live verifiziert: Backup-Datei wird jetzt geschrieben.
+  **Iteration 9**: Zentrales Debug-Log — `Write-SysPilotLog` schreibt
+  jetzt mit Session-Header (Version/PID/User/Admin, ms-Zeitstempel),
+  Fallback `%LOCALAPPDATA%\SysPilot\logs` wenn der Installationsordner
+  nicht beschreibbar ist; neue `Write-SysPilotDebug` (Level DEBUG) +
+  `Get-SysPilotLogFiles`. Extension-Flow, JSON-Pref-Edit, Lauf-Browser-
+  Gate und Sync-Policy sind jetzt vollstaendig im Log nachvollziehbar.
+  **Iteration 10**: KI-Browser-Erkennung — Perplexity Comet
+  (`%LOCALAPPDATA%\Perplexity\Comet\User Data`) und BrowserOS
+  (`%LOCALAPPDATA%\BrowserClaw\User Data`, Chromium-Forks) werden jetzt
+  inventarisiert (live: Comet 244, BrowserOS 7 Extensions). Sie sind
+  EINZELN waehlbar, aber aus „Alle Browser" und dem Cross-Browser-
+  Matching ausgeschlossen (`Test-SysPilotAiBrowser`). Prozess-Erkennung
+  jetzt pfadbasiert (`Get-SysPilotBrowserProcesses`): BrowserOS laeuft
+  als chrome.exe, Firefox/Tor als firefox.exe — Verwechslungen und
+  falsche Prozess-Kills werden vermieden; Kill passiert per Prozess-ID.
+  **Iteration 11**: CleanSweep-Flows komplett mausgeführt — Programme:
+  Modus (Silent/Normal) jetzt als Buttons in der Auswahlliste statt
+  separatem Menü; Windows-Apps + provisionierte Apps: „Entfernen"/
+  „Abbrechen"-Buttons statt Enter-Bestätigungen; Reste-Bereinigung:
+  alle Einträge standardmässig abgehakt (abwählbar), Buttons statt
+  Enter, plus persistenter „Reste Auto-Clean"-Schalter im
+  CleanSweep-Menü (config.json → CleanSweep.AutoLeftoverClean): wenn AN,
+  werden alle Reste nach der Deinstallation automatisch entfernt
+  (reversibel via Papierkorb/Registry-Backup).
+  **Iteration 12**: HostsMan 4.8.106 zu den Portable Apps hinzugefuegt
+  (MajorGeeks-Download wie UWT): `Get-SysPilotMajorGeeksAsset` ist jetzt
+  app-agnostisch (`-VersionPattern`/`-AssetName` statt UWT-Hardcodierung).
+  Live verifiziert: Mirror-Download 3,1 MB, ZIP enthaelt `hm.exe`.
+  **Iteration 13**: Update/Download-Center (`SoftwareUpdateCenter.psm1`,
+  Key `updates`) nach REA-Analyse von IObit Software Updater (proprietaere
+  .dbd-Kataloge + Telemetrie → nicht nachgebaut), UpdateHub/Nexova
+  (Open-Source Electron, Engine = winget+gsudo → winget-first bestaetigt)
+  und Patch My PC Home Updater (SCUP-Katalog-Wrapper → kuratierte
+  App→Quelle-Tabelle). Funktionen: winget/Chocolatey-Upgrade-Scan mit
+  Batch-Aktualisierung (Silent/Interaktiv), Programm-Katalog 147 Apps in
+  7 Kategorien, GitHub-Releases-Check + Asset-Auswahl (.msi>.exe>.zip,
+  Debug-Symbole gefiltert), MajorGeeks-Resolver (89 verifizierte Apps),
+  Web-Katalog-Links (Heise functional, FileHippo/Uptodown/CHIP
+  Bot-geschuetzt → ehrliche Link-outs). winget-Parser robust gegen
+  lokalisierte Spalten und collapsing Names. **Auto-Update**:
+  `Invoke-SysPilotAutoUpdate` installiert alle winget/choco-Updates
+  silent; Menü „Automatische Updates" registriert geplante Aufgabe
+  „SysPilot Update" (taeglich 12:00, Admin, `-UpdateAuto`-Parameter);
+  Update-Scan bietet zusätzlich „Alle still aktualisieren".
+  **Fehlgeschlagene Updates** (`update-center.json`): fehlgeschlagene
+  bzw. silent-unmoegliche Updates werden persistent registriert und in
+  „Fehlgeschlagene Updates" aufgelistet — pro Eintrag Retry (silent /
+  interaktiv / **als Administrator** via UAC), **manuelle Installation
+  per Terminal** (generiertes .ps1 mit allen Befehlen, wt.exe-Start),
+  **KI-Suche** (DuckDuckGo-Installations-Hilfe) und „als erledigt"
+  markieren. **Dauerhafte Einstellungen**: global (Modus
+  silent/interaktiv/fragen + Admin-Standard) und pro App
+  (Modus silent/interaktiv/manuell/fragen + Admin) in
+  `update-center.json`; Auto-Update respektiert sie (manuell markierte
+  Apps werden uebersprungen, admin-Prefs starten elevated).
+  **Fixes**: choco-Parser las falsche Spalten (`Id|Version|Available|
+  Pinned`, nicht Name|Id|...) → Chocolatey-Updates liefen ins Leere;
+  interaktiver Update-Modus zeigt jetzt wingets eigenen Fortschritt
+  live (vorher unsichtbar, wirkte wie einfrieren), Silent/Auto-Update
+  loggt Dauer pro App; Web-Kataloge ehrlich beschriftet (Heise +
+  FileHippo = echte Suche, Uptodown/CHIP/MajorGeeks = JS-Suche → Seite
+  oeffnen) plus **winget-Suche lokal** im Terminal. Web-Katalog-Suche
+  jetzt suchmaschinenbasiert: Provider-Auswahl (MajorGeeks/FileHippo/
+  Uptodown/CHIP/Alle) -> site:-Query -> **Ecosia (Baeume pflanzen),
+  Brave oder Google** (in AISearch-Basisliste ergaenzt); MajorGeeks
+  versucht zuerst die direkte Details-Seite per Slug (verifiziert,
+  Soft-404-sicher). **Update-Fehleranalyse (8 Fehlschlaege)**:
+  `Invoke-SysPilotWingetRaw` hat jetzt echten Timeout (Process-API,
+  vorher ignoriert), ExitCode + Output-Tail als Fehlertext (vorher
+  leer), Fehler-Klassifizierung (`not-applicable`/`admin`/`timeout`),
+  automatischer elevated-Retry bei Admin-Installer-Fehlern (MSI 1603),
+  `update-center.json` liegt jetzt in `%LOCALAPPDATA%\SysPilot` (vorher
+  Program Files → stiller Schreibfehler ohne Admin → Fehlerliste
+  blieb leer), Auto-Update ueberspringt mehrfaeltig "nicht anwendbare"
+  Pakete, Fehlerliste zeigt Kind + Loesungshinweis.
+  **Paketmanager-Integration (nach UniGetUI-Konzept)**: neues Modul
+  `PackageManagers.psm1` mit Registry ueber 14 Manager (WinGet,
+  Chocolatey, Scoop, pip, npm, Bun, .NET Tool, PSGallery, Homebrew,
+  APT, DNF, Pacman, Flatpak, Snap). Erkennung automatisch; Linux-PMs
+  laufen ueber WSL-Distros (ohne docker-desktop). Outdated-Scan
+  merged scoop/npm/pip/PSGallery in den Update-Scan + Auto-Update;
+  Upgrade-Dispatch pro Manager (`Invoke-SysPilotPmUpgrade`).
+  Suche in ALLEN Managern (`Get-SysPilotPmSearchResults`) auch im
+  Web-Katalog-Menu. Fehlende Manager per Knopfdruck installierbar
+  (`Install-SysPilotPackageManager`: offizielles Skript oder winget,
+  PATH wird geprueft/ergänzt, WSL-Distros via `wsl --install`).
+  Update-Center-Menüpunkt „Paketmanager". **Fortschritt + WSL-Setup**:
+  Install-Skripte zeigen jetzt Live-Output (vorher unsichtbarer
+  Capture → wirkte wie Einfrieren); winget-Installationen (npm/pip/
+  dotnet) ebenfalls sichtbar. `Install-SysPilotWslDistro` prueft die
+  Distro, installiert sie bei Bedarf (`wsl --install -d <distro>`),
+  und richtet den PM **darin** ein: flatpak/snap via `apt-get install`
+  in der Distro, apt/dnf/pacman als Basisbestandteil verifiziert.
+  **WSL-Verwaltung**: `Show-SysPilotWslMenu` im Paketmanager-Menü —
+  Status (WSL-Version/Kernel/WSLg/Distros), WSL Manager
+  (Bostrot.WSLManager via winget: Distro-Verwaltung, Backups,
+  .wslconfig-Editor, MCP-Server), `wsl --update`, `wsl --shutdown`,
+  GUI-Apps-Aktivierung (`.wslconfig`: guiApplications +
+  localhostForwarding, nichts wird überschrieben), Linux-Distro +
+  PM-Einrichtung. **Distro-Installer**: `Show-SysPilotWslDistroPicker`
+  listet die Live-Online-Liste (`wsl --list --online`, 25 Distros:
+  Ubuntu 22.04/24.04/26.04, Debian, Fedora 44/45, Arch, Kali,
+  openSUSE, Rocky, Alma, Oracle, Azure ...) mit Recommendations und
+  „Alle"-Uebersicht; `Install-SysPilotWslDistroByName` installiert per
+  `wsl --install <name>` mit Live-Output, Retry-Syntax, Verify und
+  PM-Voreinrichtung (apt/dnf makecache), dann optionale
+  Terminal-Start (OOBE). **MuMu Player** zu den Portable Apps
+  hinzugefuegt (Typ `installer`): offizieller Download-Endpunkt
+  `api.mumuplayer.com/api/dl/win?channel=gw-win-download` (302 auf
+  signierte Installer-URL, international `_all_`-Build), Installer
+  laeuft mit eigener UI; `InstallArgs` darf jetzt auch leer sein
+  (interaktive Installer). **Umbenennung**: „Portable Apps &
+  Store-Clients" -> „Apps & Store-Clients" (Vollmenue, Toolbox,
+  Menue-Titel) - nicht alle Apps sind portabel.
+  **Auto-Fix-Framework**: generische Stamp-Drossel in Common.psm1
+  (`Test-/Save-SysPilotAutoFixStamp`, `%LOCALAPPDATA%\SysPilot\autofix`)
+  + selbsttaetige Behebung von Warnungen: Scoop-Buckets (auto
+  `scoop update` bei WARN, Erkennung via `cmd /c`-Kapselung weil
+  scoop.cmd WARNs an die Konsole umgeht; `Repair-SysPilotScoopBuckets`
+  fixt korrupte packed-refs/loose refs/tmp_*-Fetch-Leichen,
+  index.lock, stash't lokale Manifest-Aenderungen, ff-only/reset auf
+  origin-Stand), npm/pip-Selbst-Update (7-Tage-Drossel,
+  Versionsvergleich), NuGet-Provider >= 2.8.5.208 (30 Tage),
+  winget `source update` (24h), Chocolatey-Selbst-Update bei
+  veralteter Version (7 Tage). Alle Fixes loggen nach
+  `Write-SysPilotLog`.
+  **Update-Fixes (Log 20:22-20:50)**: `Get-SysPilotChocoOutdated` filtert
+  Phantom-Rows mit identischer Version (`chocolatey.server 0.3.0|0.3.0`
+  landete sonst taeglich in der Update-Liste); `choco upgrade` exit 0
+  heisst NICHT Erfolg - `Invoke-SysPilotChocoUpgradeAuto` parst jetzt
+  `Chocolatey upgraded X/Y` + `was not found with the source(s)`
+  (choco meldete „0/1 aktualisiert" als OK); pip-Upgrades laufen ueber
+  `python -m pip` (pip.exe kann sich nicht selbst updaten - pip selbst
+  verlangt genau das; Python wird aus `Scripts\pip.exe`-Umgebung
+  aufgeloest); elevated winget-Retry mit `--force`.
+  **Alt-Manager-Installation (wenn winget nicht kann)**: neue Funktion
+  `Show-SysPilotAltManagerInstallMenu` sucht das Paket live in den
+  Remote-Repos von **Chocolatey UND Scoop** (`choco search`/`scoop
+  search`, Suchbegriffe aus Name+winget-Id: Publisher entfernt,
+  camelCase gesplittet, Versionen bereinigt; Ergebnisse nach
+  Aehnlichkeit gerankt). Aufruf an zwei Stellen: (1)
+  `Invoke-SysPilotCatalogWinget` — schlaegt der winget-Download fehl,
+  wird die Alt-Manager-Suche automatisch angeboten; (2)
+  „Fehlgeschlagene Updates" — neue Aktion „Anderer Paketmanager
+  (choco/scoop) suchen" mit `-Adopt`-Warnung (choco-Installation
+  ersetzt die vorhandene App und uebernimmt sie unter
+  choco-Verwaltung → kuenftige Updates via `choco upgrade`). Live
+  verifiziert: FACEIT→`Faceit`, Steam Art Manager→`steam-art-manager`,
+  MEGAsync→`megasync`, OnionShare→`onionshare` (alle in Chocolatey
+  Community); TeraBox existiert dort nicht → ehrlicher Fehlbericht.
+  Scoop nur als optionale Neuinstallation (kein Adopt, da
+  userseitig/parallel).
+  **Cross-Manager-Update-Fallback (vollautomatisch)**: wenn winget ein
+  Paket nicht aktualisieren kann (`not-applicable`, `publisher` =
+  „Hersteller-Methode", oder Installer-Fehler), versucht SysPilot
+  automatisch **Chocolatey und Scoop** - aber nur wenn der jeweilige
+  Manager das Paket tatsaechlich installiert hat (exakter Namensmatch
+  gegen `choco list`/`scoop list`, 10-Min-Cache; `openvpn` matcht so
+  z.B. NICHT `openvpn-connect`). Neuer Kind `publisher` für
+  „kann nicht mit WinGet aktualisiert werden". Elevated-Retry nutzt
+  jetzt `--force` (Installer-Shutdown-Checks). `Invoke-SysPilotWinget-
+  UpdateAuto` buendelt die Kette: winget -> elevated(--force) ->
+  choco/scoop-Fallback; aktiv in AutoUpdate, UpdateScan (silent +
+  interaktiv) und im Retry der Fehlgeschlagenen-Liste. Live getestet:
+  `Chocolatey.Chocolatey` wird jetzt automatisch via `choco upgrade`
+  aktualisiert. Skip-Logik deckt `publisher` nach 2 Fehlversuchen ab.
+  **GUI & Erweiterungen der Paketmanager**: `Show-SysPilotPmCompanionsMenu`
+  (Update-Center -> Paketmanager -> „GUI & Erweiterungen") mit
+  Live-Status-Erkennung und Install/Start-Aktionen: **UniGetUI**
+  (portables ZIP, deckt winget/Chocolatey/Scoop/MS-Store ab =
+  die „GUI fuer alle"), **Chocolatey GUI** (offizielles Paket
+  `chocolateygui`, MSI-Installationen in `Program Files (x86)`
+  werden jetzt korrekt erkannt), **OuiGui Chocolatey**
+  (Community-GUI, Paket `OuiGuiChocolatey`), **Chocolatey
+  AppStore-Extension** (gepflegtes Chrome-Paket
+  `chocolatey-appstore-chrome` - Install-Buttons auf Download-
+  Seiten), **Legacy `choco-chrome-ext`** (2016, inoffiziell,
+  ehrlich gelabelt, nur mit Bestaetigung), **PM-Kataloge**
+  (winget.run, chocolatey.org, scoop.sh, npmjs.com, pypi.org,
+  powershellgallery.com, nuget.org, MS-Store). Schnelle
+  Paket-Erkennung via lib-Ordner-Check (kein langsamer
+  `choco list`-Aufruf beim Menu-Redraw).
+  Integration: Vollmenue,
+  `-Tool updates`, GUI-Button „Update-Center", Toolbox.
+- **Integration**: Vollmenü (`uninstall`, `updates`), `-Tool uninstall`/`updates`,
+  Toolbox-Einträge „CleanSweep" + „Update / Download Center"; `version.txt` = 0.9.4.9.
+
 # SysPilot 0.9.4.8 beta
 
 - **Fixes**: GUI-Start (XAML-`&`-Fehler, ShowDialog-Konflikt,

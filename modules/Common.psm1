@@ -28,8 +28,14 @@ public static class SysPilotConsoleInput {
     [DllImport("kernel32.dll", SetLastError=true)] public static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
     [DllImport("kernel32.dll")] public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
     [DllImport("kernel32.dll", SetLastError=true)] public static extern bool ReadConsoleInput(IntPtr hConsoleInput, [Out] INPUT_RECORD[] lpBuffer, uint nLength, out uint lpNumberOfEventsRead);
+    [DllImport("kernel32.dll", SetLastError=true)] public static extern bool GetConsoleScreenBufferInfo(IntPtr hConsoleOutput, out CONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo);
 
     [StructLayout(LayoutKind.Sequential)] public struct COORD { public short X; public short Y; }
+    [StructLayout(LayoutKind.Sequential)] public struct SMALL_RECT { public short Left; public short Top; public short Right; public short Bottom; }
+    [StructLayout(LayoutKind.Sequential)] public struct CONSOLE_SCREEN_BUFFER_INFO {
+        public COORD dwSize; public COORD dwCursorPosition; public short wAttributes;
+        public SMALL_RECT srWindow; public COORD dwMaximumWindowSize;
+    }
     [StructLayout(LayoutKind.Sequential)] public struct KEY_EVENT_RECORD {
         public int bKeyDown; public short wRepeatCount; public short wVirtualKeyCode;
         public short wVirtualScanCode; public char UnicodeChar; public int dwControlKeyState;
@@ -149,13 +155,56 @@ function Search-SysPilotGuiTopic {
     Start-Process "https://www.bing.com/search?q=$encoded"
 }
 
+$script:_logSessionHeaderWritten = $false
+
 function Write-SysPilotLog {
+    <# Zentrales Log. Schreibt nach <root>\logs\syspilot-<datum>.log;
+       falls das nicht beschreibbar ist (z.B. Program Files ohne Admin),
+       Fallback auf %LOCALAPPDATA%\SysPilot\logs. Erste Zeile jeder
+       Session = Header mit Version/PID/User/Admin. #>
     param([string]$Message, [string]$Level = "INFO")
-    $logDir = Join-Path $script:SysPilotRoot "logs"
-    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Force -Path $logDir | Out-Null }
-    $file = Join-Path $logDir ("syspilot-" + (Get-Date -Format "yyyy-MM-dd") + ".log")
-    $line = "{0} [{1}] {2}" -f (Get-Date -Format "HH:mm:ss"), $Level, $Message
-    Add-Content -Path $file -Value $line -Encoding UTF8
+    try {
+        $candidates = @(
+            (Join-Path $script:SysPilotRoot "logs"),
+            (Join-Path $env:LOCALAPPDATA "SysPilot\logs")
+        ) | Select-Object -Unique
+        $line = "{0} [{1}] {2}" -f (Get-Date -Format "HH:mm:ss.fff"), $Level, $Message
+        foreach ($d in $candidates) {
+            try {
+                if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force -Path $d -ErrorAction Stop | Out-Null }
+                $file = Join-Path $d ("syspilot-" + (Get-Date -Format "yyyy-MM-dd") + ".log")
+                if (-not $script:_logSessionHeaderWritten) {
+                    $script:_logSessionHeaderWritten = $true
+                    $ver = ''
+                    try { $ver = (Get-Content (Join-Path $script:SysPilotRoot 'version.txt') -Raw -ErrorAction Stop).Trim() } catch { }
+                    $hdr = "=== SysPilot $ver | PID $PID | User $env:USERNAME | Admin $(Test-SysPilotAdmin) | $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ==="
+                    Add-Content -Path $file -Value $hdr -Encoding UTF8 -ErrorAction Stop
+                }
+                Add-Content -Path $file -Value $line -Encoding UTF8 -ErrorAction Stop
+                return
+            } catch { }
+        }
+    } catch { }
+}
+
+function Write-SysPilotDebug {
+    <# DETAIL-Log fuer Fehlersuche (Extension-Entfernung, Policy-Ops,
+       Menue-Entscheidungen). Landet im selben Log mit Level DEBUG. #>
+    param([Parameter(Mandatory)][string]$Message)
+    Write-SysPilotLog -Message $Message -Level 'DEBUG'
+}
+
+function Get-SysPilotLogFiles {
+    <# Alle vorhandenen Log-Dateien (beide moeglichen Orte). #>
+    $dirs = @(
+        (Join-Path $script:SysPilotRoot "logs"),
+        (Join-Path $env:LOCALAPPDATA "SysPilot\logs")
+    ) | Select-Object -Unique
+    $files = @()
+    foreach ($d in $dirs) {
+        if (Test-Path $d) { $files += Get-ChildItem $d -Filter 'syspilot-*.log' -File -ErrorAction SilentlyContinue }
+    }
+    return $files | Sort-Object LastWriteTime -Descending
 }
 
 function Get-SysPilotConfig {
@@ -230,6 +279,32 @@ function Get-SysPilotBackupDir {
     $dir = Join-Path $script:SysPilotRoot "backup"
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
     return $dir
+}
+
+# =====================================================================
+# Auto-Fix-Hilfen: Warnungen (veraltete Buckets/Quellen/Tools) einmalig
+# pro Zeitfenster selbsttaetig beheben. Stamp-Dateien in
+# %LOCALAPPDATA%\SysPilot\autofix\.
+# =====================================================================
+
+function Get-SysPilotAutoFixStampPath {
+    param([Parameter(Mandatory)][string]$Name)
+    $dir = Join-Path $env:LOCALAPPDATA 'SysPilot\autofix'
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+    return (Join-Path $dir ($Name + '.stamp'))
+}
+
+function Test-SysPilotAutoFixDue {
+    <# $true, wenn der Auto-Fix fuer $Name laenger als $Hours nicht lief. #>
+    param([Parameter(Mandatory)][string]$Name, [int]$Hours = 24)
+    $stamp = Get-SysPilotAutoFixStampPath -Name $Name
+    if (-not (Test-Path $stamp)) { return $true }
+    return ((Get-Date) - (Get-Item $stamp).LastWriteTime).TotalHours -ge $Hours
+}
+
+function Save-SysPilotAutoFixStamp {
+    param([Parameter(Mandatory)][string]$Name)
+    Set-Content -Path (Get-SysPilotAutoFixStampPath -Name $Name) -Value (Get-Date -Format 'o') -ErrorAction SilentlyContinue
 }
 
 function Get-SysPilotPortableAppsDir {
@@ -614,8 +689,8 @@ function Show-SysPilotArrowMenu {
     try {
     $needDraw = $true
     while ($true) {
-        $winH = 30
-        try { $winH = [Console]::WindowHeight } catch { }
+        $vp = Get-SysPilotConsoleViewport
+        $winH = $vp.Rows
         $reserve = 4 + $(if ($Title) { 3 } else { 0 })
         $page = [math]::Max(5, $winH - $reserve)
         if ($Items.Count -lt $page) { $page = $Items.Count }
@@ -677,35 +752,88 @@ function Show-SysPilotArrowMenu {
     }
 }
 
+function Get-SysPilotConsoleViewport {
+    <# Liefert die SICHTBARE Konsolen-Groesse (Viewport) in Zeichen.
+       srWindow aus GetConsoleScreenBufferInfo ist in conhost UND
+       Windows Terminal zuverlaessig; [Console]::WindowHeight kann in
+       manchen Hosts die Buffer-Hoehe liefern (dann scrollt die Anzeige
+       und Maus-Koordinaten stimmen nicht mehr). Fallback: Console-API. #>
+    try {
+        $h = [SysPilotConsoleInput]::GetStdHandle(-11)
+        if ($h -ne [IntPtr]::Zero -and $h.ToInt64() -ne -1) {
+            $info = New-Object SysPilotConsoleInput+CONSOLE_SCREEN_BUFFER_INFO
+            if ([SysPilotConsoleInput]::GetConsoleScreenBufferInfo($h, [ref]$info)) {
+                $rows = $info.srWindow.Bottom - $info.srWindow.Top + 1
+                $cols = $info.srWindow.Right - $info.srWindow.Left + 1
+                if ($rows -gt 0 -and $cols -gt 0) { return @{ Rows = [int]$rows; Cols = [int]$cols } }
+            }
+        }
+    } catch { }
+    $rows = 30; $cols = 120
+    try { $rows = [Console]::WindowHeight } catch { }
+    try { $cols = [Console]::WindowWidth } catch { }
+    return @{ Rows = $rows; Cols = $cols }
+}
+
 function Show-SysPilotMultiSelectMenu {
     <# Mehrfachauswahl per Pfeiltasten: hoch/runter, Leertaste = Haken,
        Enter = Auswahl bestaetigen, Esc = abbrechen.
        Maus: Linksklick auf Eintrag = Haken umschalten, Mausrad = blaettern.
        Items: Array von @{ Label; Color; Tag; Checked } - gibt Array der
-       Tags der abgehakten Eintraege zurueck oder $null bei Esc. #>
+       Tags der abgehakten Eintraege zurueck oder $null bei Esc.
+       Optional -Actions @(@{Label;Tag;Color}): zusaetzliche klickbare
+       Buttons unter der Liste. Wenn gesetzt, gibt die Funktion IMMER ein
+       Objekt zurueck: @{ Selected = @(Tags); Action = $null|<ActionTag> }.
+       Tastatur: Ziffern 1-9 loesen Actions aus, Enter = Selected. #>
     param(
         [Parameter(Mandatory)][array]$Items,
         [string]$Title = '',
-        [string]$Footer = 'Pfeiltasten, Leertaste = auswaehlen, Enter = uebernehmen, Esc = abbrechen'
+        [string]$Footer = 'Pfeiltasten/Klick, Leertaste = Haken, A = alle, Enter = uebernehmen, Esc = abbrechen',
+        [array]$Actions = @()
     )
     if ($Items.Count -eq 0) { return @() }
     Clear-SysPilotPendingKeys
     $useApi = Initialize-SysPilotConsoleInput
     if ($useApi) { Clear-SysPilotConsoleInputBuffer }
     $sel = 0
-    $itemStartRow = $(if ($Title) { 3 } else { 0 })
+    # Fenster-Darstellung: bei langen Listen nur eine Sichtscheibe zeichnen,
+    # sonst flackert die Anzeige bei jedem Hover (Clear-Host + hunderte Zeilen).
+    # WICHTIG: Die sichtbare Groesse wird aus der FENSTERHOEHE berechnet -
+    # sonst scrollt die Konsole beim Zeichnen und die gespeicherten Zeilen-
+    # positionen (itemStartRow/actionStartRow) stimmen nicht mehr mit den
+    # Mausklick-Koordinaten ueberein (Highlight versetzt, Klicks falsch).
+    $viewTop = 0
+    $windowed = $false
+    $viewSize = 0
+    $actionStartRow = -1
+    $actionCols = @()
+    $hasActions = $Actions.Count -gt 0
     try {
     $needDraw = $true
     while ($true) {
         if ($needDraw) {
+            # Zeilenbudget: Titel(3) + Items + Leer(1) + Buttons(2) + Footer(1)
+            # Viewport-Hoehe aus der Console-API (srWindow) - zuverlaessig
+            # in conhost UND Windows Terminal, anders als WindowHeight.
+            $vp = Get-SysPilotConsoleViewport
+            $winH = $vp.Rows
+            $overhead = 2 + $(if ($hasActions) { 3 } else { 0 }) + $(if ($Title) { 3 } else { 0 })
+            $viewSize = [Math]::Max(3, $winH - $overhead - 1)
+            $windowed = $Items.Count -gt $viewSize
             Clear-Host
             if ($Title) {
                 Write-Host ""
                 Write-Host "  $Title" -ForegroundColor Cyan
                 Write-Host ""
             }
+            if ($windowed) {
+                if ($sel -lt $viewTop) { $viewTop = $sel }
+                if ($sel -ge $viewTop + $viewSize) { $viewTop = $sel - $viewSize + 1 }
+                $viewTop = [Math]::Max(0, [Math]::Min($viewTop, $Items.Count - $viewSize))
+            } else { $viewTop = 0 }
             $itemStartRow = $Host.UI.RawUI.CursorPosition.Y
-            for ($i = 0; $i -lt $Items.Count; $i++) {
+            $viewEnd = if ($windowed) { [Math]::Min($Items.Count, $viewTop + $viewSize) } else { $Items.Count }
+            for ($i = $viewTop; $i -lt $viewEnd; $i++) {
                 $it = $Items[$i]
                 $mark = if ($it.Checked) { '[x]' } else { '[ ]' }
                 $prefix = if ($i -eq $sel) { ' > ' } else { '   ' }
@@ -715,7 +843,26 @@ function Show-SysPilotMultiSelectMenu {
             }
             Write-Host ""
             $cnt = @($Items | Where-Object { $_.Checked }).Count
-            Write-Host ("  $Footer  |  ausgewaehlt: $cnt") -ForegroundColor DarkGray
+            $pos = if ($windowed) { "  Eintrag $($sel + 1)/$($Items.Count)  |  " } else { '' }
+            if ($Actions.Count -gt 0) {
+                # Buttons in EINER Zeile mit Abstand; Spalten werden fuer
+                # Klick-Trefferatz gespeichert (actionCols: Start/End/Tag)
+                $actionStartRow = $Host.UI.RawUI.CursorPosition.Y
+                $actionCols = @()
+                $colPos = 2
+                Write-Host '  ' -NoNewline
+                foreach ($a in $Actions) {
+                    $btn = "[ $($a.Label) ]"
+                    $actionCols += @{ Start = $colPos; End = $colPos + $btn.Length; Tag = $a.Tag }
+                    $acol = if ($a.Color) { $a.Color } else { 'Green' }
+                    Write-Host $btn -ForegroundColor $acol -NoNewline
+                    Write-Host '   ' -NoNewline
+                    $colPos += $btn.Length + 3
+                }
+                Write-Host ''
+                Write-Host ""
+            }
+            Write-Host ("$pos$Footer  |  ausgewaehlt: $cnt") -ForegroundColor DarkGray
         }
         $needDraw = $true
         $ev = Read-SysPilotMenuEvent
@@ -723,6 +870,8 @@ function Show-SysPilotMultiSelectMenu {
             switch ([int]$ev.Vk) {
                 38 { $sel = ($sel - 1 + $Items.Count) % $Items.Count }
                 40 { $sel = ($sel + 1) % $Items.Count }
+                33 { $sel = [Math]::Max(0, $sel - $viewSize) }
+                34 { $sel = [Math]::Min($Items.Count - 1, $sel + $viewSize) }
                 36 { $sel = 0 }
                 35 { $sel = $Items.Count - 1 }
                 27 { return $null }
@@ -730,29 +879,404 @@ function Show-SysPilotMultiSelectMenu {
                     $out = @()
                     foreach ($it in $Items) { if ($it.Checked) { $out += $it.Tag } }
                     if ($out.Count -eq 0) { continue }
+                    if ($hasActions) { return [PSCustomObject]@{ Selected = $out; Action = $null } }
                     return $out
                 }
                 32 { $Items[$sel].Checked = -not $Items[$sel].Checked }
+                65 { foreach ($it in $Items) { $it.Checked = $true } }
+                { [int]$ev.Vk -ge 49 -and [int]$ev.Vk -le 57 -and $hasActions } {
+                    $ai = [int]$ev.Vk - 49
+                    if ($ai -lt $Actions.Count) {
+                        $selTags = @(); foreach ($it in $Items) { if ($it.Checked) { $selTags += $it.Tag } }
+                        return [PSCustomObject]@{ Selected = $selTags; Action = $Actions[$ai].Tag }
+                    }
+                }
             }
         } else {
-            $idx = [int]$ev.Row - $itemStartRow
+            # Klick auf Aktions-Button? (eine Zeile, Spalten-Test per Col)
+            if ($hasActions -and $actionStartRow -ge 0 -and [int]$ev.Row -eq $actionStartRow -and $ev.Action -eq 'Click') {
+                foreach ($ac in $actionCols) {
+                    if ([int]$ev.Col -ge $ac.Start -and [int]$ev.Col -lt $ac.End) {
+                        $selTags = @(); foreach ($it in $Items) { if ($it.Checked) { $selTags += $it.Tag } }
+                        return [PSCustomObject]@{ Selected = $selTags; Action = $ac.Tag }
+                    }
+                }
+                $needDraw = $false
+            }
+            $idx = $viewTop + ([int]$ev.Row - $itemStartRow)
+            $inView = ($idx -ge $viewTop -and $idx -lt $viewEnd)
             switch ($ev.Action) {
                 'Move' {
-                    if ($idx -ge 0 -and $idx -lt $Items.Count -and $idx -ne $sel) { $sel = $idx }
+                    if ($inView -and $idx -ne $sel) { $sel = $idx }
                     else { $needDraw = $false }
                 }
                 'Click' {
-                    if ($idx -ge 0 -and $idx -lt $Items.Count) { $Items[$idx].Checked = -not $Items[$idx].Checked }
+                    if ($inView) { $Items[$idx].Checked = -not $Items[$idx].Checked }
                     else { $needDraw = $false }
                 }
-                'WheelUp'   { $sel = ($sel - 1 + $Items.Count) % $Items.Count }
-                'WheelDown' { $sel = ($sel + 1) % $Items.Count }
+                'WheelUp'   { $step = [Math]::Max(3, [int]($viewSize / 3)); $sel = [Math]::Max(0, $sel - $step) }
+                'WheelDown' { $step = [Math]::Max(3, [int]($viewSize / 3)); $sel = [Math]::Min($Items.Count - 1, $sel + $step) }
             }
         }
     }
     } finally {
         if ($useApi) { Restore-SysPilotConsoleInput }
     }
+}
+
+function Find-SysPilotJsonSection {
+    <# Findet "Key":<Wert> in JSON-Text per Regex + Klammer-Scanning
+       (stringsicher). Gibt @{ Start; End; Text } zurueck, wobei Start/End
+       den WERT (ohne "Key":) im Originaltext markieren, oder $null.
+       -MustContain <key>: ueberspringt Kandidaten, deren Wert den
+       Unter-Schluessel NICHT enthaelt - noetig bei mehrdeutigen Keys
+       (z.B. "extensions" kommt in Chromium-Prefs mehrfach vor:
+       account_values.extensions.ui, echtes extensions.settings,
+       protection.macs.extensions - nur das echte hat "settings"). #>
+    param([Parameter(Mandatory)][string]$Json, [Parameter(Mandatory)][string]$Key,
+          [string]$MustContain = '')
+    $rx = New-Object System.Text.RegularExpressions.Regex('"' + [regex]::Escape($Key) + '"\s*:')
+    $searchFrom = 0
+    $len = $Json.Length
+    while ($searchFrom -lt $len) {
+        $m = $rx.Match($Json, $searchFrom)
+        if (-not $m.Success) { return $null }
+        $i = $m.Index + $m.Length
+        while ($i -lt $len -and [char]::IsWhiteSpace($Json[$i])) { $i++ }
+        if ($i -ge $len) { return $null }
+        $open = $Json[$i]
+        if ($open -eq '{' -or $open -eq '[') {
+            $close = if ($open -eq '{') { '}' } else { ']' }
+            $depth = 0; $inStr = $false; $esc = $false; $endIdx = -1
+            for ($j = $i; $j -lt $len; $j++) {
+                $c = $Json[$j]
+                if ($inStr) {
+                    if ($esc) { $esc = $false }
+                    elseif ($c -eq '\') { $esc = $true }
+                    elseif ($c -eq '"') { $inStr = $false }
+                    continue
+                }
+                if ($c -eq '"') { $inStr = $true }
+                elseif ($c -eq $open) { $depth++ }
+                elseif ($c -eq $close) {
+                    $depth--
+                    if ($depth -eq 0) { $endIdx = $j + 1; break }
+                }
+            }
+            if ($endIdx -lt 0) { return $null }
+            $txt = $Json.Substring($i, $endIdx - $i)
+            if ($MustContain -and $txt -notmatch ('"' + [regex]::Escape($MustContain) + '"\s*:')) {
+                $searchFrom = $m.Index + $m.Length
+                continue
+            }
+            return @{ Start = $i; End = $endIdx; Text = $txt }
+        }
+        $j = $i; $inStr = $false; $esc = $false
+        while ($j -lt $len) {
+            $c = $Json[$j]
+            if ($inStr) {
+                if ($esc) { $esc = $false }
+                elseif ($c -eq '\') { $esc = $true }
+                elseif ($c -eq '"') { $inStr = $false }
+                $j++; continue
+            }
+            if ($c -eq '"') { $inStr = $true; $j++; continue }
+            if ($c -eq ',' -or $c -eq '}' -or $c -eq ']') { break }
+            $j++
+        }
+        $txt = $Json.Substring($i, $j - $i).Trim()
+        if ($MustContain -and $txt -notmatch ('"' + [regex]::Escape($MustContain) + '"\s*:')) {
+            $searchFrom = $m.Index + $m.Length
+            continue
+        }
+        return @{ Start = $i; End = $j; Text = $txt }
+    }
+    return $null
+}
+
+function Get-SysPilotJsonChildProperties {
+    <# Listet die DIREKTEN Kind-Elemente eines JSON-Objekt-Texts
+       ({"k":v,...}) per Scanner auf - stringsicher, unveraendert den Text.
+       Gibt Array von @{ Key; KeyStart; ValueStart; ValueEnd; Value } zurueck
+       (Value = Rohtext des Werts). Benoetigt fuer Dateien mit doppelten
+       Schluesseln, die ConvertFrom-Json nicht parsen kann. #>
+    param([Parameter(Mandatory)][string]$Json)
+    $props = @()
+    $len = $Json.Length
+    $i = 0
+    # oeffnende Klammer ueberspringen
+    while ($i -lt $len -and [char]::IsWhiteSpace($Json[$i])) { $i++ }
+    if ($i -ge $len -or $Json[$i] -ne '{') { return $props }
+    $i++
+    while ($i -lt $len) {
+        while ($i -lt $len -and [char]::IsWhiteSpace($Json[$i])) { $i++ }
+        if ($i -ge $len -or $Json[$i] -eq '}') { break }
+        if ($Json[$i] -ne '"') { break }
+        $keyStart = $i
+        $i++
+        $key = ''
+        $esc = $false
+        while ($i -lt $len) {
+            $c = $Json[$i]
+            if ($esc) {
+                switch ($c) { 'n' { $key += "`n" } 't' { $key += "`t" } 'r' { $key += "`r" } default { $key += $c } }
+                $esc = $false; $i++; continue
+            }
+            if ($c -eq '\') { $esc = $true; $i++; continue }
+            if ($c -eq '"') { $i++; break }
+            $key += $c; $i++
+        }
+        while ($i -lt $len -and [char]::IsWhiteSpace($Json[$i])) { $i++ }
+        if ($i -ge $len -or $Json[$i] -ne ':') { break }
+        $i++
+        while ($i -lt $len -and [char]::IsWhiteSpace($Json[$i])) { $i++ }
+        $vStart = $i
+        if ($i -ge $len) { break }
+        $c = $Json[$i]
+        if ($c -eq '{' -or $c -eq '[') {
+            $open = $c; $close = $(if ($open -eq '{') { '}' } else { ']' })
+            $depth = 0; $inStr = $false; $esc = $false; $vEnd = -1
+            for ($j = $i; $j -lt $len; $j++) {
+                $ch = $Json[$j]
+                if ($inStr) {
+                    if ($esc) { $esc = $false }
+                    elseif ($ch -eq '\') { $esc = $true }
+                    elseif ($ch -eq '"') { $inStr = $false }
+                    continue
+                }
+                if ($ch -eq '"') { $inStr = $true }
+                elseif ($ch -eq $open) { $depth++ }
+                elseif ($ch -eq $close) {
+                    $depth--
+                    if ($depth -eq 0) { $vEnd = $j + 1; break }
+                }
+            }
+            if ($vEnd -lt 0) { break }
+            $props += @{ Key = $key; KeyStart = $keyStart; ValueStart = $vStart; ValueEnd = $vEnd; Value = $Json.Substring($vStart, $vEnd - $vStart) }
+            $i = $vEnd
+        } else {
+            $inStr = $false; $esc = $false; $vEnd = $i
+            while ($vEnd -lt $len) {
+                $ch = $Json[$vEnd]
+                if ($inStr) {
+                    if ($esc) { $esc = $false }
+                    elseif ($ch -eq '\') { $esc = $true }
+                    elseif ($ch -eq '"') { $inStr = $false }
+                    $vEnd++; continue
+                }
+                if ($ch -eq '"') { $inStr = $true; $vEnd++; continue }
+                if ($ch -eq ',' -or $ch -eq '}' -or $ch -eq ']') { break }
+                $vEnd++
+            }
+            $props += @{ Key = $key; KeyStart = $keyStart; ValueStart = $vStart; ValueEnd = $vEnd; Value = $Json.Substring($vStart, $vEnd - $vStart).Trim() }
+            $i = $vEnd
+        }
+        while ($i -lt $len -and [char]::IsWhiteSpace($Json[$i])) { $i++ }
+        if ($i -lt $len -and $Json[$i] -eq ',') { $i++; continue }
+        break
+    }
+    return $props
+}
+
+function ConvertFrom-SysPilotJsonScalar {
+    <# Wandelt einen JSON-Skalar-Rohtext in einen PS-Wert um. #>
+    param([Parameter(Mandatory)][string]$Text)
+    $t = $Text.Trim()
+    if ($t.Length -ge 2 -and $t[0] -eq '"' -and $t[$t.Length-1] -eq '"') {
+        $inner = $t.Substring(1, $t.Length - 2)
+        return ($inner -replace '\\"','"' -replace '\\\\','\')
+    }
+    if ($t -match '^-?\d+$') { return [int64]$t }
+    if ($t -match '^-?\d+\.\d+$') { return [double]$t }
+    if ($t -eq 'true') { return $true }
+    if ($t -eq 'false') { return $false }
+    return $t
+}
+
+function Get-SysPilotJsonSectionText {
+    <# Text des Werts eines JSON-Objekt-Schluessels (siehe Find-...#Section). #>
+    param([Parameter(Mandatory)][string]$Json, [Parameter(Mandatory)][string]$Key, [string]$MustContain = '')
+    $s = Find-SysPilotJsonSection -Json $Json -Key $Key -MustContain $MustContain
+    if ($null -eq $s) { return $null }
+    return $s.Text
+}
+
+function Get-SysPilotChromiumExtensionSettings {
+    <# Liest extensions.settings aus einer Chromium-Prefs-Datei
+       (Secure Preferences/Preferences). Schneller Pfad: komplettes
+       ConvertFrom-Json. Fallback: Scanner-basierte Extraktion, weil
+       z.B. Edge-Dateien doppelte Schluessel enthalten
+       (macroEnabled.12/macroenabled.12) und ConvertFrom-Json dann
+       komplett scheitert - der Fallback baut pro Extension ein
+       minimales Objekt (manifest.name/version/type + state).
+       Gibt $null zurueck, wenn nichts da. #>
+    param([Parameter(Mandatory)][string]$PrefPath)
+    $raw = Read-SysPilotFileRaw -Path $PrefPath
+    if (-not $raw) { return $null }
+    try {
+        $j = $raw | ConvertFrom-Json
+        if ($j.extensions -and $j.extensions.settings) { return $j.extensions.settings }
+        return $null
+    } catch { }
+    $ext = Get-SysPilotJsonSectionText -Json $raw -Key 'extensions' -MustContain 'settings'
+    if (-not $ext) { return $null }
+    $set = Get-SysPilotJsonSectionText -Json $ext -Key 'settings'
+    if (-not $set) { return $null }
+    # Scanner-Fallback: Kind-Elemente von settings durchgehen
+    $result = [PSCustomObject]@{}
+    $count = 0
+    foreach ($pr in (Get-SysPilotJsonChildProperties -Json $set)) {
+        $manifest = $null; $state = $null
+        foreach ($ch in (Get-SysPilotJsonChildProperties -Json $pr.Value)) {
+            if ($ch.Key -eq 'manifest') {
+                $mObj = [PSCustomObject]@{ name = $null; version = $null; type = $null }
+                foreach ($mc in (Get-SysPilotJsonChildProperties -Json $ch.Value)) {
+                    if ($mc.Key -eq 'name')    { $mObj.name = ConvertFrom-SysPilotJsonScalar -Text $mc.Value }
+                    elseif ($mc.Key -eq 'version') { $mObj.version = ConvertFrom-SysPilotJsonScalar -Text $mc.Value }
+                    elseif ($mc.Key -eq 'type')   { $mObj.type = ConvertFrom-SysPilotJsonScalar -Text $mc.Value }
+                }
+                $manifest = $mObj
+            } elseif ($ch.Key -eq 'state') {
+                $state = ConvertFrom-SysPilotJsonScalar -Text $ch.Value
+            }
+        }
+        $entry = [PSCustomObject]@{ manifest = $manifest; state = $state }
+        $result | Add-Member -NotePropertyName $pr.Key -NotePropertyValue $entry -Force
+        $count++
+    }
+    if ($count -eq 0) { return $null }
+    return $result
+}
+
+function Remove-SysPilotJsonPropertyText {
+    <# Entfernt "Key":<Wert> inkl. Komma aus JSON-Objekt-Text, ohne den
+       Rest des Dokuments anzufassen (roh-Text, stringsicher).
+       Gibt den neuen Text zurueck oder $null, wenn Key nicht vorhanden. #>
+    param([Parameter(Mandatory)][string]$Json, [Parameter(Mandatory)][string]$Key)
+    $m = [regex]::Match($Json, '"' + [regex]::Escape($Key) + '"\s*:')
+    if (-not $m.Success) { return $null }
+    $keyStart = $m.Index
+    $i = $m.Index + $m.Length
+    while ($i -lt $Json.Length -and [char]::IsWhiteSpace($Json[$i])) { $i++ }
+    if ($i -ge $Json.Length) { return $null }
+    $open = $Json[$i]
+    $end = $i
+    if ($open -eq '{' -or $open -eq '[') {
+        $close = if ($open -eq '{') { '}' } else { ']' }
+        $depth = 0; $inStr = $false; $esc = $false; $found = $false
+        for ($j = $i; $j -lt $Json.Length; $j++) {
+            $c = $Json[$j]
+            if ($inStr) {
+                if ($esc) { $esc = $false }
+                elseif ($c -eq '\') { $esc = $true }
+                elseif ($c -eq '"') { $inStr = $false }
+                continue
+            }
+            if ($c -eq '"') { $inStr = $true }
+            elseif ($c -eq $open) { $depth++ }
+            elseif ($c -eq $close) {
+                $depth--
+                if ($depth -eq 0) { $end = $j + 1; $found = $true; break }
+            }
+        }
+        if (-not $found) { return $null }
+    } else {
+        $inStr = $false; $esc = $false
+        while ($end -lt $Json.Length) {
+            $c = $Json[$end]
+            if ($inStr) {
+                if ($esc) { $esc = $false }
+                elseif ($c -eq '\') { $esc = $true }
+                elseif ($c -eq '"') { $inStr = $false }
+                $end++; continue
+            }
+            if ($c -eq '"') { $inStr = $true; $end++; continue }
+            if ($c -eq ',' -or $c -eq '}' -or $c -eq ']') { break }
+            $end++
+        }
+    }
+    # Komma mit entfernen: direkt vor dem Key (",\"id\":{...}") oder dahinter.
+    # Vorwaerts-Scan auf das letzte nicht-leere Zeichen vor dem Key -
+    # robust gegen Kommas in Strings frueherer Werte.
+    $k = $keyStart - 1
+    while ($k -ge 0 -and [char]::IsWhiteSpace($Json[$k])) { $k-- }
+    if ($k -ge 0 -and $Json[$k] -eq ',') {
+        return $Json.Substring(0, $k) + $Json.Substring($end)
+    }
+    $after = $Json.Substring($end)
+    if ($after -match '^\s*,') {
+        $skip = $after.IndexOf(',') + 1
+        return $Json.Substring(0, $keyStart) + $after.Substring($skip)
+    }
+    return $Json.Substring(0, $keyStart) + $Json.Substring($end)
+}
+
+function Read-SysPilotFileRaw {
+    <# Liest eine Textdatei mit FileShare.ReadWrite - funktioniert auch
+       wenn ein Browser die Datei gerade schreibt/liest. #>
+    param([Parameter(Mandatory)][string]$Path)
+    $fs = New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    try {
+        $sr = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::UTF8)
+        try { return $sr.ReadToEnd() } finally { $sr.Close() }
+    } finally { $fs.Close() }
+}
+
+function Write-SysPilotFileRaw {
+    <# Schreibt Text OHNE BOM (UTF8-Encoding($false)) mit
+       FileShare.ReadWrite und Retry - Chromium-Prefs (Secure
+       Preferences/extensions.json) dürfen keinen BOM haben, sonst
+       werte der Browser die Datei evtl. als korrupt und stellt
+       Einträge wieder her. #>
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Content)
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    $lastErr = $null
+    for ($try = 0; $try -lt 4; $try++) {
+        try {
+            $fs = New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Create,
+                [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+            try {
+                $sw = New-Object System.IO.StreamWriter($fs, $enc)
+                try { $sw.Write($Content) } finally { $sw.Close() }
+            } finally { $fs.Close() }
+            return $true
+        } catch {
+            $lastErr = $_.Exception.Message
+            Start-Sleep -Milliseconds 300
+        }
+    }
+    throw "Schreiben fehlgeschlagen: $lastErr"
+}
+
+function Remove-SysPilotPrefExtensionEntry {
+    <# Entfernt eine Extension-ID aus extensions.settings UND
+       extensions.alerts einer Chromium-Prefs-Datei per Rohtext-Edit
+       (funktioniert auch bei doppelt verKeys wie in Edge-Dateien,
+       wo ConvertFrom/To-Json scheitert). Gibt $true bei Aenderung. #>
+    param([Parameter(Mandatory)][string]$FilePath, [Parameter(Mandatory)][string]$ExtId)
+    $raw = Read-SysPilotFileRaw -Path $FilePath
+    if (-not $raw) { return $false }
+    $new = $raw
+    foreach ($sub in @('settings', 'alerts')) {
+        # "extensions" kommt in Chromium-Prefs mehrfach vor
+        # (account_values.extensions.ui, protection.macs.extensions) -
+        # nur die Sektion mit dem jeweiligen Unter-Key ist die echte.
+        $extSec = Find-SysPilotJsonSection -Json $new -Key 'extensions' -MustContain $sub
+        if ($null -eq $extSec) { Write-SysPilotDebug "  PrefEdit $($FilePath | Split-Path -Leaf): extensions-Sektion fuer '$sub' nicht gefunden"; continue }
+        $subSec = Find-SysPilotJsonSection -Json $extSec.Text -Key $sub
+        if ($null -eq $subSec) { Write-SysPilotDebug "  PrefEdit $($FilePath | Split-Path -Leaf): '$sub'-Sektion nicht gefunden"; continue }
+        $subNew = Remove-SysPilotJsonPropertyText -Json $subSec.Text -Key $ExtId
+        if ($null -eq $subNew) { Write-SysPilotDebug "  PrefEdit $($FilePath | Split-Path -Leaf): ID $ExtId nicht in $sub"; continue }
+        Write-SysPilotDebug "  PrefEdit $($FilePath | Split-Path -Leaf): ID $ExtId aus $sub entfernt"
+        $innerNew = $extSec.Text.Substring(0, $subSec.Start) + $subNew + $extSec.Text.Substring($subSec.End)
+        $new = $new.Substring(0, $extSec.Start) + $innerNew + $new.Substring($extSec.End)
+    }
+    if ($new -ne $raw) {
+        Write-SysPilotFileRaw -Path $FilePath -Content $new | Out-Null
+        return $true
+    }
+    return $false
 }
 
 function Test-SysPilotLaunchablePath {
@@ -811,11 +1335,16 @@ function Save-SysPilotUrlToFile {
 }
 
 Export-ModuleMember -Function ConvertTo-SysPilotArgString, Test-SysPilotAdmin, Assert-SysPilotAdmin, Restart-SysPilotElevated,
-    Write-SysPilotLog, Get-SysPilotConfig, Reset-SysPilotConfig, Set-SysPilotConfigValue, Test-NameMatch,
+    Write-SysPilotLog, Write-SysPilotDebug, Get-SysPilotLogFiles, Get-SysPilotConfig, Reset-SysPilotConfig, Set-SysPilotConfigValue, Test-NameMatch,
     Get-SysPilotProcessByName, New-SysPilotBackup, Get-SysPilotBackupDir, Get-SysPilotBackups, Restore-SysPilotServices,
     Write-SysPilotHeader, Read-SysPilotChoice, Confirm-SysPilot, Show-SysPilotArrowMenu, Show-SysPilotMultiSelectMenu,
     Clear-SysPilotPendingKeys,
     Initialize-SysPilotConsoleInput, Restore-SysPilotConsoleInput, Read-SysPilotMenuEvent, Clear-SysPilotConsoleInputBuffer, Read-SysPilotYesNo,
     Save-SysPilotUrlToFile, Test-SysPilotLaunchablePath,
+    Find-SysPilotJsonSection, Get-SysPilotJsonSectionText, Get-SysPilotChromiumExtensionSettings,
+    Get-SysPilotJsonChildProperties, ConvertFrom-SysPilotJsonScalar, Get-SysPilotConsoleViewport,
+    Read-SysPilotFileRaw, Write-SysPilotFileRaw,
+    Remove-SysPilotJsonPropertyText, Remove-SysPilotPrefExtensionEntry,
     Write-SysPilotProgress, Complete-SysPilotProgress, Get-SysPilotShortcutPaths, Set-SysPilotShortcutRunAs,
-    Test-SysPilotGamingActive, Get-SysPilotPortableAppsDir, Get-SysPilotLocalSearchDirs
+    Test-SysPilotGamingActive, Get-SysPilotPortableAppsDir, Get-SysPilotLocalSearchDirs,
+    Get-SysPilotAutoFixStampPath, Test-SysPilotAutoFixDue, Save-SysPilotAutoFixStamp

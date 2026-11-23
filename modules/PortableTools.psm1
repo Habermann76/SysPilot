@@ -1,8 +1,9 @@
 # ======================================================================
-# SysPilot PortableTools.psm1 - Portable Apps & Store-Clients.
-# Laedt portable Programme (GitHub-Releases) nach PortableApps,
-# extrahiert ZIPs und startet sie. Uptodown Desktop wird wegen
-# Cloudflare-Schutz ueber die offizielle Seite installiert.
+# SysPilot PortableTools.psm1 - Apps & Store-Clients.
+# Verwaltet portale Programme (GitHub-Releases -> PortableApps),
+# klassische Installer, winget/Store-Apps und Web-Clients.
+# Klassische Installer werden mit Fortschritt geladen, SHA-geprueft
+# (wo Pin vorhanden) und silent oder interaktiv installiert.
 # ======================================================================
 
 # App-Definitionen: Name, Repo, Asset-Pattern (regex auf asset.name),
@@ -76,7 +77,17 @@ $script:PortableAppDefs = @(
         Repo = $null; AssetPattern = $null; Dir = 'UltimateWindowsTweaker'; Exe = 'Ultimate Windows Tweaker.exe';
         Type = 'zip'; DownloadMode = 'majorgeeks';
         DetailsUrl = 'https://www.majorgeeks.com/files/details/ultimate_windows_tweaker_5.html';
+        VersionPattern = 'Windows Tweaker for Windows 11\s+([\d.]+)'; AssetName = 'UWT5.zip';
         Web = 'https://www.thewindowsclub.com/ultimate-windows-tweaker-5-for-windows-11'
+    },
+    @{
+        Id = 'hostsman'; Name = 'HostsMan';
+        Desc = 'Hosts-Datei-Manager: eingebauter Editor, Online-Update, Block-Log, verschluesselte Backups - portabel (MajorGeeks/Abelhadigital)';
+        Repo = $null; AssetPattern = $null; Dir = 'HostsMan'; Exe = 'hm.exe';
+        Type = 'zip'; DownloadMode = 'majorgeeks';
+        DetailsUrl = 'https://www.majorgeeks.com/files/details/hostsman.html';
+        VersionPattern = 'HostsMan\s+([\d.]+)'; AssetName = 'HostsMan.zip';
+        Web = 'https://www.abelhadigital.com/'
     },
     @{
         Id = 'pcm'; Name = 'Microsoft PC Manager';
@@ -85,6 +96,16 @@ $script:PortableAppDefs = @(
         Type = 'storeapp'; MatchName = 'PC Manager';
         StoreUrl = 'ms-windows-store://pdp/?ProductId=9PM860492SZD';
         Web = 'https://microsoft-pc-manager.en.uptodown.com/windows/download'
+    },
+    @{
+        Id = 'mumu'; Name = 'MuMu Player';
+        Desc = 'NetEase Android-Emulator fuer Windows (Spiele + Apps, Multi-Instance, Keymapping) - offizieller Download, Installer mit eigener UI';
+        Repo = $null; AssetPattern = $null; Dir = $null; Exe = $null;
+        Type = 'installer';
+        InstallerUrl = 'https://api.mumuplayer.com/api/dl/win?channel=gw-win-download';
+        InstallArgs = '';
+        DisplayName = 'MuMu Player';
+        Web = 'https://www.mumuplayer.com/de/download/'
     },
     @{
         Id = 'flipboard'; Name = 'Flipboard';
@@ -128,6 +149,7 @@ function Find-SysPilotStoreApp {
         'ferdium'  { 'Ferdium' }
         'flipboard'{ 'Flipboard' }
         'pcm'      { 'PC Manager' }
+        'mumu'     { 'MuMu' }
         default    { $App.Name }
     }
     $reg = Get-ItemProperty $uninst -ErrorAction SilentlyContinue |
@@ -247,6 +269,9 @@ function Find-SysPilotPortableApp {
         'unigetui' { 'UniGetUI' }
         'komistore'{ 'Komi Store' }
         'uptodown' { 'Uptodown Desktop' }
+        'uwt'      { 'Ultimate Windows Tweaker' }
+        'hostsman' { 'HostsMan' }
+        'mumu'     { 'MuMu' }
         default    { $App.Name }
     }
     $hit = Get-ItemProperty $uninst -ErrorAction SilentlyContinue |
@@ -286,12 +311,17 @@ function Get-SysPilotGitHubAssetUrl {
 
 function Get-SysPilotMajorGeeksAsset {
     <# Liest eine MajorGeeks-Detailseite: Version + Mirror-URL.
-       Gibt ein Asset-Hashtable (wie GitHub) oder $null zurueck. #>
-    param([Parameter(Mandatory)][string]$DetailsUrl)
+       Gibt ein Asset-Hashtable (wie GitHub) oder $null zurueck.
+       VersionPattern/AssetName sind app-spezifisch (Default = UWT). #>
+    param(
+        [Parameter(Mandatory)][string]$DetailsUrl,
+        [string]$VersionPattern = 'Windows Tweaker for Windows 11\s+([\d.]+)',
+        [string]$AssetName = 'UWT5.zip'
+    )
     try {
         $html = (Invoke-WebRequest -Uri $DetailsUrl -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop).Content
         $version = $null
-        if ($html -match 'Windows Tweaker for Windows 11\s+([\d.]+)') { $version = $Matches[1] }
+        if ($html -match $VersionPattern) { $version = $Matches[1] }
         $mirror = $null
         if ($html -match 'href=["'']([^"'']*getmirror[^"'']*\.html)["'']') {
             $m = $Matches[1]
@@ -299,7 +329,7 @@ function Get-SysPilotMajorGeeksAsset {
             $mirror = $m
         }
         if (-not $mirror) { return $null }
-        return @{ Version = $(if ($version) { $version } else { 'unbekannt' }); Name = 'UWT5.zip'; SizeMB = $null; MirrorUrl = $mirror }
+        return @{ Version = $(if ($version) { $version } else { 'unbekannt' }); Name = $AssetName; SizeMB = $null; MirrorUrl = $mirror }
     } catch { return $null }
 }
 
@@ -351,8 +381,11 @@ function Install-SysPilotInstallerApp {
         }
         Write-Host '  [OK] SHA256 verifiziert (offizielle Prüfsumme)' -ForegroundColor Green
     }
-    Write-Host "  Installiere $($App.Name) (silent) ..." -ForegroundColor Cyan
-    $p = Start-Process $exe -ArgumentList $App.InstallArgs -Wait -PassThru
+    Write-Host "  Installiere $($App.Name) ..." -ForegroundColor Cyan
+    # InstallArgs kann leer sein (interaktiver Installer, z.B. MuMu)
+    $pargs = @{}
+    if ($App.InstallArgs) { $pargs['ArgumentList'] = $App.InstallArgs }
+    $p = Start-Process $exe @pargs -Wait -PassThru
     Remove-Item $exe -Force -ErrorAction SilentlyContinue
     if ($p.ExitCode -ne 0) {
         Write-Host "  [!] Installer meldet Code $($p.ExitCode) - evtl. trotzdem installiert, pruefe ..." -ForegroundColor Yellow
@@ -395,7 +428,8 @@ function Install-SysPilotPortableApp {
         return $existing.Path
     }
     if ($App.DownloadMode -eq 'majorgeeks') {
-        $asset = Get-SysPilotMajorGeeksAsset -DetailsUrl $App.DetailsUrl
+        $asset = Get-SysPilotMajorGeeksAsset -DetailsUrl $App.DetailsUrl `
+            -VersionPattern $App.VersionPattern -AssetName $App.AssetName
         if (-not $asset) {
             Write-Host "  [!] MajorGeeks-Info nicht lesbar ($($App.DetailsUrl))." -ForegroundColor Red
             return $null
@@ -522,12 +556,21 @@ function Show-SysPilotPortableAppsMenu {
                 $mark = if ($found -and $found.Path) { '[installiert]' } elseif ($found -and $found.Installed) { '[installiert*]' } else { '[nicht vorhanden]' }
                 $color = if ($found -and $found.Path) { 'Green' } else { 'White' }
             }
-            $items += @{ Label = "$($app.Name)  $mark"; Color = $color; Tag = "app:$($app.Id)" }
+            $typeTag = switch ($app.Type) {
+                'zip'        { 'portabel' }
+                'script'     { 'Skript' }
+                'installer'  { 'Installer' }
+                'winget'     { 'winget' }
+                'storeapp'   { 'Store' }
+                'web'        { 'Web' }
+                default      { $app.Type }
+            }
+            $items += @{ Label = "$($app.Name) [$typeTag] $mark"; Color = $color; Tag = "app:$($app.Id)" }
         }
         $items += @{ Label = 'Vollpaket: mehrere Apps zum Installieren auswaehlen'; Color = 'Yellow'; Tag = 'bulk' }
         $items += @{ Label = 'Status-Details anzeigen'; Color = 'DarkGray'; Tag = 'details' }
         $items += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
-        $sel = Show-SysPilotArrowMenu -Items $items -Title 'SysPilot - Portable Apps & Store-Clients' -Footer 'Pfeiltasten, Enter = auswaehlen, Esc = zurueck'
+        $sel = Show-SysPilotArrowMenu -Items $items -Title 'SysPilot - Apps & Store-Clients' -Footer 'Pfeiltasten, Enter = auswaehlen, Esc = zurueck'
         if ($null -eq $sel) { return }
 
         if ($sel -eq 'bulk') {
@@ -594,4 +637,4 @@ function Show-SysPilotPortableAppsMenu {
 Export-ModuleMember -Function Find-SysPilotPortableApp, Get-SysPilotGitHubAssetUrl,
     Install-SysPilotPortableApp, Start-SysPilotPortableApp, Show-SysPilotPortableAppsMenu,
     Find-SysPilotStoreApp, Install-SysPilotWingetApp, Start-SysPilotStoreApp,
-    Install-SysPilotInstallerApp
+    Install-SysPilotInstallerApp, Get-SysPilotMajorGeeksAsset, Save-SysPilotMajorGeeksFile

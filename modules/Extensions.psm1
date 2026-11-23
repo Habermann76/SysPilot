@@ -9,6 +9,10 @@ function Get-SysPilotBrowserProfiles {
         @{ Name = 'Edge';    Path = "$env:LOCALAPPDATA\Microsoft\Edge\User Data";       ExtSub = 'Extensions'; Settings = 'edge://extensions/' },
         @{ Name = 'Brave';   Path = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data"; ExtSub = 'Extensions'; Settings = 'brave://extensions/' },
         @{ Name = 'Opera';   Path = "$env:APPDATA\Opera Software\Opera Stable";         ExtSub = 'Extensions'; Settings = 'opera://extensions/' },
+        # KI-Browser (Chromium-Forks): einzeln verwaltbar, aber in der
+        # Extension-Entfernung NICHT in „Alle Browser"/Cross-Matching einbezogen
+        @{ Name = 'Perplexity Comet'; Path = "$env:LOCALAPPDATA\Perplexity\Comet\User Data"; ExtSub = 'Extensions'; Settings = 'chrome://extensions/'; AiBrowser = $true },
+        @{ Name = 'BrowserOS';       Path = "$env:LOCALAPPDATA\BrowserClaw\User Data";       ExtSub = 'Extensions'; Settings = 'chrome://extensions/'; AiBrowser = $true },
         @{ Name = 'Firefox'; Path = "$env:APPDATA\Mozilla\Firefox\Profiles";            ExtSub = '';           Settings = 'about:addons' }
     )
     foreach ($b in $browsers) {
@@ -21,7 +25,27 @@ function Get-SysPilotBrowserProfiles {
             # Chromium: Default + Profile *
             $dirs = @(Get-ChildItem $b.Path -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'Default' -or $_.Name -like 'Profile *' })
             foreach ($d in $dirs) {
-                $profiles += [PSCustomObject]@{ Browser = $b.Name; Profil = $d.Name; Pfad = $d.FullName; Settings = $b.Settings }
+                $profiles += [PSCustomObject]@{ Browser = $b.Name; Profil = $d.Name; Pfad = $d.FullName; Settings = $b.Settings; AiBrowser = [bool]$b.AiBrowser }
+            }
+        }
+    }
+    # Tor Browser (Firefox-basiert, portabel): profile* unter
+    # TorBrowser\Data\Browser - uebliche Installationsorte ist der Desktop
+    $deskTop = [Environment]::GetFolderPath('Desktop')
+    $pubDesk = [Environment]::GetFolderPath('CommonDesktopDirectory')
+    $torRoots = @(
+        (Join-Path $deskTop 'Tor Browser'), (Join-Path $pubDesk 'Tor Browser'),
+        "$env:LOCALAPPDATA\Tor Browser",
+        'C:\Program Files\Tor Browser', 'C:\Program Files (x86)\Tor Browser'
+    )
+    foreach ($r in $torRoots) {
+        foreach ($sub in @('Browser\TorBrowser\Data\Browser', 'TorBrowser\Data\Browser', 'Data\Browser')) {
+            $profRoot = Join-Path $r $sub
+            if (Test-Path $profRoot) {
+                Get-ChildItem $profRoot -Directory -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -like 'profile*' } | ForEach-Object {
+                        $profiles += [PSCustomObject]@{ Browser = 'Tor'; Profil = $_.Name; Pfad = $_.FullName; Settings = 'about:addons' }
+                    }
             }
         }
     }
@@ -36,8 +60,8 @@ function Get-SysPilotExtensions {
     $all = @()
 
     foreach ($p in $profiles) {
-        if ($p.Browser -eq 'Firefox') {
-            # Firefox: extensions.json
+        if ($p.Browser -in @('Firefox', 'Tor')) {
+            # Firefox/Tor: extensions.json
             $json = Join-Path $p.Pfad 'extensions.json'
             if (Test-Path $json) {
                 try {
@@ -47,7 +71,7 @@ function Get-SysPilotExtensions {
                         $name = $a.defaultLocale.name
                         if (-not $name) { $name = $a.id }
                         $all += [PSCustomObject]@{
-                            Browser = 'Firefox'; Profil = $p.Profil; Name = $name
+                            Browser = $p.Browser; Profil = $p.Profil; Name = $name
                             Id = $a.id; Aktiv = (-not $a.userDisabled); Version = $a.version
                             Kategorie = Get-ExtensionCategory -Name $name -Cats $cats
                             Settings = $p.Settings
@@ -61,12 +85,12 @@ function Get-SysPilotExtensions {
             if (-not (Test-Path $extDir)) { continue }
 
             # Installierte Erweiterungen aus 'Secure Preferences' lesen (dort stehen sie wirklich)
+            # Lenient-Parser: funktioniert auch bei doppelten JSON-Schluesseln (Edge!)
             $prefFile = Join-Path $p.Pfad 'Secure Preferences'
             if (-not (Test-Path $prefFile)) { $prefFile = Join-Path $p.Pfad 'Preferences' }
             if (-not (Test-Path $prefFile)) { continue }
             try {
-                $pref = Get-Content $prefFile -Raw -Encoding UTF8 | ConvertFrom-Json
-                $settings = $pref.extensions.settings
+                $settings = Get-SysPilotChromiumExtensionSettings -PrefPath $prefFile
                 if (-not $settings) { continue }
                 foreach ($prop in $settings.PSObject.Properties) {
                     $entry = $prop.Value

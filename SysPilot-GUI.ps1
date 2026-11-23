@@ -210,6 +210,8 @@ $xaml = @"
         <Button x:Name="BtnNight" Content="Nacht"/>
         <Button x:Name="BtnLHM" Content="Temp-Sensor" ToolTip="LibreHardwareMonitor installieren (echte CPU-Temperatur)"/>
         <Button x:Name="BtnMenu" Content="Vollmenue"/>
+        <Button x:Name="BtnHealth" Content="Health" ToolTip="SMART Health Monitor: Festplatten, Temperatur, Batterie, Uptime"/>
+        <Button x:Name="BtnUpdates" Content="Update-Center" ToolTip="Update/Download-Center: winget+Chocolatey Scan, Programm-Katalog, GitHub/ MajorGeeks Downloads"/>
       </WrapPanel>
     </Border>
   </Grid>
@@ -233,7 +235,7 @@ $ctrl = @{}
 foreach ($n in 'CpuText','CpuSpeed','CpuBar','RamText','RamDetail','RamBar','DiskText','DiskDetail','DiskBar',
                  'SysCpu','SysProcs','SysBattery','SysUptime','HogList','AdminBadge','PlanBadge','WatchBadge','VersionBadge',
                  'TempBig','TempStatus','TempSource','TempUnitLabel',
-                 'BtnCheckup','BtnToolbox','BtnDns','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnAdmin','BtnUpdate') {
+                 'BtnCheckup','BtnToolbox','BtnDns','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnHealth','BtnUpdates','BtnAdmin','BtnUpdate') {
     $ctrl[$n] = $win.FindName($n)
 }
 
@@ -741,6 +743,7 @@ $ctrl.BtnAdmin.Add_Click({
 $ctrl.BtnCheckup.Add_Click({ Show-SysPilotCheckupWindow })
 $ctrl.BtnToolbox.Add_Click({ Show-SysPilotToolboxWindow })
 $ctrl.BtnDns.Add_Click({ Start-SysPilotToolFromGui -Tool 'dns' -FromGui })
+$ctrl.BtnUpdates.Add_Click({ Start-SysPilotToolFromGui -Tool 'updates' -FromGui })
 $ctrl.BtnHealth.Add_Click({ Start-SysPilotToolFromGui -Tool 'health' -FromGui })
 $ctrl.BtnAuto.Add_Click({
     $msg = "VOLLAUTOMATIK (Auto-Optimierung)`n`n1. Backup (Dienste, Registry, Energieplaene)`n2. Dienste optimieren (nur gepruefte Empfehlungen)`n3. Sicher unnoetige Windows-Features aus`n4. Tweaks: Game Mode an, Werbung aus, Optik bleibt huebsch`n5. Prozess-Prioritaeten anwenden`n`nBraucht Admin. Jetzt starten?"
@@ -963,7 +966,7 @@ $win.Add_KeyDown({
     param($s, $e)
     if ($e.Key -eq 'Escape') { $win.Close(); return }
     if ($e.Key -eq 'Left' -or $e.Key -eq 'Right' -or $e.Key -eq 'Up' -or $e.Key -eq 'Down') {
-$buttons = @($ctrl.BtnCheckup,$ctrl.BtnToolbox, $ctrl.BtnDns, $ctrl.BtnHealth, $ctrl.BtnAuto, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu)
+$buttons = @($ctrl.BtnCheckup,$ctrl.BtnToolbox, $ctrl.BtnDns, $ctrl.BtnHealth, $ctrl.BtnAuto, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu, $ctrl.BtnUpdates)
         $buttons = @($ctrl.BtnUpdate) + $buttons
         if ($ctrl.BtnAdmin.Visibility -eq 'Visible') { $buttons = @($ctrl.BtnAdmin) + $buttons }
         $focused = [System.Windows.Input.Keyboard]::FocusedElement

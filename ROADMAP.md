@@ -1,5 +1,45 @@
 # SysPilot — Roadmap
 
+## Version 0.9.4.9 (NEU)
+
+- ✅ **CleanSweep / UninstallManager.psm1**: Deinstallations-Center nach
+  REA-Funktionsanalyse von IObit Uninstaller (Delphi/VCL — unabhängig
+  nachgebaut, kein Code/UI kopiert)
+- ✅ **Programme**: 4 Registry-Sichten (HKLM64/32, HKCU64/32),
+  UninstallString/QuietUninstallString, MSI `/x /qn`, Silent-Heuristik
+  (Inno/NSIS/InstallShield), Batch mit Nummern+Filter, Reboot-Erkennung
+  (3010/1641), optionaler Wiederherstellungspunkt
+- ✅ **Windows-Apps**: AppX/MSIX-Inventar (NonRemovable/IsFramework/
+  IsResourcePackage gefiltert), Remove-AppxPackage, provisionierte
+  Pakete für neue Nutzer
+- ✅ **Browser-Erweiterungen**: Chromium (Secure/Preferences-JSON +
+  Extensions-Ordner + Local/Sync Settings, Backup vor Edit) und
+  Firefox (extensions.json + XPI-Dateien) — echter Entfernen-Flow
+- ✅ **Reste-Scanner**: Dateien, Registry (Software/Run/AppPaths/
+  MUICache), Dienste, geplante Aufgaben, Autostarts, Shortcuts —
+  Sicherheits-Score 0-100, Papierkorb für Dateien, .reg-Export-Backup
+- ✅ **Verwaiste Programme**: Ordner ohne Uninstall-Eintrag in
+  Program Files/LocalAppData\Programs/ProgramData (normalisierter
+  Namensabgleich, Windows-Inbox ausgeblendet)
+- ✅ **Defekte Einträge**: Uninstall-Keys mit fehlendem Exe oder ohne
+  UninstallString — Registry-Entfernung mit Backup oder Force-Uninstall
+- ✅ **Force-Uninstall**: manueller Pfad → Ziel + alle passenden Reste
+- ✅ **Windows-Updates**: KB-Liste (Win32_QuickFixEngineering),
+  wusa /uninstall /kb: mit Bestätigung
+- ✅ **Update / Download Center** (`SoftwareUpdateCenter.psm1`,
+  Key `updates`): winget+Chocolatey-Scan, 147-App-Katalog in 7
+  Kategorien, GitHub-Releases, MajorGeeks-Resolver, Web-Kataloge
+  (site:-Suche via Ecosia/Brave/Google), Auto-Update + Fehlerspeicher
+  mit Retry-Modi, Paketmanager-Integration (`PackageManagers.psm1`:
+  14 Manager, WSL-PMs, Unified-Search, Manager-Install inkl.
+  WSL-Distros), GUI & Erweiterungen (UniGetUI portabel, Chocolatey
+  GUI, OuiGui, AppStore-Ext), WSL-Verwaltung (Distro-Picker,
+  WSL Manager, .wslconfig-GUI-Apps), Cross-Manager-Fallbacks +
+  Alt-Manager-Installation, Auto-Fix-Framework für Warnungen
+- ✅ Integration: Vollmenü (`uninstall`, `updates`), `-Tool uninstall`/`updates`,
+  Toolbox-Einträge „CleanSweep" + „Update / Download Center";
+  `version.txt` = 0.9.4.9
+
 ## Version 0.9.4.8 (NEU)
 
 - ✅ **Maussteuerung im Textmenü**: Console-API (P/Invoke) — Klick, Mausrad,

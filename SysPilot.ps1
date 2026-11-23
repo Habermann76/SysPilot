@@ -4,6 +4,7 @@
 param(
     [switch]$Autopilot,
     [switch]$CheckupAuto,
+    [switch]$UpdateAuto,
     [switch]$Guardian,
     [switch]$Loop,
     [string]$Tool,
@@ -42,6 +43,17 @@ if ($CheckupAuto) {
             $fixed = Invoke-SysPilotCheckupFix -Results $fixable
             Write-SysPilotLog "Checkup (geplant): $fixed Bereiche automatisch behoben"
         }
+    }
+    return
+}
+
+# Automatisches Update (fuer geplante Aufgabe "SysPilot Update"): scannt und installiert alle winget/choco-Updates silent
+if ($UpdateAuto) {
+    if (Get-Command Invoke-SysPilotAutoUpdate -ErrorAction SilentlyContinue) {
+        $r = Invoke-SysPilotAutoUpdate -Quiet
+        Write-SysPilotLog "UpdateAuto: $($r.Ok)/$($r.Total) aktualisiert, $($r.Fail) Fehler"
+    } else {
+        Write-SysPilotLog 'UpdateAuto: SoftwareUpdateCenter-Modul nicht geladen'
     }
     return
 }
@@ -220,6 +232,7 @@ function Show-SysPilotMenu {
         @{ Label = 'Autostart-Manager';                            Color = 'White';    Tag = 'startup' }
         @{ Label = 'HOSTS-Editor (Eintraege, Sperre, DNS-Flush)';   Color = 'White';    Tag = 'hosts' }
         @{ Label = 'Programme deinstallieren (Bloatware-Finder)';  Color = 'White';    Tag = 'bloat' }
+        @{ Label = 'CLEANSWEEP (Deinstallations-Center: Programme, WinApps, Extensionen, Reste)'; Color = 'Green'; Tag = 'uninstall' }
         @{ Label = 'OPTIMIZER AUSMISTEN (auswaehlen, welche bleiben)'; Color = 'Magenta'; Tag = 'optimizers' }
         @{ Label = 'AUTO-OPTIMIERUNG (Dienste + Features + Tweaks, mit Backup)'; Color = 'Green'; Tag = 'autooptimize' }
         @{ Label = 'Dienste optimieren';                           Color = 'White';    Tag = 'services' }
@@ -240,7 +253,8 @@ function Show-SysPilotMenu {
         @{ Label = 'WINDOWS-11-UI (Taskbar, Kontextmenue, Admin-Eintraege)'; Color = 'Cyan'; Tag = 'win11ui' }
         @{ Label = 'LAUFZEITEN (VC++, .NET, .NET Framework, AIO Runtimes)'; Color = 'Green'; Tag = 'runtimes' }
         @{ Label = 'STAMMZERTIFIKATE aktualisieren (Root-Certs)'; Color = 'Yellow'; Tag = 'rootcerts' }
-        @{ Label = 'PORTABLE APPS & STORE-CLIENTS (UniGetUI, Komi, Uptodown, WinUtil, WinToys, iTop Easy Desktop, Ferdium, Flipboard)'; Color = 'Green'; Tag = 'papps' }
+        @{ Label = 'APPS & STORE-CLIENTS (UniGetUI, Komi, Uptodown, WinUtil, WinToys, iTop Easy Desktop, Ferdium, Flipboard, MuMu)'; Color = 'Green'; Tag = 'papps' }
+        @{ Label = 'UPDATE / DOWNLOAD CENTER (winget, Chocolatey, Katalog, GitHub, MajorGeeks)'; Color = 'Green'; Tag = 'updates' }
         @{ Label = 'DATENSCHUTZ & WERBE-FIX (PrivacyGuard)'; Color = 'Magenta'; Tag = 'privacyfix' }
         @{ Label = 'NETZWERKADAPTER identifizieren (was ist vgate0?)'; Color = 'Cyan'; Tag = 'adapters' }
         @{ Label = 'AUTOMATIC CHECKUP (Komplett-Scan, Erklaerungen, Reparatur)'; Color = 'Green'; Tag = 'checkup' }
@@ -691,12 +705,14 @@ function Invoke-SysPilotTool {
         'runtimes'     { Show-SysPilotRuntimesMenu; return }
         'rootcerts'    { Show-SysPilotRootCertMenu; return }
         'papps'        { Show-SysPilotPortableAppsMenu; return }
+        'updates'      { Show-SysPilotUpdateCenter; return }
         'privacyfix'   { Show-SysPilotPrivacyFix; return }
         'adapters'     { Show-SysPilotNetworkAdapters; return }
         'winupdate'    { Update-SysPilotWindows; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'backup'       { $b = New-SysPilotBackup -Label 'tool'; Write-Host "  Backup: $b" -ForegroundColor Green; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'cleanup'      { Show-SysPilotCleanupMenu; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'bloat'        { Show-SysPilotBloatManager; return }
+        'uninstall'    { Show-SysPilotUninstallMenu; return }
         'optimizers'   { Show-SysPilotOptimizerManager; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'uwp'          { Show-SysPilotUwpManager; return }
         'shortcuts'    { Show-SysPilotShortcutFixer; Read-SysPilotChoice 'Weiter' | Out-Null; return }

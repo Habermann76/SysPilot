@@ -1,4 +1,4 @@
-# SysPilot – Agenten-Regeln für Cline/Copilot
+﻿# SysPilot – Agenten-Regeln für Cline/Copilot
 
 ## Produktzusammenfassung
 SysPilot ist ein reiner PowerShell-WPF-Tool zur Systemdiagnose und -automatisierung.
@@ -68,9 +68,27 @@ function Start-SysPilotToolFromGui {
 - Launchable-Pfade: nur `Test-SysPilotLaunchablePath`-Extensions (.exe/.bat/.cmd/.com/.ps1/.lnk/.url/.msc/.reg) — nie .ico starten ("Oeffnen mit"-Dialog); PWA/Store-Apps via `Find-SysPilotStoreApp`/`shell:AppsFolder`
 - Portable-App-Typen in PortableTools.psm1: zip/script/winget/web/installer/majorgeeks/storeapp; `Get-StartApps` 20s-Cache ($script:_startAppsCache)
 
+## CleanSweep / UninstallManager.psm1 (0.9.4.9, verbindlich)
+- Eigenständige Implementierung nach REA-Analyse von `IObitUninstaler.exe` (Delphi/VCL; Ghidra-Timeout → PE-Resources+Strings genügten; kein Code kopiert). Key `uninstall`.
+- **Unquotierte UninstallStrings**: Parser scannt bis zum ersten `.exe`-Token — sonst Fehlalarm „defekter Eintrag" (Pfad mit Leerzeichen ohne Quotes).
+- **4 Uninstall-Registry-Sichten**: HKLM 64/32 + HKCU 64/32.
+- **Verwaiste Programme**: Ordner ohne Uninstall-Eintrag (normalisierter Namensabgleich); Windows-Inbox-/Systemordner IMMER ausblenden.
+- **Leftover-Scanner**: Security-Score pro Fund; Dateien→Papierkorb, Registry→`.reg`-Backup (`backup\leftovers`); nie ohne Bestätigung löschen; SysPilot-Installationsordner nie pauschal als Rest.
+- **Browser-Extensions**: Chromium via Secure/Preferences-JSON + Firefox via extensions.json; Backup unter `backup\extensions`; laufende Browser warnen.
+- **Destruktiv**: IMMER `Confirm-SysPilot` + `Write-SysPilotLog`; Restore-Point nur auf Wunsch (Admin); wusa nur mit Bestätigung.
+
+## Paketmanager & Update-Center (0.9.4.9, verbindlich)
+- **PackageManagers.psm1**: 14 Manager in `Get-SysPilotPackageManagerDefs`; Linux-PMs (apt/dnf/pacman/flatpak/snap) laufen via WSL-Distros, `docker-desktop` ausschließen. Outdated-Scan fließt in Update-Scan + Auto-Update (`Source='pm:<mgr>'`, Dispatch `Invoke-SysPilotPmUpgrade`).
+- **WSL**: `wsl.exe`-Output ist UTF-16 mit Null-Bytes → Null-Bytes vor Parsen entfernen. Distro-Install `wsl --install <name>` + PM-Einrichtung via `wsl -u root -d <d> -- <pm>`; `.wslconfig`-GUI-Apps nur ergänzen, nie überschreiben.
+- **choco**: NIE auf `choco upgrade`-Exitcode vertrauen (0 auch bei „0/N updated" + „not found in source") → `Invoke-SysPilotChocoUpgradeAuto` parst `upgraded X/Y`. `choco outdated` zeigt Phantom-Rows mit gleicher Version → immer Versionsvergleich. `choco list` ist langsam → 10-Min-Cache; UniGetUI hat eigene Chocolatey-Installation unter `%LOCALAPPDATA%\UniGetUI\Chocolatey`.
+- **pip**: Self-Upgrade nur via `python -m pip` (`Get-SysPilotPythonExeForPip`).
+- **winget**: `Invoke-SysPilotWingetRaw` = Process+ReadToEndAsync+Timeout. FailKinds: not-applicable/publisher/admin/timeout. Auto-Skip nach 2× not-applicable/publisher (State in `%LOCALAPPDATA%\SysPilot`, nicht Program Files!).
+- **Fallbacks**: `Invoke-SysPilotWingetUpdateAuto` (winget→elevated --force→choco/scoop falls installiert); `Show-SysPilotAltManagerInstallMenu` (Remote-Suche choco/scoop, `-Adopt` für choco-Übernahme). Ehrliche Labels: offiziell/Community/Legacy — keine Fake-Extension-Claims.
+- **Auto-Fix-Stamps**: `Test-/Save-SysPilotAutoFixStamp` in Common.psm1 (`%LOCALAPPDATA%\SysPilot\autofix\`) für Scoop-Buckets, Self-Updates, NuGet-Provider, winget source.
+
 ## Bekannte externe Fehler (0.9.4.6)
 - **PowerShell.MCP**: Der MCP-Server-Pfad in `C:\Users\haber\.cline\data\settings\cline_mcp_settings.json` muss zur installierten Modulversion passen (`...\PowerShell.MCP\<Version>\bin\win-x64\PowerShell.MCP.Proxy.exe`). Modul 1.17.1 installiert → Proxy muss 1.17.1 sein.
 - **Grosse PowerShell-Strings**: Cline-Toolkette kann grosse Dateien nicht schreiben → landmark: Datei enthält `[... truncated, this is a large file ...]`. Danach `git show HEAD:<file>` restaurieren und Änderung mit Datei-Tools wiederholen.
 - **Inline-Skripte vermeiden**: komplexe Befehle als .ps1-Datei schreiben und mit `-File` ausführen.
 
-*Erstellt: 09.11.2026 – aktualisiert: 23.11.2026 (0.9.4.8: Maussteuerung im Textmenü, PortableTools/Runtimes/PrivacyFix/RootCertificates, Win11-Kontextmenü-Reparatur, Restart-SysPilot, QuickEdit/Event-Queue-Fixes, Sync installierte Version)*
+*Erstellt: 09.11.2026 – aktualisiert: 24.11.2026 (0.9.4.9: CleanSweep/UninstallManager, PackageManagers/WSL/Companions, Update-Fallback-Kette, Alt-Manager-Installation, Auto-Fix-Framework; 0.9.4.8: Maussteuerung, PortableTools/Runtimes/PrivacyFix/RootCertificates, Win11-Kontextmenü-Reparatur, Restart-SysPilot, QuickEdit/Event-Queue-Fixes)*

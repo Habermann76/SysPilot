@@ -91,7 +91,37 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 - Nicht verwenden: Simultanes $args +=-Füllen
 
 ## Aktuelle Version
-- **0.9.4.8** ist der aktuelle Stand (neu: Runtimes.psm1 – VC++/.NET/.NET
+- **0.9.4.9** ist der aktuelle Stand (neu: UninstallManager.psm1 –
+  „CleanSweep" Deinstallations-Center nach REA-Funktionsanalyse von
+  IObit Uninstaller; Key `uninstall`; **SoftwareUpdateCenter.psm1 –
+  Update/Download-Center, Key `updates`**: winget+Chocolatey-Scan,
+  147-App-Katalog in 7 Kategorien, GitHub-Releases, MajorGeeks-Resolver
+  (89 Apps), Web-Kataloge; nach Analyse von IObit Software Updater,
+  UpdateHub=Nexova (winget-Engine) und Patch My PC Home Updater;
+  **PackageManagers.psm1 – Paketmanager-Integration** (Registry über
+  14 Manager: WinGet, Chocolatey, Scoop, pip, npm, Bun, .NET Tool,
+  PSGallery, Homebrew, APT/DNF/Pacman/Flatpak/Snap via WSL;
+  Auto-Erkennung, Outdated-Scan merged in Update-Scan + Auto-Update,
+  Suche in ALLEN Managern, Install fehlender Manager inkl.
+  WSL-Distro-Einrichtung, `Show-SysPilotWslMenu` mit Live-Distro-
+  Picker (`wsl --list --online`, 25 Distros), WSL-Manager
+  (Bostrot.WSLManager), `.wslconfig`-GUI-Apps, `Show-SysPilotPm-
+  CompanionsMenu` „GUI & Erweiterungen": UniGetUI portabel,
+  Chocolatey GUI offiziell, OuiGui Chocolatey Community,
+  Chocolatey AppStore Chrome-Ext (gepflegt), Legacy choco-chrome-ext
+  (2016, ehrlich gelabelt), PM-Katalog-Links);
+  **Update-Robustheit**: `Invoke-SysPilotWingetUpdateAuto` =
+  winget → elevated-`--force`-Retry → Chocolatey/Scoop-Fallback
+  (nur wenn der Manager das Paket wirklich installiert hat,
+  exakter Match gegen gecachte `choco list`/`scoop list`);
+  `Show-SysPilotAltManagerInstallMenu` = Remote-Suche in choco/scoop
+  wenn winget-Download unmöglich (Katalog-Install + Failed-Retry,
+  `-Adopt` für choco-Übernahme bestehender Apps);
+  **Auto-Fix-Framework** (Common.psm1 Stamps): Scoop-Bucket-Git-
+  Reparatur (packed-refs/tmp_leichen/locks), Self-Updates von
+  npm/pip/choco, NuGet-Provider, winget source update — alles
+  gedrosselt 24h–30d);
+  0.9.4.8 (neu: Runtimes.psm1 – VC++/.NET/.NET
   Framework/AIO-Manager; RootCertificates.psm1 – portable
   UpdateRootCertificates-Tool-Verwaltung; PortableTools.psm1 –
   UniGetUI/Komi-Store/Uptodown-Desktop/WinUtil portable Apps + WinToys
@@ -350,6 +380,129 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
   NICHT `Windows.UI.FileExplorer.dll`, das existiert nicht), startet
   Explorer neu. HKLM-Befunde loesen Admin-Neustart-Angebot aus.
   Live getestet: Override anlegen → Classic, Funktion → Win11.
+- **CleanSweep / UninstallManager.psm1 (0.9.4.9)**: eigenstaendige
+  SysPilot-Implementierung nach REA-Funktionsanalyse von
+  `IObitUninstaler.exe` (Delphi/VCL, ~10,6 MB, x86; Ghidra-Timeout wie
+  bei SDI → PE-Resources + ~116k Strings genuegten; kein Code kopiert).
+  Key `uninstall` (Vollmenue, -Tool, Toolbox „System bereinigen").
+  WICHTIGE Fallen aus der Implementierung:
+  - **Unquotierte UninstallStrings**: viele Eintraege sind
+    `C:\PF\App\uninst.exe /x` OHNE Anfuehrungszeichen trotz Leerzeichen
+    im Pfad. Parser muss bis zum ersten `.exe`-Token scannen, sonst
+    faelschlich „defekter Eintrag" (9 Fehlalarme → Parser gefixt → 0).
+  - **4 Registry-Sichten**: HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\
+    Uninstall, HKLM\SOFTWARE\WOW6432Node\...\Uninstall, HKCU-Varianten.
+  - **Verwaiste Programme**: Ordner-Match per normalisiertem Namen gegen
+    das komplette Programm-Inventar; Windows-Inbox-/Systemordner
+    (Microsoft.*, Windows*, Intel, NVIDIA, Common Files, Servicing,
+    Fonts, Microsoft.NET) IMMER ausblenden — sonst ~30 Fehlalarme.
+  - **Leftover-Scanner**: Security-Score 0-100 pro Fund. Dateien→
+    Papierkorb, Registry→`.reg`-Export-Backup unter
+    `backup\leftovers\<ts>`, nie hart loeschen ohne Bestaetigung.
+    Eigener SysPilot-Installationsordner darf nicht pauschal als Rest
+    gelten — nur explizit gescannt.
+  - **Browser-Extensions**: Chromium via `Secure Preferences`/`Preferences`
+    (JSON — `extensions.settings.<id>` + `extensions.alerts.<id>`
+    entfernen, `Extensions\<id>`-Ordner + Local/Sync Extension Settings
+    in Papierkorb; Backup unter `backup\extensions`). Firefox via
+    `extensions.json`. Laufende Browser warnen (Profil-Lock).
+  - **Destruktive Aktionen**: IMMER `Confirm-SysPilot` + Log via
+    `Write-SysPilotLog`; Restore-Point nur auf expliziten Wunsch
+    (Checkpoint-Computer braucht Admin); wusa nur mit Bestaetigung.
+  - **Edge/Secure-Preferences-Falle (0.9.4.9)**: Edge-Dateien enthalten
+    DUPLIKATE JSON-Schluessel (`macroEnabled.12`/`macroenabled.12`,
+    Filetype-MIME-Types in Extension-Eintraegen) → `ConvertFrom-Json`
+    wirft komplett → Edge lieferte 0 Extensions. Loesung in Common.psm1:
+    `Get-SysPilotJsonChildProperties` (Scanner fuer direkte Kind-Keys),
+    `Get-SysPilotChromiumExtensionSettings` (Fallback baut minimal-
+    objets manifest.name/version/type+state), `Remove-SysPilotPref-
+    ExtensionEntry` (roh-Text-Edit von settings+alerts inkl. Komma —
+    NIE ConvertTo-Json-Rewrite, der wuerde die Datei zerstoeren).
+    Live: Edge 0 → 248 Extensions, Gesamt 425 → 674.
+  - **Tor Browser**: Firefox-basiert, portabel → `Get-SysPilotBrowser-
+    Profiles` sucht `TorBrowser\Data\Browser\profile*` auf Desktop
+    (OneDrive-sicher via GetFolderPath), LOCALAPPDATA, Program Files;
+    Engine='firefox' (extensions.json), Browser-Label 'Tor'.
+  - **Multiselect-Fenster (0.9.4.9)**: `Show-SysPilotMultiSelectMenu`
+    zeichnet bei >25 Eintraegen nur ein Scroll-Fenster ($viewTop/
+    $viewEnd, Maus-Row→Index via $viewTop-Offset, Footer zeigt
+    „Eintrag x/y") — vorher flackerte die Anzeige bei jedem Hover
+    (Clear-Host + 400+ Zeilen). Key 'A' (65) = alle abhaecken.
+  - **Extension-Removal-Loop**: `Show-SysPilotExtensionRemoval` lädt
+    nach jeder Entfernung das Inventar neu → erlaubt Batch (mehrere
+    markieren + Enter) UND einzeln-nach-und-nach; Filter bleibt aktiv.
+
+### Paketmanager & Update-Center (0.9.4.9, verbindlich)
+- **PackageManagers.psm1**: Registry in `Get-SysPilotPackageManagerDefs`
+  (Id/Name/Kind/Exe/UpgradeHint); `Get-SysPilotPackageManagers` merged
+  Windows- und WSL-PMs (Linux-PMs laufen über `wsl -d <distro> -- <cmd>`,
+  `docker-desktop` wird als Infrastruktur-Distro ausgeschlossen).
+  Outdated-Quellen: scoop (`Invoke-SysPilotScoopRaw` — scoop.cmd
+  umgeht PS-Redirection, WARNs nur via `cmd /c` sichtbar),
+  npm (`npm outdated -g --json`), pip (PyPI-JSON pro Paket),
+  dotnet (`dotnet tool list -g`), PSGallery (`Find-Module` +
+  `Get-InstalledModule`; NuGet-Provider >= 2.8.5.208 nötig).
+- **WSL-Falle**: `wsl.exe` gibt UTF-16 mit Null-Bytes aus → IMMER
+  `[regex]::Replace($out,"`0",'')` vor dem Parsen (`Get-SysPilotWslStatus`,
+  `Get-SysPilotWslOnlineDistros`). Distro-Install: `wsl --install <name>`
+  (WSL 3.x), Fallback `-d <name>`; PM-Einrichtung via
+  `wsl -u root -d <distro> -- <pm>` + `command -v`-Verify;
+  `apt-get update` kann beim ersten Mal >60s brauchen → Timeout 300.
+- **choco-Fallen (live verifiziert)**:
+  - `choco outdated` listet Pakete mit **identischer Version**
+    (chocolatey.server 0.3.0|0.3.0) → Phantom-Updates; IMMER
+    Versionsvergleich (`ConvertTo-SysPilotVerObj`) vor dem Row-Bau.
+  - `choco upgrade` **exit 0 bei 0/N aktualisiert** + Warning
+    „was not found with the source(s)" → NIE auf $LASTEXITCODE
+    vertrauen; `Invoke-SysPilotChocoUpgradeAuto` parst
+    `Chocolatey upgraded X/Y` + Source-Warnings.
+  - `choco list --local-only` ist langsam (~10-20s) → 10-Min-Cache
+    ($script:_chocoNamesCache); Package-Erkennung sonst über lib-Ordner
+    (`$env:ProgramData\chocolatey\lib\<pkg>` UND
+    `$env:LOCALAPPDATA\UniGetUI\Chocolatey\lib\<pkg>` — UniGetUI bringt
+    eine EIGENE Chocolatey-Installation mit!).
+  - MSI-Pakete (chocolateygui) hinterlassen leere `InstallLocation`/
+    `DisplayIcon` im Uninstall-Key → Install-Pfad zusätzlich aus
+    `C:\Program Files (x86)\<Name>` + lib-Rekursivscan prüfen.
+  - `choco search <begriff> --limit-output` → `id|version`-Zeilen;
+    Ergebnisse für Remote-Kandidaten (`Find-SysPilotChocoRemoteCandidates`).
+- **pip-Falle**: `pip.exe install --upgrade pip` schlägt IMMER fehl
+  (pip verlangt `python -m pip ...`) → `Get-SysPilotPythonExeForPip`
+  löst python.exe aus `Scripts\pip.exe`-Umgebung auf, Fallback `python`.
+- **winget-Fallen**: `Invoke-SysPilotWingetRaw` nutzt
+  `System.Diagnostics.Process` + `ReadToEndAsync` + echten Timeout
+  (kein `| Out-String` — puffert ewig). Fehler-Klassen via
+  `Get-SysPilotUpdateFailKind`: `not-applicable` (exit 43/andere
+  Quelle/Architektur — z.B. aus MS Store oder manuell installiert,
+  winget kann prinzipiell nicht), `publisher` („kann nicht mit
+  WinGet aktualisiert werden"), `admin` (MSI 1603 → elevated retry
+  mit `--force`), `timeout`. `not-applicable`/`publisher` werden nach
+  2 Fehlversuchen im Auto-Update übersprungen (Stamp in
+  `%LOCALAPPDATA%\SysPilot\update-center.json`, KEIN Program Files —
+  ohne Admin nicht beschreibbar!).
+- **Fallback-Kette**: `Invoke-SysPilotWingetUpdateAuto` =
+  winget → elevated `--force` → `Invoke-SysPilotAltManagerUpgrade`
+  (choco/scoop NUR wenn Paket dort installiert — exakter Match,
+  `openvpn` ≠ `openvpn-connect`). `Show-SysPilotAltManagerInstallMenu`
+  = Remote-Suche für Neuinstallation/Adoption (Katalog-Install-Fail
+  + Failed-Retry-Aktion „Anderer Paketmanager"). Live: FACEIT→Faceit,
+  SteamArtManager→steam-art-manager, MEGAsync→megasync,
+  OnionShare→onionshare in Chocolatey Community; TeraBox nicht.
+- **GUI & Erweiterungen ehrlich labeln**: Chocolatey GUI = offiziell
+  (`chocolateygui`); OuiGuiChocolatey = Community; Chocolatey
+  AppStore (`chocolatey-appstore-chrome`) = gepflegte Chrome-Ext;
+  `choco-chrome-ext` = 2016 inoffiziell/unlisted → nur mit
+  expliziter Risiko-Bestätigung. Es gibt KEINE offizielle
+  Chocolatey-Browser-Extension — nicht erfinden.
+- **UniGetUI** ist die „GUI für alle" (winget/choco/scoop/msstore),
+  portabel als ZIP in PortableTools; kein eigener GUI-Bau nötig.
+- **Offene Punkte / Ausblick**: TeraBox u.ä. ohne PM-Pendant bleiben
+  manuell (App-eigene Updater nicht automatisierbar); OpenVPN MSI
+  1603 trotz `--force` ungelöst (TAP-Treiber/Running-Service —
+  ggf. Services stoppen als Smart-Fix nachrüsten); scoop
+  „bucket(s) out of date" wird automatisch repariert, weitere
+  Manager-Warnungen (npm audit, pip deprecated) noch nicht
+  automatisiert; Hash-Pinning für choco/scoop-Installationen fehlt.
 
 ### Menü-System (0.9.4.6)
 

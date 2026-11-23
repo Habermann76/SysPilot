@@ -275,9 +275,12 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'System optimieren'; Key = 'runtimes'; Name = 'Laufzeiten (Runtimes)'
         Desc = 'VC++ Redistributables, .NET Desktop Runtime, .NET Framework, All in One Runtimes - Status, lokale Installer nutzen oder offiziell herunterladen.'
         NeedsAdmin = $true; Action = { Show-SysPilotRuntimesMenu } }
-    $tools += @{ Category = 'System optimieren'; Key = 'papps'; Name = 'Portable Apps & Store-Clients'
-        Desc = 'UniGetUI, Komi Store (ehem. GitHub Store), Uptodown Desktop (offizieller Installer, SHA256-geprueft), Chris Titus WinUtil, Ultimate Windows Tweaker 5, Microsoft PC Manager (Store-App, regionsbeschraenkt), WinToys (winget/Store), iTop Easy Desktop (winget), Ferdium (winget), Flipboard (Web) - herunterladen, installieren, starten.'
+    $tools += @{ Category = 'System optimieren'; Key = 'papps'; Name = 'Apps & Store-Clients'
+        Desc = 'UniGetUI, Komi Store (ehem. GitHub Store), Uptodown Desktop (offizieller Installer, SHA256-geprueft), Chris Titus WinUtil, Ultimate Windows Tweaker 5, Microsoft PC Manager (Store-App, regionsbeschraenkt), WinToys (winget/Store), iTop Easy Desktop (winget), Ferdium (winget), MuMu Player (Android-Emulator), Flipboard (Web) - herunterladen, installieren, starten.'
         NeedsAdmin = $false; Action = { Show-SysPilotPortableAppsMenu } }
+    $tools += @{ Category = 'System optimieren'; Key = 'updates'; Name = 'Update / Download Center'
+        Desc = 'Einheitliches Update-Center: winget + Chocolatey-Scan installierter Programme, kuratierter Programm-Katalog (147 Apps in 7 Kategorien), GitHub-Release-Downloads, MajorGeeks-Resolver, Web-Kataloge (Heise, FileHippo, Uptodown, CHIP).'
+        NeedsAdmin = $false; Action = { Show-SysPilotUpdateCenter } }
     $tools += @{ Category = 'System optimieren'; Key = 'privacyfix'; Name = 'Datenschutz & Werbe-Fix'
         Desc = 'PrivacyGuard: Werbe-ID, Telemetrie, Copilot, Recall, Werbe-Flags, Edge-Tweaks, GameDVR, Taskbar - mit Status und Batch-Fix.'
         NeedsAdmin = $false; Action = { Show-SysPilotPrivacyFix } }
@@ -337,6 +340,9 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'System bereinigen'; Key = 'bloat'; Name = 'Bloatware-Finder'
         Desc = 'Findet bekannte Werbe-Apps und Ressourcenfresser, deinstalliert und entfernt Datei-Reste.'
         NeedsAdmin = $false; Action = { Show-SysPilotBloatManager } }
+    $tools += @{ Category = 'System bereinigen'; Key = 'uninstall'; Name = 'CleanSweep (Deinstallations-Center)'
+        Desc = 'Programme, Windows-Apps, Browser-Erweiterungen deinstallieren; Reste, verwaiste Programme und defekte Eintraege bereinigen.'
+        NeedsAdmin = $false; Action = { Show-SysPilotUninstallMenu } }
     $tools += @{ Category = 'System bereinigen'; Key = 'uwp'; Name = 'UWP-Apps ausmisten'
         Desc = 'Vorinstallierte Windows-Apps (Facebook, TikTok, Spiele-Werbung) entfernen.'
         NeedsAdmin = $false; Action = { Show-SysPilotUwpManager } }

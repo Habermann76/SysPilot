@@ -1,160 +1,163 @@
-{
-  "Version": 2,
-  "Start": {
-    "AskForAdmin": false,
-    "AlwaysAdmin": false,
-    "GuiOnExit": false,
-    "StartInTray": false
-  },
-  "UI": {
-    "Language": "de",
-    "TempUnit": "C"
-  },
-  "Update": {
-    "CheckAtStart": true
-  },
-  "ImportantProcesses": [
-    "code",
-    "devenv",
-    "cl",
-    "link",
-    "msbuild",
-    "dotnet",
-    "node",
-    "python",
-    "python3",
-    "cargo",
-    "rustc",
-    "go",
-    "java",
-    "ninja",
-    "cmake",
-    "make",
-    "gcc",
-    "g++",
-    "tsc",
-    "esbuild",
-    "webpack",
-    "rollup",
-    "turbo",
-    "npm",
-    "pnpm",
-    "yarn",
-    "docker",
-    "wsl",
-    "ghidra",
-    "cutter",
-    "ida64",
-    "x64dbg"
-  ],
-  "GameProcesses": [
-    "cs2",
-    "valorant",
-    "FortniteClient-Win64-Shipping",
-    "GTA5",
-    "r5apex",
-    "Cyberpunk2077",
-    "Overwatch",
-    "RocketLeague",
-    "Dota2",
-    "League of Legends",
-    "javaw",
-    "RainbowSix",
-    "eldenring",
-    "bg3",
-    "Starfield",
-    "witcher3"
-  ],
-  "GameLaunchers": [
-    "steam",
-    "steamwebhelper",
-    "GalaxyClient",
-    "EpicGamesLauncher",
-    "EADesktop",
-    "RiotClientServices",
-    "upc",
-    "MuMuPlayerGlobal"
-  ],
-  "JunkProcesses": [
-    "Honeygain",
-    "earnapp",
-    "Bright VPN",
-    "brightdata",
-    "TeraBox",
-    "TeraBoxWeb",
-    "teraboxhost",
-    "teraboxunite",
-    "OneDrive",
-    "GoogleDriveFS",
-    "MEGAsync",
-    "UpdateHub",
-    "wu"
-  ],
-  "Autopilot": {
-    "TempWarmC": 65,
-    "TempHotC": 75,
-    "TempCriticalC": 85,
-    "TempCriticalAction": "Hibernate",
-    "TempCheckIntervalSec": 30
-  },
-  "Hogs": {
-    "KnownHogs": [
-      {
-        "Name": "OneDrive",
-        "Fix": "Wenn du OneDrive nicht nutzt: Autostart deaktivieren oder Synchronisierung pausieren.",
-        "HowTo": "Taskleisten-Symbol OneDrive -> Zahnrad -> Einstellungen -> Synchronisierung pausieren oder Autostart deaktivieren. In SysPilot: Autostart-Manager öffnen und OneDrive ausschalten.",
-        "Link": "https://support.microsoft.com/office/onedrive-synchronisierung-beenden-oder-anhalten",
-        "Action": "DisableStartup"
-      },
-      {
-        "Name": "GoogleDriveFS",
-        "Fix": "Google Drive belegt RAM/CPU durch Synchronisierung. Pausieren oder Autostart deaktivieren, wenn nicht benötigt.",
-        "HowTo": "Google Drive Tray-Symbol -> Zahnrad -> Synchronisierung pausieren. Alternativ in SysPilot Autostart-Manager deaktivieren.",
-        "Link": "https://support.google.com/drive/answer/10838124",
-        "Action": "DisableStartup"
-      },
-      {
-        "Name": "MEGAsync",
-        "Fix": "MEGA-Sync pausieren oder Autostart deaktivieren, wenn gerade nicht benötigt.",
-        "HowTo": "MEGAsync Tray-Symbol -> Pause/Beenden. In SysPilot Autostart-Manager den Eintrag deaktivieren.",
-        "Link": "https://help.mega.io/installs-apps/desktop",
-        "Action": "DisableStartup"
-      },
-      {
-        "Name": "Docker Desktop",
-        "Fix": "Docker/WSL nur starten, wenn du es brauchst. Laufende Container/WSL können viel RAM belegen.",
-        "HowTo": "Docker Desktop beenden oder in PowerShell ausführen: wsl --shutdown. Danach Docker bei Bedarf neu öffnen.",
-        "Link": "https://docs.docker.com/desktop/",
-        "Action": "WslShutdown"
-      },
-      {
-        "Name": "vmmem",
-        "Fix": "WSL/Docker/VMs belegen RAM. Wenn du gerade nicht entwickelst: WSL herunterfahren.",
-        "HowTo": "PowerShell öffnen und ausführen: wsl --shutdown. Laufende Linux-/Docker-Sessions werden beendet.",
-        "Link": "https://learn.microsoft.com/windows/wsl/basic-commands",
-        "Action": "WslShutdown"
-      },
-      {
-        "Name": "steamwebhelper",
-        "Fix": "Steam WebHelper kann viel RAM verbrauchen. Steam schließen oder beim Windows-Start deaktivieren.",
-        "HowTo": "Steam -> Einstellungen -> Oberfläche/Start -> Steam beim Computerstart ausführen deaktivieren. Alternativ SysPilot Autostart-Manager nutzen.",
-        "Link": "https://help.steampowered.com/",
-        "Action": "DisableStartup"
-      },
-      {
-        "Name": "msedge",
-        "Fix": "Viele Browser-Tabs oder Hintergrund-Apps schließen. Edge-Startup-Boost deaktivieren.",
-        "HowTo": "Edge -> Einstellungen -> System und Leistung -> Startup-Boost und Hintergrund-Erweiterungen deaktivieren.",
-        "Link": "https://support.microsoft.com/microsoft-edge",
-        "Action": ""
-      },
-      {
-        "Name": "chrome",
-        "Fix": "Viele Tabs/Erweiterungen verbrauchen RAM. Tabs schließen oder Erweiterungen prüfen.",
-        "HowTo": "Chrome Task-Manager mit Umschalt+Esc öffnen, speicherhungrige Tabs/Erweiterungen beenden.",
-        "Link": "https://support.google.com/chrome/answer/95672",
-        "Action": ""
-      }
-    ]
-  }
+﻿{
+    "Version":  2,
+    "Start":  {
+                  "AskForAdmin":  false,
+                  "AlwaysAdmin":  false,
+                  "GuiOnExit":  false,
+                  "StartInTray":  false
+              },
+    "UI":  {
+               "Language":  "de",
+               "TempUnit":  "C"
+           },
+    "Update":  {
+                   "CheckAtStart":  true
+               },
+    "ImportantProcesses":  [
+                               "code",
+                               "devenv",
+                               "cl",
+                               "link",
+                               "msbuild",
+                               "dotnet",
+                               "node",
+                               "python",
+                               "python3",
+                               "cargo",
+                               "rustc",
+                               "go",
+                               "java",
+                               "ninja",
+                               "cmake",
+                               "make",
+                               "gcc",
+                               "g++",
+                               "tsc",
+                               "esbuild",
+                               "webpack",
+                               "rollup",
+                               "turbo",
+                               "npm",
+                               "pnpm",
+                               "yarn",
+                               "docker",
+                               "wsl",
+                               "ghidra",
+                               "cutter",
+                               "ida64",
+                               "x64dbg"
+                           ],
+    "GameProcesses":  [
+                          "cs2",
+                          "valorant",
+                          "FortniteClient-Win64-Shipping",
+                          "GTA5",
+                          "r5apex",
+                          "Cyberpunk2077",
+                          "Overwatch",
+                          "RocketLeague",
+                          "Dota2",
+                          "League of Legends",
+                          "javaw",
+                          "RainbowSix",
+                          "eldenring",
+                          "bg3",
+                          "Starfield",
+                          "witcher3"
+                      ],
+    "GameLaunchers":  [
+                          "steam",
+                          "steamwebhelper",
+                          "GalaxyClient",
+                          "EpicGamesLauncher",
+                          "EADesktop",
+                          "RiotClientServices",
+                          "upc",
+                          "MuMuPlayerGlobal"
+                      ],
+    "JunkProcesses":  [
+                          "Honeygain",
+                          "earnapp",
+                          "Bright VPN",
+                          "brightdata",
+                          "TeraBox",
+                          "TeraBoxWeb",
+                          "teraboxhost",
+                          "teraboxunite",
+                          "OneDrive",
+                          "GoogleDriveFS",
+                          "MEGAsync",
+                          "UpdateHub",
+                          "wu"
+                      ],
+    "Autopilot":  {
+                      "TempWarmC":  65,
+                      "TempHotC":  75,
+                      "TempCriticalC":  85,
+                      "TempCriticalAction":  "Hibernate",
+                      "TempCheckIntervalSec":  30
+                  },
+    "Hogs":  {
+                 "KnownHogs":  [
+                                   {
+                                       "Name":  "OneDrive",
+                                       "Fix":  "Wenn du OneDrive nicht nutzt: Autostart deaktivieren oder Synchronisierung pausieren.",
+                                       "HowTo":  "Taskleisten-Symbol OneDrive -\u003e Zahnrad -\u003e Einstellungen -\u003e Synchronisierung pausieren oder Autostart deaktivieren. In SysPilot: Autostart-Manager öffnen und OneDrive ausschalten.",
+                                       "Link":  "https://support.microsoft.com/office/onedrive-synchronisierung-beenden-oder-anhalten",
+                                       "Action":  "DisableStartup"
+                                   },
+                                   {
+                                       "Name":  "GoogleDriveFS",
+                                       "Fix":  "Google Drive belegt RAM/CPU durch Synchronisierung. Pausieren oder Autostart deaktivieren, wenn nicht benötigt.",
+                                       "HowTo":  "Google Drive Tray-Symbol -\u003e Zahnrad -\u003e Synchronisierung pausieren. Alternativ in SysPilot Autostart-Manager deaktivieren.",
+                                       "Link":  "https://support.google.com/drive/answer/10838124",
+                                       "Action":  "DisableStartup"
+                                   },
+                                   {
+                                       "Name":  "MEGAsync",
+                                       "Fix":  "MEGA-Sync pausieren oder Autostart deaktivieren, wenn gerade nicht benötigt.",
+                                       "HowTo":  "MEGAsync Tray-Symbol -\u003e Pause/Beenden. In SysPilot Autostart-Manager den Eintrag deaktivieren.",
+                                       "Link":  "https://help.mega.io/installs-apps/desktop",
+                                       "Action":  "DisableStartup"
+                                   },
+                                   {
+                                       "Name":  "Docker Desktop",
+                                       "Fix":  "Docker/WSL nur starten, wenn du es brauchst. Laufende Container/WSL können viel RAM belegen.",
+                                       "HowTo":  "Docker Desktop beenden oder in PowerShell ausführen: wsl --shutdown. Danach Docker bei Bedarf neu öffnen.",
+                                       "Link":  "https://docs.docker.com/desktop/",
+                                       "Action":  "WslShutdown"
+                                   },
+                                   {
+                                       "Name":  "vmmem",
+                                       "Fix":  "WSL/Docker/VMs belegen RAM. Wenn du gerade nicht entwickelst: WSL herunterfahren.",
+                                       "HowTo":  "PowerShell öffnen und ausführen: wsl --shutdown. Laufende Linux-/Docker-Sessions werden beendet.",
+                                       "Link":  "https://learn.microsoft.com/windows/wsl/basic-commands",
+                                       "Action":  "WslShutdown"
+                                   },
+                                   {
+                                       "Name":  "steamwebhelper",
+                                       "Fix":  "Steam WebHelper kann viel RAM verbrauchen. Steam schließen oder beim Windows-Start deaktivieren.",
+                                       "HowTo":  "Steam -\u003e Einstellungen -\u003e Oberfläche/Start -\u003e Steam beim Computerstart ausführen deaktivieren. Alternativ SysPilot Autostart-Manager nutzen.",
+                                       "Link":  "https://help.steampowered.com/",
+                                       "Action":  "DisableStartup"
+                                   },
+                                   {
+                                       "Name":  "msedge",
+                                       "Fix":  "Viele Browser-Tabs oder Hintergrund-Apps schließen. Edge-Startup-Boost deaktivieren.",
+                                       "HowTo":  "Edge -\u003e Einstellungen -\u003e System und Leistung -\u003e Startup-Boost und Hintergrund-Erweiterungen deaktivieren.",
+                                       "Link":  "https://support.microsoft.com/microsoft-edge",
+                                       "Action":  ""
+                                   },
+                                   {
+                                       "Name":  "chrome",
+                                       "Fix":  "Viele Tabs/Erweiterungen verbrauchen RAM. Tabs schließen oder Erweiterungen prüfen.",
+                                       "HowTo":  "Chrome Task-Manager mit Umschalt+Esc öffnen, speicherhungrige Tabs/Erweiterungen beenden.",
+                                       "Link":  "https://support.google.com/chrome/answer/95672",
+                                       "Action":  ""
+                                   }
+                               ]
+             },
+    "CleanSweep":  {
+                       "AutoLeftoverClean":  false
+                   }
 }

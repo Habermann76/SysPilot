@@ -11,10 +11,12 @@ function Get-SysPilotAISearchBase {
         $base = Get-SysPilotAISearchBase
     #>
     return @(
+        @{ Name='Ecosia'; Url='https://www.ecosia.org/search?q=' };
+        @{ Name='Brave'; Url='https://search.brave.com/search?q=' };
+        @{ Name='Google'; Url='https://www.google.com/search?q=' };
         @{ Name='DuckDuckGo'; Url='https://duckduckgo.com/?q=' };
         @{ Name='SearxNG'; Url='https://searx.run/?q=' };
-        @{ Name='Bing'; Url='https://www.bing.com/search?q=' };
-        @{ Name='Google'; Url='https://www.google.com/search?q=' }
+        @{ Name='Bing'; Url='https://www.bing.com/search?q=' }
     )
 }
 

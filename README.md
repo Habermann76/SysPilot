@@ -1,8 +1,59 @@
-# SysPilot 0.9.4.8 beta — Dein intelligenter PC-Autopilot
+# SysPilot 0.9.4.9 beta — Dein intelligenter PC-Autopilot
 
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
 Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
 alles bleibt auf deinem PC.
+
+## Version 0.9.4.9 beta
+
+### Was ist neu?
+
+- **Update / Download Center (NEU)**: `SoftwareUpdateCenter.psm1` —
+  einheitliches Update- und Download-Center nach Funktionsanalyse von
+  IObit Software Updater, UpdateHub (Nexova) und Patch My PC Home
+  Updater (REA). Scannt installierte Programme per **winget** und
+  **Chocolatey**, vergleicht Versionen, aktualisiert selecionierte
+  Apps (Silent/Interaktiv). **Programm-Katalog** mit 147 Apps in 7
+  Kategorien (Browser, Netzwerk & VPN, Multimedia, Produktivität,
+  Entwickler, System & Tools, Sicherheit): winget-Installation,
+  **GitHub-Release-Downloads** mit automatischer Asset-Auswahl
+  (.msi > .exe > .zip, Debug-Symbole gefiltert, x64 bevorzugt),
+  **MajorGeeks-Resolver** (Version + Mirror-Download, 89 Apps) und
+  offizielle Webseiten als Fallback. Web-Katalog-Links (Heise,
+  FileHippo, Uptodown, CHIP, MajorGeeks). **Auto-Update**: alle
+  winget-/choco-Updates silent — manuell per Klick oder taeglich um
+  12:00 als geplante Aufgabe „SysPilot Update" (Admin).
+  **Fehlgeschlagene Updates** werden gespeichert und lassen sich
+  kontrolliert nachholen: Retry silent/interaktiv/als Administrator,
+  manuell per Terminal oder per KI-Suche — mit dauerhaften
+  Einzel- und Global-Einstellungen (Modus + Admin pro App). Kein
+  IObit-Telemetrie-Code, keine obfuskierten Kataloge — nur
+  öffentliche Quellen. **Paketmanager-Integration**
+  (`PackageManagers.psm1`): Registry über 14 Manager (WinGet,
+  Chocolatey, Scoop, pip, npm, Bun, .NET, PSGallery, Homebrew,
+  APT/DNF/Pacman/Flatpak/Snap via WSL) mit Auto-Erkennung,
+  Outdated-Scan in allen Managern, Suche in ALLEN Managern und
+  Installation fehlender Manager inkl. WSL-Distro-Einrichtung.
+  **GUI & Erweiterungen**: UniGetUI (portabel, GUI für
+  winget/Choco/Scoop/Store), Chocolatey GUI (offiziell) +
+  OuiGui (Community), Chocolatey AppStore Chrome-Extension
+  (gepflegt; Legacy `choco-chrome-ext` ehrlich gelabelt),
+  PM-Kataloge (winget.run, chocolatey.org, npmjs.com, pypi.org,
+  PSGallery, NuGet, MS-Store). **Auto-Fix**: behebt Warnungen
+  selbsttätig — Scoop-Bucket-Reparatur (korrupte Git-refs,
+  Fetch-Leichen, Locks), Self-Updates von npm/pip/choco,
+  NuGet-Provider, winget source update (mit 24h–30d-Drossel).
+- **CleanSweep — Deinstallations-Center (NEU)**: `UninstallManager.psm1`,
+  eigenständige Implementierung (Funktionsanalyse von IObit Uninstaller per
+  REA — Delphi/VCL, kein Code kopiert). Deinstalliert Programme aus allen
+  4 Registry-Sichten (HKLM 64/32, HKCU 64/32) mit Silent/Normal-Modus und
+  Batch-Auswahl, Windows-Apps (AppX/MSIX inkl. provisionierter Pakete),
+  Browser-Erweiterungen (Chromium + Firefox, mit Profil-Backups),
+  Resteverwaltung (Dateien→Papierkorb, Registry→.reg-Backup, Dienste,
+  Aufgaben, Autostarts, Shortcuts — alles mit Sicherheits-Score),
+  verwaiste Programm-Ordner ohne Uninstall-Eintrag, defekte
+  Deinstallationseinträge, Windows-Update-Entfernung (wusa) und
+  optionale Wiederherstellungspunkte.
 
 ## Version 0.9.4.8 beta
 
@@ -13,12 +64,14 @@ alles bleibt auf deinem PC.
   jetzt mausbedienbar — Klick auf Einträge/[ Ja ]/[ Nein ], Mausrad,
   Hover-Markierung. Technisch über die Windows Console API (P/Invoke,
   kein externes Tool). Funktioniert in conhost und Windows Terminal.
-- **Portable Apps & Store-Clients (NEU)**: `PortableTools.psm1` verwaltet
-  portablen Tools und Store-Clients mit Statusanzeige, Download
-  (mit Fortschrittsbalken), Installation und Start: UniGetUI, Komi Store,
+- **Apps & Store-Clients (NEU)**: `PortableTools.psm1` verwaltet
+  portable Tools, klassische Installer, winget/Store-Apps und
+  Web-Clients mit Statusanzeige, Download (mit Fortschrittsbalken),
+  Installation und Start: UniGetUI, Komi Store,
   Uptodown Desktop, Chris Titus WinUtil, WinToys, iTop Easy Desktop,
-  Ferdium, Flipboard (PWA), **Ultimate Windows Tweaker 5** und
-  **Microsoft PC Manager** — plus **Vollpaket**-Auswahl per Checkbox.
+  Ferdium, Flipboard (PWA), **Ultimate Windows Tweaker 5**,
+  **Microsoft PC Manager**, **HostsMan** und **MuMu Player** —
+  plus **Vollpaket**-Auswahl per Checkbox.
 - **Laufzeiten-Manager (NEU)**: VC++-Redistributables, .NET Desktop
   Runtime und .NET Framework — **winget-first** mit lokalen Installern
   und offiziellen Downloads als Fallback.

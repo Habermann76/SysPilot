@@ -1,8 +1,8 @@
-# SysPilot 0.9.4.8 — Installationsanleitung
+# SysPilot 0.9.4.9 — Installationsanleitung
 
 ## Schnellstart (empfohlen)
 
-1. **Installer herunterladen**: `SysPilot-Setup-0.9.4.8-x64.exe` von den
+1. **Installer herunterladen**: `SysPilot-Setup-0.9.4.9-x64.exe` von den
    [Releases](https://github.com/Habermann76/SysPilot/releases)
 2. **Doppelklick** → installiert nach `C:\Program Files\SysPilot`
 3. **Startmenü** → "SysPilot" öffnen
@@ -12,7 +12,7 @@ Fertig. SysPilot fragt beim ersten Start, ob es als Administrator laufen soll
 
 ## Portable Version (keine Installation)
 
-1. `SysPilot-0.9.4.8-beta-portable.zip` herunterladen
+1. `SysPilot-0.9.4.9-beta-portable.zip` herunterladen
 2. Entpacken (z. B. nach `C:\SysPilot`)
 3. `SysPilot.ps1` → Rechtsklick → "Mit PowerShell ausführen"
 
@@ -47,10 +47,15 @@ Installationsordner — kann manuell gelöscht werden).
 
 ---
 
+### Neue Features in 0.9.4.9
+
+- **CleanSweep (Deinstallations-Center)**: eigenständige Implementierung — Programme (4 Registry-Sichten, Silent/Normal, Batch), Windows-Apps (AppX + provisioniert), Browser-Erweiterungen entfernen (Chromium/Firefox mit Backups), Resteverwaltung mit Sicherheits-Score (Papierkorb + Registry-Backup), verwaiste Programme, defekte Einträge, Windows-Updates, Wiederherstellungspunkt
+- **Update / Download Center**: winget+Chocolatey-Scan, 147-App-Katalog, GitHub-Releases, MajorGeeks-Resolver, Web-Kataloge (Suchmaschinen-Suche via site:-Operatoren), Auto-Update mit Fehlerspeicher + Retry, **Paketmanager-Integration** (14 Manager, WSL-PMs, Suche in ALLEN Managern), **GUI & Erweiterungen** (UniGetUI, Chocolatey GUI, OuiGui, AppStore-Ext), **WSL-Verwaltung** (Distro-Picker, WSL Manager, GUI-Apps), Auto-Fix für Manager-Warnungen (Scoop-Buckets, Self-Updates), Cross-Manager-Fallbacks (winget→choco/scoop)
+
 ### Neue Features in 0.9.4.8
 
 - **Maussteuerung im Textmenü**: Menüs, Ja/Nein-Dialoge und „Weiter"-Pausen per Klick/Mausrad bedienbar
-- **Portable Apps & Store-Clients**: UniGetUI, Komi Store, Uptodown Desktop, WinUtil, WinToys, iTop, Ferdium, Flipboard, Ultimate Windows Tweaker 5, Microsoft PC Manager + Vollpaket-Auswahl
+- **Apps & Store-Clients**: UniGetUI, Komi Store, Uptodown Desktop, WinUtil, WinToys, iTop, Ferdium, Flipboard, UWT 5, PC Manager, HostsMan, MuMu Player + Vollpaket-Auswahl
 - **Laufzeiten-Manager**: VC++/.NET/.NET Framework — winget-first mit Fallbacks
 - **PrivacyGuard**: 32 reversible Datenschutz-/Werbe-Tweaks
 - **Root-Zertifikate**: portable UpdateRootCertificates-Verwaltung
