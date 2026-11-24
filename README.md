@@ -155,6 +155,33 @@ Ich arbeite weiter daran. Gleichzeitig ist Vibe Coding mit KI teurer, als ich
 anfangs gedacht hatte — vor allem durch Zeit, API-/Tool-Kosten und die vielen
 Iterationen, bis eine Funktion zuverlässig funktioniert.
 
+### Über Vibe Coding — die Realität hinter dem Hype
+
+Vibe Coding ist spannend, und man lernt dabei eine Menge. Aber die gängige
+Vorstellung — man drückt dreimal auf die Tastatur, die KI zaubert etwas
+Wunderbares — stimmt nur für Spielereien. Will man etwas **Brauchbares**
+erzielen, steckt auch mit KI sehr viel Arbeit drin:
+
+- **Verstehen statt generieren:** Jede Funktion muss erst analysiert,
+  geplant und gegen das Bestehende abgeglichen werden — sonst entstehen
+  Doppelungen, falsche Pfade und stille Fehler.
+- **Testen ist der eigentliche Job:** Syntax-Checks, Modul-Imports,
+  Live-Verifikation auf dem echten System. KI-Code ist ein guter
+  Entwurf, kein fertiges Produkt — Live-Tests haben hier Dutzende echter
+  Bugs gefunden (Parser, kaputte Pfade, Exit-Code-Täuschungen).
+- **Edge Cases & echte Systeme:** Dokumentation liest sich gut — die
+  Realität nicht. `choco upgrade` meldet Erfolg bei 0/N Updates,
+  `wsl.exe` liefert UTF-16, MSI-Installer hinterlassen leere Registry-
+  Pfade, scoop umgeht PowerShell-Redirection. All das zeigt sich nur
+  beim Ausführen.
+- **Iterationen:** Ein Feature ist selten beim ersten Versuch richtig —
+  es braucht mehrere RundenRecherche, Korrektur und Verifikation.
+
+Kurz: Die KI ist ein sehr schneller, sehr gut informierter Pair-
+Programmierer — aber das Steuer darf man nicht aus der Hand geben.
+SysPilot ist das Ergebnis von genau dieser Arbeit: analysieren,
+implementieren, live testen, korrigieren — Version für Version.
+
 ---
 
 <p align="center">
