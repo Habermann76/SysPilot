@@ -2941,6 +2941,11 @@ function Show-SysPilotAiChat {
         Write-Host $clean -ForegroundColor White
         Write-Host ''
         if ($hadAct) { Write-Host '  (Hinweis: Aktionen sind in der SysPilot-GUI per "Uebernehmen"-Button ausfuehrbar)' -ForegroundColor DarkYellow }
+        # Sprachausgabe (VoiceMode 'speak'): Antwort vorlesen -
+        # an/ausschaltbar unter Endpunkte > Voice.
+        if ((Get-SysPilotAiVoiceMode) -eq 'speak') {
+            [void](Invoke-SysPilotAiSpeak -Text $clean)
+        }
         $history += @{ role='user'; content=$q }
         $history += @{ role='assistant'; content=$clean }
         if ($history.Count -gt 20) { $history = @($history | Select-Object -Last 20) }
@@ -4984,19 +4989,270 @@ function Invoke-SysPilotAiEndpoint {
     return $r
 }
 
+# --- Voice (Sprache Ein/Aus, wie PocketAI/Fireflies) ---
+# VoiceMode: 'off' = keine Sprachausgabe; 'speak' = Chat-Antworten werden
+# vorgesprochen (TTS); 'chat' = dedizierter Voice-Chat (Aufnahme->STT->
+# Chat->TTS). VoiceTts: 'system' = Windows System.Speech (offline, DE),
+# 'provider' = /audio/speech des Providers (OpenAI-kompatibel).
+function Get-SysPilotAiVoiceMode {
+    $cfg = Read-SysPilotAiAssistConfig
+    if ($cfg.PSObject.Properties['VoiceMode'] -and $cfg.VoiceMode) { return [string]$cfg.VoiceMode }
+    return 'off'
+}
+function Set-SysPilotAiVoiceMode {
+    param([Parameter(Mandatory)][ValidateSet('off','speak','chat')][string]$Mode)
+    $cfg = Read-SysPilotAiAssistConfig
+    $cfg | Add-Member -NotePropertyName VoiceMode -NotePropertyValue $Mode -Force
+    Write-SysPilotAiAssistConfig $cfg
+}
+function Get-SysPilotAiVoiceTts {
+    $cfg = Read-SysPilotAiAssistConfig
+    if ($cfg.PSObject.Properties['VoiceTts'] -and $cfg.VoiceTts) { return [string]$cfg.VoiceTts }
+    return 'system'
+}
+function Set-SysPilotAiVoiceTts {
+    param([Parameter(Mandatory)][ValidateSet('system','provider')][string]$Engine)
+    $cfg = Read-SysPilotAiAssistConfig
+    $cfg | Add-Member -NotePropertyName VoiceTts -NotePropertyValue $Engine -Force
+    Write-SysPilotAiAssistConfig $cfg
+}
+
+function Get-SysPilotAiFfmpeg {
+    <# ffmpeg.exe suchen - Common.psm1 hat Get-SysPilotFfmpegPath,
+       aber AiAssist laeuft teils ohne Common-Import -> Fallback. #>
+    if (Get-Command Get-SysPilotFfmpegPath -ErrorAction SilentlyContinue) {
+        $p = Get-SysPilotFfmpegPath
+        if ($p) { return $p }
+    }
+    $cmd = Get-Command ffmpeg.exe -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    foreach ($c in @("$env:LOCALAPPDATA\Microsoft\WinGet\Links\ffmpeg.exe", "$env:USERPROFILE\scoop\apps\ffmpeg\current\bin\ffmpeg.exe", "C:\ProgramData\chocolatey\bin\ffmpeg.exe")) {
+        if ($c -and (Test-Path $c)) { return $c }
+    }
+    return $null
+}
+
+function Get-SysPilotMicDevice {
+    <# Erster Audio-Aufnahme-Mikrofon via ffmpeg dshow. Cache in Datei
+       (Prozess-uebergreifend, wie ai-probe-cache). #>
+    $cache = Join-Path $env:LOCALAPPDATA 'SysPilot\mic-device.txt'
+    if (Test-Path $cache) {
+        $d = (Get-Content $cache -Raw -ErrorAction SilentlyContinue).Trim()
+        if ($d) { return $d }
+    }
+    $ff = Get-SysPilotAiFfmpeg
+    if (-not $ff) { return $null }
+    $out = & $ff -hide_banner -list_devices true -f dshow -i dummy 2>&1 | Out-String
+    $dev = $null
+    foreach ($ln in ($out -split "`n")) {
+        if ($ln -match '"([^"]+)"\s*\(audio\)') { $dev = $Matches[1]; break }
+    }
+    if (-not $dev) {
+        foreach ($ln in ($out -split "`n")) {
+            if ($ln -match '\(audio\)') { $dev = ($ln -replace '.*"([^"]+)".*','$1'); break }
+        }
+    }
+    if ($dev) { try { $dev | Set-Content $cache -Encoding UTF8 } catch {} }
+    return $dev
+}
+
+function Save-SysPilotMicRecording {
+    <# Nimmt Sprache per ffmpeg/dshow auf. Stoppt per Enter oder nach
+       $Seconds. Gibt WAV-Pfad (16kHz mono) oder $null zurueck. #>
+    param([int]$Seconds = 60)
+    $ff = Get-SysPilotAiFfmpeg
+    if (-not $ff) { Write-Host '  ffmpeg fehlt - Voice nicht moeglich.' -ForegroundColor Red; return $null }
+    $dev = Get-SysPilotMicDevice
+    if (-not $dev) { Write-Host '  Kein Audio-Mikrofon gefunden (ffmpeg dshow).' -ForegroundColor Red; return $null }
+    $outDir = Join-Path $env:TEMP 'SysPilot-Voice'
+    New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+    $out = Join-Path $outDir ("rec-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.wav')
+    $psi = [Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = $ff
+    $psi.Arguments = "-hide_banner -loglevel error -y -f dshow -i audio=`"$dev`" -ac 1 -ar 16000 -t $Seconds `"$out`""
+    $psi.RedirectStandardInput = $true; $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
+    $proc = [Diagnostics.Process]::Start($psi)
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
+        if ([Console]::KeyAvailable) {
+            $k = [Console]::ReadKey($true)
+            if ($k.Key -eq 'Enter') { break }
+        }
+        Start-Sleep -Milliseconds 120
+    }
+    try { $proc.StandardInput.WriteLine('q'); $proc.StandardInput.Flush() } catch {}
+    if (-not $proc.WaitForExit(8000)) { try { $proc.Kill() } catch {} }
+    if (Test-Path $out) { return $out }
+    return $null
+}
+
+function Send-SysPilotAiAudioTranscription {
+    <# POST /audio/transcriptions (Whisper-kompatibel) via curl -
+       multipart ist in Invoke-RestMethod unhandlich. #>
+    param([Parameter(Mandatory)]$Provider, [Parameter(Mandatory)][string]$File, [string]$Language = '')
+    $curl = "$env:SystemRoot\System32\curl.exe"
+    if (-not (Test-Path $curl)) { return @{ Ok=$false; Text=''; Error='curl.exe fehlt' } }
+    $model = if ($Provider.Model -match 'whisper|audio|transcri|stt') { $Provider.Model } else { 'whisper-1' }
+    $args = @('-s','-X','POST', ($Provider.BaseUrl.TrimEnd('/') + '/audio/transcriptions'),
+              '-H', "Authorization: Bearer $($Provider.ApiKey)",
+              '-F', "file=@$File", '-F', "model=$model")
+    if ($Language) { $args += @('-F', "language=$Language") }
+    $resp = & $curl @args 2>$null | Out-String
+    try {
+        $jr = $resp | ConvertFrom-Json
+        if ($jr.text) { return @{ Ok=$true; Text=[string]$jr.text; Error='' } }
+        return @{ Ok=$false; Text=''; Error=("keine Transkription: " + $resp.Substring(0,[Math]::Min(160,$resp.Length))) }
+    } catch { return @{ Ok=$false; Text=''; Error=("Antwort: " + $resp.Substring(0,[Math]::Min(160,$resp.Length))) } }
+}
+
+function Get-SysPilotAiVoiceSttProvider {
+    <# Waehlt einen Provider fuer Sprache-zu-Text: bevorzugt Modelle mit
+       whisper/audio im Namen, sonst erster Key-Provider. #>
+    $providers = @(Get-SysPilotAiUsableProviders)
+    if ($providers.Count -eq 0) { return $null }
+    $hit = @($providers | Where-Object { $_.Model -match '(?i)whisper|audio|transcri|stt' -or $_.Name -match '(?i)groq|openai' } | Select-Object -First 1)
+    if ($hit.Count -gt 0) { return $hit[0] }
+    $withKey = @($providers | Where-Object { $_.ApiKey } | Select-Object -First 1)
+    return $(if ($withKey.Count -gt 0) { $withKey[0] } else { $providers[0] })
+}
+
+function Send-SysPilotAiSpeech {
+    <# Text -> Audio via /audio/speech (OpenAI-kompatibel). #>
+    param([Parameter(Mandatory)]$Provider, [Parameter(Mandatory)][string]$Text, [Parameter(Mandatory)][string]$OutFile, [string]$Voice = 'alloy')
+    $model = if ($Provider.Model -match '(?i)tts|speech|audio|voice') { $Provider.Model } else { 'tts-1' }
+    $body = @{ model=$model; voice=$Voice; input=$Text } | ConvertTo-Json
+    $headers = @{ 'Content-Type'='application/json' }
+    if ($Provider.ApiKey) { $headers['Authorization'] = "Bearer $($Provider.ApiKey)" }
+    Invoke-WebRequest -Uri ($Provider.BaseUrl.TrimEnd('/') + '/audio/speech') -Method Post `
+        -Headers $headers -Body ([Text.Encoding]::UTF8.GetBytes($body)) `
+        -OutFile $OutFile -TimeoutSec 90 -UseBasicParsing -ErrorAction Stop
+    return (Test-Path $OutFile)
+}
+
+function Send-SysPilotSystemSpeech {
+    <# Offline-TTS via Windows System.Speech - immer verfuegbar,
+       bevorzugt deutsche Stimme. #>
+    param([Parameter(Mandatory)][string]$Text)
+    try {
+        Add-Type -AssemblyName System.Speech -ErrorAction Stop
+        $s = New-Object System.Speech.Synthesis.SpeechSynthesizer
+        try {
+            $de = $s.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Culture.Name -match '^de' } | Select-Object -First 1
+            if ($de) { $s.SelectVoice($de.VoiceInfo.Name) }
+        } catch {}
+        $s.Speak($Text)
+        $s.Dispose()
+        return $true
+    } catch { return $false }
+}
+
+function Invoke-SysPilotAiSpeak {
+    <# Spricht Text - Engine je nach VoiceTts-Config; bei Provider-Fehler
+       Fallback auf System.Speech. Gibt 'system'|'provider'|'-' zurueck. #>
+    param([Parameter(Mandatory)][string]$Text, [int]$MaxChars = 1200)
+    if ($Text.Length -gt $MaxChars) { $Text = $Text.Substring(0,$MaxChars) }
+    $engine = Get-SysPilotAiVoiceTts
+    $spoken = $false
+    if ($engine -eq 'provider') {
+        try {
+            $p = Get-SysPilotAiVoiceSttProvider
+            if ($p -and $p.ApiKey) {
+                $outDir = Join-Path $env:TEMP 'SysPilot-Voice'
+                New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+                $out = Join-Path $outDir ("tts-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.mp3')
+                if (Send-SysPilotAiSpeech -Provider $p -Text $Text -OutFile $out) {
+                    Start-Process $out -WindowStyle Hidden
+                    $spoken = $true
+                }
+            }
+        } catch {}
+    }
+    if (-not $spoken) {
+        $spoken = Send-SysPilotSystemSpeech -Text $Text
+    }
+    return $(if ($spoken) { $(if ($engine -eq 'provider') { 'provider' } else { 'system' }) } else { '-' })
+}
+
+function Show-SysPilotAiVoiceChat {
+    <# Voice-Chat: Aufnahme (Enter = Stopp) -> Whisper-STT -> Herbert-Chat
+       -> TTS-Antwort (vorgesprochen). /quit, /clear wie Text-Chat. #>
+    $stt = Get-SysPilotAiVoiceSttProvider
+    if (-not $stt -or -not $stt.ApiKey) {
+        Write-Host '  Voice-Chat braucht einen Provider mit API-Key (fuer /audio/transcriptions).' -ForegroundColor Yellow
+        Write-Host '  Tipp: Groq (kostenlos) hat whisper-large-v3 - unter Provider eintragen.' -ForegroundColor DarkGray
+        return
+    }
+    Write-Host "`n  === VOICE CHAT (Pilot Herbert) ===" -ForegroundColor Cyan
+    Write-Host "  STT: $($stt.Name) | TTS: $(Get-SysPilotAiVoiceTts) | Sprache: deutsch" -ForegroundColor DarkGray
+    Write-Host "  Aufnahme startet bei Enter; Enter stoppt frueh. /quit = Ende`n" -ForegroundColor DarkGray
+    $history = @()
+    while ($true) {
+        Write-Host '  [MIC] Aufnahme laeuft ... (Enter = Stopp, max 60s)' -ForegroundColor Green
+        $rec = Save-SysPilotMicRecording -Seconds 60
+        if (-not $rec) { continue }
+        Write-Host '  Transkribiere ...' -ForegroundColor DarkGray
+        $tr = Send-SysPilotAiAudioTranscription -Provider $stt -File $rec -Language 'de'
+        if (-not $tr.Ok -or -not $tr.Text.Trim()) {
+            Write-Host "  [!] Transkription: $($tr.Error)" -ForegroundColor Red
+            continue
+        }
+        $q = $tr.Text.Trim()
+        Write-Host "  Du: $q" -ForegroundColor Cyan
+        if ($q -match '^/(quit|exit)') { return }
+        if ($q -match '^/clear') { $history = @(); Write-Host '  Verlauf geloescht.' -ForegroundColor DarkGray; continue }
+        $r = Invoke-SysPilotAiChat -Prompt $q -History $history -TimeoutSec 120
+        if (-not $r.Ok) { Write-Host "  [!] $($r.Error)" -ForegroundColor Red; continue }
+        $history += @{ role='user'; content=$q }
+        $history += @{ role='assistant'; content=$r.Text }
+        if ($history.Count -gt 12) { $history = @($history | Select-Object -Last 10) }
+        Write-Host "  Herbert: $($r.Text)" -ForegroundColor Green
+        $eng = Invoke-SysPilotAiSpeak -Text $r.Text
+        if ($eng -eq '-') { Write-Host '  (TTS nicht veruegbar - Antwort bleibt Text)' -ForegroundColor DarkYellow }
+        Write-Host ''
+    }
+}
+
 function Show-SysPilotAiEndpointsMenu {
     <# Non-Chat-API-Endpunkte (getrennt von /chat/completions, wie bei
        PocketAI & Co.): /models, /embeddings, /images/generations,
        /audio/transcriptions + kostenloses Pollinations-Bild (kein Key). #>
     while ($true) {
         $providers = @(Get-SysPilotAiProviders | Where-Object { $_.Enabled })
+        $vm = Get-SysPilotAiVoiceMode
+        $tts = Get-SysPilotAiVoiceTts
         $items = @(
+            @{ Label="[V] Voice (Modus: $vm, TTS: $tts) - Aufnahme->Chat->Sprachausgabe"; Color='Green'; Tag='voice' },
             @{ Label='[P] Pollinations-Bild generieren (KOSTENLOS, kein Key noetig)'; Color='Green'; Tag='pollimg' },
             @{ Label='[M] Provider-Endpunkte (Modelle/Embeddings/Bilder/Audio)'; Color='Cyan'; Tag='prov' },
             @{ Label='Zurueck'; Color='DarkGray'; Tag=$null }
         )
         $sel = Show-SysPilotArrowMenu -Items $items -Title 'KI-Endpunkte (non-chat)' -Footer 'Enter = Aktion, Esc = zurueck'
         if ($null -eq $sel) { return }
+        if ($sel -eq 'voice') {
+            while ($true) {
+                $vm = Get-SysPilotAiVoiceMode; $tts = Get-SysPilotAiVoiceTts
+                $vitems = @(
+                    @{ Label="Voice-Chat starten (STT+TTS aktiv, Modus: $vm)"; Color='Green'; Tag='vchat' },
+                    @{ Label="Sprachausgabe im Text-Chat: $(if($vm -eq 'speak'){'AN'}else{'aus'})"; Color='Cyan'; Tag='speak' },
+                    @{ Label="TTS-Engine: $(if($tts -eq 'provider'){'Provider (/audio/speech)'}else{'System (offline, DE)'})"; Color='Cyan'; Tag='ttseng' },
+                    @{ Label='Zurueck'; Color='DarkGray'; Tag='back' }
+                )
+                $v = Show-SysPilotArrowMenu -Items $vitems -Title 'Voice' -Footer 'Enter = Aktion, Esc = zurueck'
+                if ($null -eq $v -or $v -eq 'back') { break }
+                if ($v -eq 'vchat') { Show-SysPilotAiVoiceChat; continue }
+                if ($v -eq 'speak') {
+                    Set-SysPilotAiVoiceMode -Mode $(if ($vm -eq 'speak') { 'off' } else { 'speak' })
+                    Write-Host "  Sprachausgabe: $(if($vm -eq 'speak'){'AUS'}else{'AN'})" -ForegroundColor Green
+                    continue
+                }
+                if ($v -eq 'ttseng') {
+                    Set-SysPilotAiVoiceTts -Engine $(if ($tts -eq 'provider') { 'system' } else { 'provider' })
+                    Write-Host "  TTS-Engine: $(if($tts -eq 'provider'){'system (offline)'}else{'provider'})" -ForegroundColor Green
+                    continue
+                }
+            }
+            continue
+        }
         if ($sel -eq 'pollimg') {
             $prompt = Read-SysPilotInput 'Bild-Prompt'
             if (-not $prompt) { continue }
@@ -5032,6 +5288,7 @@ function Show-SysPilotAiEndpointsMenu {
                     @{ Label='[E] POST /embeddings (Text -> Vektor)'; Color='Cyan'; Tag='emb' },
                     @{ Label='[B] POST /images/generations (Text -> PNG)'; Color='Cyan'; Tag='img' },
                     @{ Label='[A] POST /audio/transcriptions (Audio -> Text)'; Color='Yellow'; Tag='aud' },
+                    @{ Label='[S] POST /audio/speech (Text -> Audio/MP3)'; Color='Yellow'; Tag='tts' },
                     @{ Label='Zurueck'; Color='DarkGray'; Tag=$null }
                 )
                 $a = Show-SysPilotArrowMenu -Items $acts -Title "$($p.Name) - Endpunkte" -Footer 'Enter = Aktion, Esc = zurueck'
@@ -5070,6 +5327,18 @@ function Show-SysPilotAiEndpointsMenu {
                         }
                         if (Test-Path $out) { Write-Host "  Bild gespeichert: $out" -ForegroundColor Green; try { Start-Process $out } catch {} }
                         else { Write-Host '  Keine Bilddaten in der Antwort (Provider unterstuetzt endpoint evtl. nicht).' -ForegroundColor Yellow }
+                    }
+                    elseif ($a -eq 'tts') {
+                        $txt = Read-SysPilotInput 'Text fuer Sprachausgabe'
+                        if (-not $txt) { continue }
+                        $voice = Read-SysPilotInput 'Stimme (Enter=alloy, z.B. nova/onyx/shimmer)'; if (-not $voice) { $voice='alloy' }
+                        $outDir = Join-Path $env:TEMP 'SysPilot-Voice'
+                        New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+                        $out = Join-Path $outDir ("tts-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.mp3')
+                        if (Send-SysPilotAiSpeech -Provider $p -Text $txt -OutFile $out -Voice $voice) {
+                            Write-Host "  Audio gespeichert: $out" -ForegroundColor Green
+                            try { Start-Process $out } catch {}
+                        } else { Write-Host '  /audio/speech fehlgeschlagen oder nicht unterstuetzt.' -ForegroundColor Yellow }
                     }
                     elseif ($a -eq 'aud') {
                         $file = Read-SysPilotInput 'Pfad zur Audiodatei (.mp3/.wav/.m4a/.ogg/.flac/.webm)'
@@ -12366,6 +12635,12 @@ Export-ModuleMember -Function `
     Get-SysPilotAiMonthlyTokenBudget, Set-SysPilotAiMonthlyTokenBudget, `
     Get-SysPilotAiPaidTokensThisMonth, Test-SysPilotAiProviderBudgetExceeded, `
     Show-SysPilotAiBudgetMenu, `
+    Get-SysPilotAiVoiceMode, Set-SysPilotAiVoiceMode, `
+    Get-SysPilotAiVoiceTts, Set-SysPilotAiVoiceTts, `
+    Get-SysPilotMicDevice, Save-SysPilotMicRecording, `
+    Send-SysPilotAiAudioTranscription, Send-SysPilotAiSpeech, `
+    Send-SysPilotSystemSpeech, Invoke-SysPilotAiSpeak, `
+    Get-SysPilotAiVoiceSttProvider, Show-SysPilotAiVoiceChat, Get-SysPilotAiFfmpeg, `
     Get-SysPilotAiLastSelection, Set-SysPilotAiLastSelection, `
     Show-SysPilotAiAssist, Show-SysPilotAiChat, Show-SysPilotAiQuickAsk, `
     Show-SysPilotAiProviderMenu, Add-SysPilotAiProviderInteractive, `
