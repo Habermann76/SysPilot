@@ -2045,8 +2045,10 @@ function Show-SysPilotWpfMultiSelect {
             $btn.Margin = '0,0,8,0'; $btn.Padding = '10,3'
             $fg = ConvertTo-SysPilotMenuColor $a.Color
             $btn.Foreground = $bcvt.ConvertFromString($fg)
-            $at = $a.Tag
-            $btn.Add_Click({ & $finishAction $at })
+            # Tag ueber den Sender lesen - NICHT $a.Tag im Handler:
+            # Schleifen-Variablen werden per Referenz geteilt, alle
+            # Buttons haetten sonst das letzte Tag ('back').
+            $btn.Add_Click({ param($s, $e) & $finishAction $s.Tag })
             [void]$ap.Children.Add($btn)
         }
     } else { $ap.Visibility = 'Collapsed' }
