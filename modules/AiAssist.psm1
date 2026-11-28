@@ -1047,6 +1047,35 @@ function Get-SysPilotAiUsableProviders {
         $first = @($providers | Where-Object { $_.Name -eq $pin })
         if ($first.Count -gt 0) { $providers = @($first) + @($providers | Where-Object { $_.Name -ne $pin }) }
     }
+    # --- Smart Budget: Kosten-Automatik (an-/abschaltbar) ---
+    $budgetMode = Get-SysPilotAiBudgetMode
+    if ($budgetMode -ne 'aus' -and $budgetMode -ne 'qualitaet') {
+        if ($budgetMode -eq 'sparsam') {
+            # Sparmodus: teure/Abo/Enterprise-Provider raus -
+            # guenstige+kostenlose bleiben, Pin ist ausgenommen
+            $providers = @($providers | Where-Object {
+                $_.Name -eq $pin -or $_.Cost -notin @('teuer','abo','mittel')
+            })
+        } else {
+            # 'smart': Bezahltes nur solange Monats-Budget reicht.
+            # Ueberschritten -> alle nicht-kostenlosen ans Ende (nicht
+            # geloescht - Fallback bleibt, falls Free alles nur Fehlschlaege hat).
+            $paidTokens = Get-SysPilotAiPaidTokensThisMonth
+            $budget = Get-SysPilotAiMonthlyTokenBudget
+            $budgetOut = ($budget -gt 0 -and $paidTokens -ge $budget)
+            if ($budgetOut) {
+                $free = @($providers | Where-Object { $_.Cost -in @('kostenlos','lokal') -or $_.Kind -eq 'free' })
+                $paid = @($providers | Where-Object { $_.Cost -notin @('kostenlos','lokal') -and $_.Kind -ne 'free' })
+                $providers = @($free) + @($paid)
+            }
+            # Pro-Provider Monats-Cap (TokenCapMonthly im Config)
+            foreach ($p in @($providers)) {
+                if (Test-SysPilotAiProviderBudgetExceeded -Provider $p) {
+                    $providers = @($providers | Where-Object { $_.Name -ne $p.Name }) + @($p)
+                }
+            }
+        }
+    }
     # Kontext-Budget-Anreicherung: NUR aus dem Cache (CacheOnly) -
     # kein zusaetzlicher HTTP-Call pro Listenerzeugung. Der Chat
     # loest echte Context-Laengen ohnehin live beim ersten Request.
@@ -2353,7 +2382,7 @@ KI-PROVIDER / HERBERT:
 - Router-Sync (OmniRoute, FreeLLMAPI, freelm, 9router): uebernimmt automatisch Modus + Pin + Budget-Reihenfolge der Provider. Zusaetzlich schreibt jeder Sync das Artefakt %LOCALAPPDATA%\SysPilot\usable-providers.json mit geranktem Modell-Plan pro Provider (model = bestes Modell via Kostenklasse/Free-Varianten/Kontext, models = Fallback-Kette fuer Rate-Limit - Freikontingente gelten pro Modell). Custom-Provider in FreeLLMAPI bekommen dasselbe Ranking.
 - Kontext-Budget: History wird automatisch auf ~70% des Modell-Contexts gekuerzt - sehr lange Chats sind normal, aelteste Nachrichten fallen ggf. weg.
 - Bei instabilem Netz (Hotspot): SysPilot wartet kurz auf Wiederkehr statt sofort zu scheitern; Downloads sind resume-faehig (aria2/Segmente).
-- Provider-Details (SysPilot -> KI-Assistenz -> Provider): Key wird MASKIERT angezeigt (...letzte4), [API-Key anzeigen] gibt ihn frei; 'Modell-Scope' beschraenkt per Haken, welche /models-Modelle ein Key nutzen darf (Prefix-Match: 'openai' deckt 'openai-fast'); 'Nutzung' zeigt Monats-Requests+Tokens (ai-usage.json). Katalog enthaelt KEYLESS-Provider (Kilo Gateway, OVH AI Endpoints - kein Account noetig), ~20 weitere Free-Router (LLM7, Agnes, Aion Labs, NaraRouter, OrcaRouter ...) UND ~90 BEZAHLTE OpenAI-kompatible Provider aus der OmniRoute-Registry (OpenAI, xAI, DeepInfra, Baseten, Hetzner, cheaperinference, AI/ML API, Qwen Cloud, MiniMax, Baidu Qianfan, Tencent Hunyuan u.v.m.) - Budget-Mode sortiert 'teuer' nach hinten, 'guenstig' nach vorn. Bei 429/Quota automatisch: 15min Modell-Cooldown + Wechsel zum naechsten Modell, dann Provider.
+- Provider-Details (SysPilot -> KI-Assistenz -> Provider): Key wird MASKIERT angezeigt (...letzte4), [API-Key anzeigen] gibt ihn frei; 'Modell-Scope' beschraenkt per Haken, welche /models-Modelle ein Key nutzen darf (Prefix-Match: 'openai' deckt 'openai-fast'); 'Nutzung' zeigt Monats-Requests+Tokens (ai-usage.json). Katalog enthaelt KEYLESS-Provider (Kilo Gateway, OVH AI Endpoints - kein Account noetig), ~20 weitere Free-Router (LLM7, Agnes, Aion Labs, NaraRouter, OrcaRouter ...) UND ~90 BEZAHLTE OpenAI-kompatible Provider aus der OmniRoute-Registry (OpenAI, xAI, DeepInfra, Baseten, Hetzner, cheaperinference, AI/ML API, Qwen Cloud, MiniMax, Baidu Qianfan, Tencent Hunyuan u.v.m.) - Budget-Mode sortiert 'teuer' nach hinten, 'guenstig' nach vorn. Bei 429/Quota automatisch: 15min Modell-Cooldown + Wechsel zum naechsten Modell, dann Provider. SMART BUDGET (Provider-Menue > [B] Budget-Modus, an-/abschaltbar): 'smart' = Bezahl-Provider nur solange Monats-Token-Budget reicht (dann ans Ende der Kette, nicht geloescht); 'sparsam' = teure/Abo-Provider komplett raus (Pin ausgenommen); 'qualitaet' = Budget-Checks aus, beste Modelle zuerst; 'aus' = alte Sortierung. Globales Monats-Budget + pro-Provider TokenCapMonthly einstellbar, Nutzung kommt aus ai-usage.json (usage.total_tokens pro Request). Pin (bevorzugter Provider) bleibt in jedem Modus erste Wahl.
 '@
         @'
 BROWSER "VERWALTET" / EXTENSION-POLICY (Chrome, Edge, Brave, Vivaldi, Chromium):
@@ -2622,6 +2651,9 @@ function Show-SysPilotAiProviderMenu {
         $items += @{ Label='[PATH] Tool-Pfade pruefen/ergaenzen (Git, Ollama, LM Studio, llama.cpp, ...)'; Color='Yellow'; Tag='path' }
         $items += @{ Label='[K] Kaggle (Gratis-GPU, Kernel per CLI, Notebook-failed-Hilfe)'; Color='Green'; Tag='kaggle' }
         $items += @{ Label='[ok] Provider bereinigen (tote/knappe ausmustern)'; Color='Yellow'; Tag='clean' }
+        $bm = Get-SysPilotAiBudgetMode
+        $bmLbl = @{ smart='smart (Budget-Automatik)'; sparsam='sparsam (keine teuren)'; qualitaet='qualitaet (Budget aus)'; aus='aus' }[$bm]
+        $items += @{ Label="[B] Budget-Modus: $bmLbl"; Color='Green'; Tag='budget' }
         $items += @{ Label='Zurueck'; Color='DarkGray'; Tag=$null }
         $sel = Show-SysPilotArrowMenu -Items $items -Title 'KI-Provider' -Footer 'Enter = Provider-Details, Esc = zurueck'
         if ($null -eq $sel) { return }
@@ -2639,6 +2671,7 @@ function Show-SysPilotAiProviderMenu {
             Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
             continue
         }
+        if ($sel -eq 'budget') { Show-SysPilotAiBudgetMenu; continue }
         if ($sel -eq 'suggest') {
             try { Show-SysPilotAiSuggestionsWindow } catch { Show-SysPilotAiSuggestions }
             continue
@@ -2650,6 +2683,71 @@ function Show-SysPilotAiProviderMenu {
             Show-SysPilotAiProviderDetail -Name $name
         }
     }
+}
+
+function Show-SysPilotAiBudgetMenu {
+    <# Smart-Budget Konfiguration: Modus + globales Monats-Token-Budget
+       + Uebersicht der Bezahler-Nutzung. #>
+    $modeNames = @{ smart='smart'; sparsam='sparsam'; qualitaet='qualitaet'; aus='aus' }
+    $modeDesc = @{
+        smart    = 'Free zuerst; Bezahltes nur solange Monats-Budget reicht, dann ans Ende'
+        sparsam  = 'Teure/Abo-Provider komplett aus der Auto-Kette (Pin ausgenommen)'
+        qualitaet= 'Budget-Checks aus - beste Modelle zuerst, Kosten egal'
+        aus      = 'Urspruenglich: reine Kosten-Sortierung, keine Caps'
+    }
+    $paid = Get-SysPilotAiPaidTokensThisMonth
+    $bud = Get-SysPilotAiMonthlyTokenBudget
+    $budTxt = if ($bud -gt 0) { "$([math]::Round($paid/1000))k / $([math]::Round($bud/1000))k Tokens" } else { "$([math]::Round($paid/1000))k Tokens (unbegrenzt)" }
+    Write-Host "`n  Smart Budget" -ForegroundColor Cyan
+    Write-Host "  Modus:          $(Get-SysPilotAiBudgetMode) - $($modeDesc[(Get-SysPilotAiBudgetMode)])" -ForegroundColor DarkGray
+    Write-Host "  Bezahlte Tokens: $budTxt (Monat $(Get-Date -Format 'yyyy-MM'))" -ForegroundColor DarkGray
+    $items = @(
+        @{ Label='smart - Budget-Automatik (empfohlen)'; Color='Green'; Tag='smart' },
+        @{ Label='sparsam - keine teuren/Abo-Provider'; Color='Yellow'; Tag='sparsam' },
+        @{ Label='qualitaet - Budget-Checks aus'; Color='Cyan'; Tag='qualitaet' },
+        @{ Label='aus - urspruengliche Sortierung'; Color='DarkGray'; Tag='aus' }
+    )
+    $items += @{ Label="Monats-Token-Budget setzen (aktuell: $(if($bud -gt 0){"$($bud/1000)k"}else{'unbegrenzt'}))"; Color='Yellow'; Tag='cap' }
+    $items += @{ Label='Provider-Nutzung diesen Monat'; Color='DarkGray'; Tag='usage' }
+    $items += @{ Label='Zurueck'; Color='DarkGray'; Tag='back' }
+    $a = Show-SysPilotArrowMenu -Items $items -Title 'Smart Budget' -Footer 'Enter = waehlen, Esc = zurueck'
+    if ($null -eq $a -or $a -eq 'back') { return }
+    switch ($a) {
+        { $_ -in @('smart','sparsam','qualitaet','aus') } {
+            Set-SysPilotAiBudgetMode -Mode $a
+            Write-Host "  Budget-Modus: $a" -ForegroundColor Green
+        }
+        'cap' {
+            $in = Read-SysPilotInput 'Monats-Token-Budget in Tausend (z.B. 500 = 500k, 0 = unbegrenzt)'
+            if ($null -ne $in -and "$in".Trim() -ne '') {
+                $v = 0
+                if ("$in".Trim() -match '^\d+$') { $v = [int64]$in * 1000 }
+                elseif ("$in".Trim() -match '^\d+[.,]?\d*k?$') { $v = [int64]([double]("$in".Trim() -replace 'k$','')) * 1000 }
+                Set-SysPilotAiMonthlyTokenBudget -Tokens $v
+                Write-Host "  Budget: $(if($v -gt 0){"$($v/1000)k Tokens/Monat"}else{'unbegrenzt'})" -ForegroundColor Green
+            }
+        }
+        'usage' {
+            $j = Get-SysPilotAiUsage
+            if ($j) {
+                $month = (Get-Date).ToString('yyyy-MM')
+                Write-Host "`n  Nutzung $month (Top 10):" -ForegroundColor Cyan
+                $rows = foreach ($prop in $j.PSObject.Properties) {
+                    $v = $prop.Value
+                    if ($v.month -eq $month) {
+                        $nm = ($prop.Name -split '\|',2)[1]
+                        $intel = Get-SysPilotAiProviderIntel -Name $nm
+                        [pscustomobject]@{ Name=$nm; Cost=$intel.Cost; Requests=[int64]$v.requests; Tokens=[int64]$v.tokens }
+                    }
+                }
+                foreach ($r in @($rows | Sort-Object Tokens -Descending | Select-Object -First 10)) {
+                    Write-Host ("    {0,-28} {1,-10} {2,6} req  {3,8} tok" -f $r.Name, $r.Cost, $r.Requests, $r.Tokens) -ForegroundColor DarkGray
+                }
+            } else { Write-Host '  Noch keine Nutzung erfasst.' -ForegroundColor DarkGray }
+            Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+        }
+    }
+    Write-Host ''
 }
 
 function Show-SysPilotAiProviderDetail {
@@ -2676,6 +2774,9 @@ function Show-SysPilotAiProviderDetail {
         @{ Label = "Modell-Scope ($(if($allowedList.Count -gt 0){"$($allowedList.Count) erlaubt"}else{'alle'}))"; Color='Magenta'; Tag='scope' }
     )
     if ($p.ApiKey) { $acts += @{ Label = 'API-Key anzeigen'; Color='DarkYellow'; Tag='key' } }
+    $pCap = 0
+    foreach ($cp in @(Read-SysPilotAiAssistConfig).Providers) { if ($cp.Name -eq $Name -and $cp.PSObject.Properties['TokenCapMonthly'] -and $cp.TokenCapMonthly) { $pCap = [int64]$cp.TokenCapMonthly } }
+    $acts += @{ Label = "Monats-Token-Cap ($(if($pCap -gt 0){"$($pCap/1000)k"}else{'kein'}))"; Color='DarkYellow'; Tag='moncap' }
     $acts += @{ Label = $(if ($p.Enabled) { 'Deaktivieren' } else { 'Aktivieren' }); Color='Yellow'; Tag='toggle' }
     if ($p.Configured) { $acts += @{ Label = 'Entfernen'; Color='Red'; Tag='del' } }
     $acts += @{ Label = 'Zurueck'; Color='DarkGray'; Tag='back' }
@@ -2714,6 +2815,23 @@ function Show-SysPilotAiProviderDetail {
                 }
                 Write-SysPilotAiAssistConfig $cfg
                 Write-Host "  Scope gespeichert: $(if($scope.Count -gt 0){"$($scope.Count) Modelle"}else{'alle Modelle'})" -ForegroundColor Green
+            }
+            return
+        }
+        'moncap' {
+            $in = Read-SysPilotInput "Monats-Token-Cap fuer '$Name' in Tausend (0 = kein Limit)"
+            if ($null -ne $in -and "$in".Trim() -ne '') {
+                $v = 0
+                if ("$in".Trim() -match '^\d+$') { $v = [int64]$in * 1000 }
+                elseif ("$in".Trim() -match '^\d+[.,]?\d*k?$') { $v = [int64]([double]("$in".Trim() -replace 'k$','')) * 1000 }
+                foreach ($cp in @($cfg.Providers)) {
+                    if ($cp.Name -eq $Name) {
+                        if ($v -gt 0) { $cp | Add-Member -NotePropertyName TokenCapMonthly -NotePropertyValue $v -Force }
+                        else { $cp.PSObject.Properties.Remove('TokenCapMonthly') }
+                    }
+                }
+                Write-SysPilotAiAssistConfig $cfg
+                Write-Host "  Cap: $(if($v -gt 0){"$($v/1000)k Tokens/Monat"}else{'entfernt'})" -ForegroundColor Green
             }
             return
         }
@@ -2919,6 +3037,78 @@ function Set-SysPilotAiPreferredProvider {
     $cfg = Read-SysPilotAiAssistConfig
     $cfg | Add-Member -NotePropertyName PreferredProvider -NotePropertyValue $Name -Force
     Write-SysPilotAiAssistConfig $cfg
+}
+
+# --- Smart Budget (an-/abschaltbare Kosten-Automatik) ---
+# Modes: 'smart'    = Free zuerst, Bezahltes nur solange Monats-Budget
+#                     (MonthlyTokenBudget) reicht; ueberschritten -> Bezahlte
+#                     ans Ende der Kette (Free-Lokales zuerst).
+#        'sparsam'  = Bezahlte Provider (teuer/abo/mittel) komplett aus der
+#                     Auto-Kette - ausser per Pin ausdruecklich gewaehlt.
+#        'qualitaet'= Budget-Checks aus - beste Modelle zuerst, Kosten
+#                     werden nicht beruecksichtigt (Abo/Direktzahl dominiert).
+#        'aus'      = Urspruengliches Verhalten (reine Kosten-Sortierung,
+#                     keine Caps).
+function Get-SysPilotAiBudgetMode {
+    $cfg = Read-SysPilotAiAssistConfig
+    if ($cfg.PSObject.Properties['BudgetMode'] -and $cfg.BudgetMode) { return [string]$cfg.BudgetMode }
+    return 'smart'
+}
+function Set-SysPilotAiBudgetMode {
+    param([Parameter(Mandatory)][ValidateSet('smart','sparsam','qualitaet','aus')][string]$Mode)
+    $cfg = Read-SysPilotAiAssistConfig
+    $cfg | Add-Member -NotePropertyName BudgetMode -NotePropertyValue $Mode -Force
+    Write-SysPilotAiAssistConfig $cfg
+}
+function Get-SysPilotAiMonthlyTokenBudget {
+    <# Globales Monats-Token-Budget fuer BEZAHLTE Provider (0 = unbegrenzt).
+       Gilt nur in 'smart'-Mode; zaehlt ai-usage.json (Monats-Zaehler). #>
+    $cfg = Read-SysPilotAiAssistConfig
+    if ($cfg.PSObject.Properties['MonthlyTokenBudget'] -and $null -ne $cfg.MonthlyTokenBudget) { return [int64]$cfg.MonthlyTokenBudget }
+    return 0
+}
+function Set-SysPilotAiMonthlyTokenBudget {
+    param([Parameter(Mandatory)][int64]$Tokens)
+    $cfg = Read-SysPilotAiAssistConfig
+    $cfg | Add-Member -NotePropertyName MonthlyTokenBudget -NotePropertyValue $Tokens -Force
+    Write-SysPilotAiAssistConfig $cfg
+}
+function Get-SysPilotAiPaidTokensThisMonth {
+    <# Summe der Monats-Tokens ueber alle Provider mit Cost NICHT in
+       (kostenlos,lokal) - also das was wirklich Geld kosten kann. #>
+    $month = (Get-Date).ToString('yyyy-MM')
+    $sum = [int64]0
+    $j = Get-SysPilotAiUsage
+    if (-not $j) { return 0 }
+    foreach ($prop in $j.PSObject.Properties) {
+        $v = $prop.Value
+        if ($v.month -eq $month) {
+            # Provider-Name aus Schluessel "baseUrl|name" - Cost-Nachschlag
+            $nm = ($prop.Name -split '\|',2)[1]
+            $intel = Get-SysPilotAiProviderIntel -Name $nm
+            if ($intel.Cost -notin @('kostenlos','lokal')) { $sum += [int64]$v.tokens }
+        }
+    }
+    return $sum
+}
+function Test-SysPilotAiProviderBudgetExceeded {
+    <# True wenn dieser Provider sein Monats-Limit (TokenCapMonthly im
+       Provider-Config) ueberschritten hat. #>
+    param([Parameter(Mandatory)]$Provider)
+    $cap = 0
+    $cfg = Read-SysPilotAiAssistConfig
+    foreach ($cp in @($cfg.Providers)) {
+        if ($cp.Name -eq $Provider.Name -and $cp.PSObject.Properties['TokenCapMonthly'] -and $cp.TokenCapMonthly) {
+            $cap = [int64]$cp.TokenCapMonthly; break
+        }
+    }
+    if ($cap -le 0) { return $false }
+    $j = Get-SysPilotAiUsage
+    if (-not $j) { return $false }
+    $month = (Get-Date).ToString('yyyy-MM')
+    $key = "$($Provider.BaseUrl.ToLower().TrimEnd('/'))|$($Provider.Name)"
+    $cur = $j.$key
+    return ($cur -and $cur.month -eq $month -and [int64]$cur.tokens -ge $cap)
 }
 
 function Get-SysPilotHerbertAnnouncements {
@@ -12172,6 +12362,10 @@ Export-ModuleMember -Function `
     Get-SysPilotAiModelCooldowns, Set-SysPilotAiModelCooldown,
     Test-SysPilotAiModelCooledDown, Clear-SysPilotAiModelCooldown, `
     Get-SysPilotAiUsage, Add-SysPilotAiUsageRecord, Get-SysPilotAiUsageSummary, `
+    Get-SysPilotAiBudgetMode, Set-SysPilotAiBudgetMode, `
+    Get-SysPilotAiMonthlyTokenBudget, Set-SysPilotAiMonthlyTokenBudget, `
+    Get-SysPilotAiPaidTokensThisMonth, Test-SysPilotAiProviderBudgetExceeded, `
+    Show-SysPilotAiBudgetMenu, `
     Get-SysPilotAiLastSelection, Set-SysPilotAiLastSelection, `
     Show-SysPilotAiAssist, Show-SysPilotAiChat, Show-SysPilotAiQuickAsk, `
     Show-SysPilotAiProviderMenu, Add-SysPilotAiProviderInteractive, `
