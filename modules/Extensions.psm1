@@ -1172,15 +1172,38 @@ function Get-SysPilotExtManagerDir {
     return $null
 }
 
+function Get-SysPilotExtManagerUserDir {
+    <# User-seitige Kopie des Extension-Manager-Ordners unter
+       %LOCALAPPDATA%\SysPilot\extension-manager - vom Chrome-
+       Ordnerdialog problemlos erreichbar (Program Files oft nicht
+       navigierbar/sichtbar im nativen Picker). #>
+    $dst = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'SysPilot\extension-manager'
+    $src = Get-SysPilotExtManagerDir
+    if (-not $src) { return @{ Ok=$false; Dir=$null; Message='extension-manager-Ordner nicht gefunden (weder Repo noch Programm-Ordner).' } }
+    try {
+        if (-not (Test-Path $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
+        foreach ($f in @('manifest.json','popup.html','popup.css','popup.js','icon.png')) {
+            $s = Join-Path $src $f; $d = Join-Path $dst $f
+            if ((Test-Path $s) -and (-not (Test-Path $d) -or (Get-Item $s).LastWriteTime -gt (Get-Item $d).LastWriteTime -or (Get-FileHash $s).Hash -ne (Get-FileHash $d).Hash))) {
+                Copy-Item $s $d -Force
+            }
+        }
+        return @{ Ok=$true; Dir=$dst }
+    } catch {
+        return @{ Ok=$false; Dir=$src; Message="Kopie nach LOCALAPPDATA fehlgeschlagen: $($_.Exception.Message) - Original-Pfad: $src" }
+    }
+}
+
 function Install-SysPilotExtManagerExtension {
     <# Bietet die SysPilot Extension-Manager-Extension an: kopiert den
        Ordnerpfad in die Zwischenablage und oeffnet chrome://extensions.
        chrome.management ermoeglicht Enable/Disable/Remove + oeffnen der
        Browser-Detailseite direkt im Browser (kein chrome.exe-Workaround). #>
-    $dir = Get-SysPilotExtManagerDir
-    if (-not $dir) { return @{ Ok=$false; Message='extension-manager-Ordner nicht gefunden.' } }
+    $r = Get-SysPilotExtManagerUserDir
+    if (-not $r.Ok) { return @{ Ok=$false; Message=$r.Message } }
+    $dir = $r.Dir
     try { $dir | Set-Clipboard } catch {}
-    $msg = "SysPilot Extension Manager ist im Repo unter:`n$dir`n`nPfad wurde in die Zwischenablage kopiert.`n`nInstallation:`n1) chrome://extensions oeffnen`n2) 'Entwicklermodus' aktivieren (oben rechts)`n3) 'Entpackte Erweiterung laden' -> Pfad einfuegen`n`nDanach: Suche, Enable/Disable, Entfernen, HTML-Export/Import (Sync zwischen Browsern) direkt im Browser."
+    $msg = "SysPilot Extension Manager liegt bereit unter:`n$dir`n`nPfad wurde in die Zwischenablage kopiert.`n`nInstallation:`n1) chrome://extensions oeffnen`n2) 'Entwicklermodus' aktivieren (oben rechts)`n3) 'Entpackte Erweiterung laden' -> in die Adresszeile des Ordnerdialogs den Pfad einfuegen (Strg+L) oder Ordner anklicken`n4) 'Ordner auswaehlen' klicken`n`nDanach: Suche, Enable/Disable, Entfernen, HTML-Export/Import (Sync zwischen Browsern) direkt im Browser."
     try { Start-Process 'chrome://extensions/' } catch {}
     return @{ Ok=$true; Message=$msg; Dir=$dir }
 }
@@ -1194,4 +1217,4 @@ Export-ModuleMember -Function Get-SysPilotBrowserProfiles, Get-SysPilotExtension
     Get-SysPilotExtUserBlocklist, Add-SysPilotExtUserBlocklist,
     Get-SysPilotExtUserBlocklistPath, Get-SysPilotExtensionPolicyPath,
     Add-SysPilotExtensionInstallBlock, Test-SysPilotExtHostAlive,
-    Get-SysPilotExtManagerDir, Install-SysPilotExtManagerExtension
+    Get-SysPilotExtManagerDir, Get-SysPilotExtManagerUserDir, Install-SysPilotExtManagerExtension
