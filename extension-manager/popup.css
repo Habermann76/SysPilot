@@ -1,0 +1,70 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  width: 460px; max-height: 560px; display: flex; flex-direction: column;
+  background: #1e1e2e; color: #e6e6f0;
+  font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+}
+header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 10px 12px 6px; border-bottom: 1px solid #33334d;
+}
+.brand { font-weight: 700; color: #ff8c00; letter-spacing: .5px; }
+.brand span { color: #9a9ab5; font-weight: 400; }
+.counts { color: #9a9ab5; font-size: 11px; }
+.toolbar { display: flex; gap: 6px; padding: 8px 12px 4px; }
+#search {
+  flex: 1; background: #14141f; border: 1px solid #3a3a55; color: #e6e6f0;
+  border-radius: 6px; padding: 6px 9px; outline: none; font-size: 13px;
+}
+#search:focus { border-color: #ff8c00; }
+#btnRefresh {
+  background: #2a2a40; border: 1px solid #3a3a55; color: #e6e6f0;
+  border-radius: 6px; width: 32px; cursor: pointer; font-size: 15px;
+}
+#btnRefresh:hover { background: #3a3a55; }
+.toolbar2 { display: flex; gap: 6px; align-items: center; padding: 0 12px 8px; }
+.act {
+  background: #2a2a40; border: 1px solid #3a3a55; color: #e6e6f0;
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px;
+}
+.act:hover { border-color: #ff8c00; color: #ffb066; }
+.chk { color: #9a9ab5; font-size: 11px; display: flex; gap: 4px; align-items: center; margin-left: auto; }
+.import-panel {
+  margin: 0 12px 8px; padding: 8px; background: #14141f;
+  border: 1px solid #3a3a55; border-radius: 6px; max-height: 160px; overflow: auto;
+}
+.import-panel h4 { color: #ffb066; font-size: 12px; margin-bottom: 6px; }
+.import-panel .imp-item { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: 12px; }
+.import-panel .imp-item .st { color: #6f6; }
+.import-panel .imp-item .st.missing { color: #f66; }
+.import-panel .imp-item a { color: #7ab8ff; text-decoration: none; font-size: 11px; }
+ul#list { list-style: none; overflow-y: auto; flex: 1; padding: 0 6px; }
+.ext {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 6px; border-radius: 6px; border-bottom: 1px solid #26263a;
+}
+.ext:hover { background: #26263a; }
+.ext img { width: 28px; height: 28px; border-radius: 5px; flex-shrink: 0; }
+.ext .info { flex: 1; min-width: 0; }
+.ext .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ext .meta { color: #9a9ab5; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ext.disabled .name, .ext.disabled .meta { opacity: .45; }
+.ext .actions { display: flex; gap: 4px; flex-shrink: 0; }
+.ext button {
+  background: #2a2a40; border: 1px solid #3a3a55; color: #e6e6f0;
+  border-radius: 5px; padding: 3px 7px; cursor: pointer; font-size: 12px;
+}
+.ext button:hover { border-color: #ff8c00; }
+.ext button.danger:hover { border-color: #f66; color: #f99; }
+.tgl { width: 34px; position: relative; }
+.tgl::after {
+  content: ''; position: absolute; left: 5px; top: 50%; transform: translateY(-50%);
+  width: 12px; height: 12px; border-radius: 50%; background: #6f6;
+}
+.ext.disabled .tgl::after { background: #666; left: 17px; }
+.empty { padding: 30px; text-align: center; color: #9a9ab5; }
+footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 12px; border-top: 1px solid #33334d; font-size: 11px; color: #9a9ab5;
+}
+#status { color: #7ec98f; }

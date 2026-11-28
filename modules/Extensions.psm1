@@ -661,6 +661,8 @@ function Show-SysPilotExtensionManager {
                   ToolTip="Oeffnet die Browser-Erweiterungsseite"/>
           <Button x:Name="BtnCatalog" Content="Webkatalog" Padding="10,3" Margin="0,0,6,0"
                   ToolTip="Vertrauenswuerdige Security-Quellen fuer Extensions"/>
+          <Button x:Name="BtnExtMgr" Content="Ext-Manager" Padding="10,3" Margin="0,0,6,0"
+                  ToolTip="Installiert die SysPilot Extension-Manager-Extension (chrome.management: Suchen, Enable/Disable, Entfernen, HTML-Export/Import)"/>
           <Button x:Name="BtnRemove" Content="Entfernen" Padding="10,3" Margin="0,0,6,0"
                   Foreground="$($pal.Danger)"
                   ToolTip="Entfernt markierte Chromium-Extensions (Backup + Bestaetigung)"/>
@@ -859,6 +861,7 @@ function Show-SysPilotExtensionManager {
     # ---------- Aktionen ----------
     $btnInfo = $win.FindName('BtnInfo'); $btnOpen = $win.FindName('BtnOpen')
     $btnCat = $win.FindName('BtnCatalog'); $btnRem = $win.FindName('BtnRemove')
+    $btnExtMgr = $win.FindName('BtnExtMgr')
     $btnRep = $win.FindName('BtnReport'); $btnHerb = $win.FindName('BtnHerbert')
     $btnCrx = $win.FindName('BtnCrx'); $btnClose = $win.FindName('BtnClose')
     $btnAll = $win.FindName('BtnSelAll'); $btnNone = $win.FindName('BtnSelNone')
@@ -871,6 +874,15 @@ function Show-SysPilotExtensionManager {
         $cat = Get-SysPilotExtensionInfoCatalog
         $lines = ($cat | ForEach-Object { "[$($_.Cat)] $($_.Name)`n    $($_.Url)`n    $($_.Desc)" }) -join "`n`n"
         [System.Windows.MessageBox]::Show($lines, 'Extension-Sicherheits-Webkatalog', 'OK', 'Information') | Out-Null
+    })
+    $btnExtMgr.Add_Click({
+        $r = Install-SysPilotExtManagerExtension
+        if ($r.Ok) {
+            & $say $r.Message
+            [System.Windows.MessageBox]::Show($r.Message + "`n`nPfad (kopiert): " + $r.Dir, 'SysPilot Extension Manager', 'OK', 'Information') | Out-Null
+        } else {
+            [System.Windows.MessageBox]::Show($r.Message, 'SysPilot Extension Manager', 'OK', 'Warning') | Out-Null
+        }
     })
     $btnOpen.Add_Click({
         $vm = $extList.SelectedItem; if (-not $vm) { return }
@@ -1150,6 +1162,29 @@ $lines
     [void]$win.ShowDialog()
 }
 
+function Get-SysPilotExtManagerDir {
+    <# Pfad zum SysPilot Extension-Manager-Ordner (extension-manager/). #>
+    $root = $script:SysPilotRoot
+    if (-not $root) { $root = Split-Path -Parent $PSScriptRoot }
+    foreach ($d in @((Join-Path $root 'extension-manager'), (Join-Path (Split-Path -Parent $PSScriptRoot) 'extension-manager'))) {
+        if (Test-Path (Join-Path $d 'manifest.json')) { return $d }
+    }
+    return $null
+}
+
+function Install-SysPilotExtManagerExtension {
+    <# Bietet die SysPilot Extension-Manager-Extension an: kopiert den
+       Ordnerpfad in die Zwischenablage und oeffnet chrome://extensions.
+       chrome.management ermoeglicht Enable/Disable/Remove + oeffnen der
+       Browser-Detailseite direkt im Browser (kein chrome.exe-Workaround). #>
+    $dir = Get-SysPilotExtManagerDir
+    if (-not $dir) { return @{ Ok=$false; Message='extension-manager-Ordner nicht gefunden.' } }
+    try { $dir | Set-Clipboard } catch {}
+    $msg = "SysPilot Extension Manager ist im Repo unter:`n$dir`n`nPfad wurde in die Zwischenablage kopiert.`n`nInstallation:`n1) chrome://extensions oeffnen`n2) 'Entwicklermodus' aktivieren (oben rechts)`n3) 'Entpackte Erweiterung laden' -> Pfad einfuegen`n`nDanach: Suche, Enable/Disable, Entfernen, HTML-Export/Import (Sync zwischen Browsern) direkt im Browser."
+    try { Start-Process 'chrome://extensions/' } catch {}
+    return @{ Ok=$true; Message=$msg; Dir=$dir }
+}
+
 Export-ModuleMember -Function Get-SysPilotBrowserProfiles, Get-SysPilotExtensions,
     Get-SysPilotExtensionStoreUrl, Get-SysPilotExtensionInfoCatalog,
     Find-SysPilotExtensionCrxRisk, Remove-SysPilotChromiumExtension,
@@ -1158,4 +1193,5 @@ Export-ModuleMember -Function Get-SysPilotBrowserProfiles, Get-SysPilotExtension
     Get-SysPilotExtBlocklistIds, Get-SysPilotExtBlocklistNames,
     Get-SysPilotExtUserBlocklist, Add-SysPilotExtUserBlocklist,
     Get-SysPilotExtUserBlocklistPath, Get-SysPilotExtensionPolicyPath,
-    Add-SysPilotExtensionInstallBlock, Test-SysPilotExtHostAlive
+    Add-SysPilotExtensionInstallBlock, Test-SysPilotExtHostAlive,
+    Get-SysPilotExtManagerDir, Install-SysPilotExtManagerExtension

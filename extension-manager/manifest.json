@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "SysPilot Extension Manager",
+  "version": "1.0.0",
+  "description": "SysPilot Extension-Manager: alle Browser-Extensions auf einen Blick - suchen, aktivieren/deaktivieren, entfernen, Detailseite oeffnen, HTML-Export/-Import (browser-uebergreifender Sync).",
+  "permissions": ["management", "tabs", "storage", "downloads"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SysPilot Extension Manager",
+    "default_icon": { "16": "icon.png", "48": "icon.png", "128": "icon.png" }
+  },
+  "icons": { "16": "icon.png", "48": "icon.png", "128": "icon.png" }
+}

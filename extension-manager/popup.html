@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>SysPilot Extension Manager</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+  <div class="brand">SysPilot <span>Extension Manager</span></div>
+  <div class="counts" id="counts"></div>
+</header>
+<div class="toolbar">
+  <input id="search" type="text" placeholder="Suchen (Name, ID, Beschreibung)..." autofocus>
+  <button id="btnRefresh" title="Neu laden">&#x21bb;</button>
+</div>
+<div class="toolbar2">
+  <button id="btnExport" class="act">HTML-Export</button>
+  <button id="btnImport" class="act">Import</button>
+  <input id="fileImport" type="file" accept=".html,.json,.txt" hidden>
+  <label class="chk"><input type="checkbox" id="chkDisabled"> nur deaktivierte</label>
+</div>
+<div id="importPanel" class="import-panel" hidden></div>
+<ul id="list"></ul>
+<div id="empty" class="empty" hidden>Keine Extensions gefunden.</div>
+<footer>
+  <span id="status"></span>
+  <span class="hint">Zahnrad = Browser-Detailseite &middot; Export/Import = Sync zwischen Browsern</span>
+</footer>
+<script src="popup.js"></script>
+</body>
+</html>
