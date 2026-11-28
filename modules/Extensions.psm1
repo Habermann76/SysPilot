@@ -1208,7 +1208,29 @@ function Install-SysPilotExtManagerExtension {
     if (-not $r.Ok) { return @{ Ok=$false; Message=$r.Message } }
     $dir = $r.Dir
     try { $dir | Set-Clipboard } catch {}
-    $msg = "SysPilot Extension Manager liegt bereit unter:`n$dir`n`nPfad wurde in die Zwischenablage kopiert.`n`nInstallation:`n1) chrome://extensions oeffnen`n2) 'Entwicklermodus' aktivieren (oben rechts)`n3) 'Entpackte Erweiterung laden' -> in die Adresszeile des Ordnerdialogs den Pfad einfuegen (Strg+L) oder Ordner anklicken`n4) 'Ordner auswaehlen' klicken`n`nDanach: Suche, Enable/Disable, Entfernen, HTML-Export/Import (Sync zwischen Browsern) direkt im Browser."
+    $msg = @"
+SysPilot Extension Manager liegt bereit unter:
+$dir
+
+Der Pfad wurde in die Zwischenablage kopiert.
+
+INSTALLATION (Schritt fuer Schritt):
+1) chrome://extensions oeffnen
+2) 'Entwicklermodus' aktivieren (Schalter oben rechts)
+3) 'Entpackte Erweiterung laden' klicken
+4) Im Ordner-Dialog OBEN die Adress-/Pfadzeile anklicken
+   (zeigt z.B. '> Dieser PC > Dokumente')
+5) Strg+V (Pfad einfuegen) -> Enter
+6) 'Ordner auswaehlen' klicken (unten rechts)
+
+WICHTIG: Nie OneDrive\Documents oder einen anderen Ordner
+auswaehlen - dort liegt keine manifest.json (Fehlermeldung
+'Manifest konnte nicht geladen werden'). Der richtige Ordner
+heisst 'extension-manager' und liegt unter AppData\Local.
+
+Danach: Suche, Enable/Disable, Entfernen, HTML-Export/Import
+(Sync zwischen Browsern) direkt im Browser.
+"@
     try { Start-Process 'chrome://extensions/' } catch {}
     return @{ Ok=$true; Message=$msg; Dir=$dir }
 }
