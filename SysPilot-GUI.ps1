@@ -2150,29 +2150,43 @@ $miExit.Add_Click({
 })
 $script:notifyIcon.Add_DoubleClick({ $win.Show(); $win.WindowState = 'Normal'; $win.Activate() })
 
-# Minimieren -> im Tray verstecken statt Taskleiste belasten
-$win.Add_StateChanged({
-    if ($win.WindowState -eq 'Minimized') {
-        $win.Hide()
-    }
-})
-
-# Schliessen -> in Tray minimieren (nicht beenden), es sei denn wirklich beenden
+# Schliessen -> Auswahl: Tray minimieren, wirklich beenden oder Fenster behalten.
+# (Frueher: stiller Tray-Hide - wirkte wie "laesst sich nicht schliessen".)
 $script:reallyClose = $false
 $win.Add_Closing({
     param($s, $e)
-    if (-not $script:reallyClose) {
-        $e.Cancel = $true
-        $win.Hide()
-        # Keine stoerenden Balloontips waehrend des Spielens
-        if (-not (Test-SysPilotGamingActive)) {
-            $script:notifyIcon.ShowBalloonTip(2000, 'SysPilot', 'Laeuft im Hintergrund weiter. Rechtsklick aufs Symbol -> Beenden.', 'Info')
-        }
-    } else {
+    if ($script:reallyClose) {
         try {
             $script:notifyIcon.Visible = $false
             $script:notifyIcon.Dispose()
         } catch { }
+        return
+    }
+    $choice = [System.Windows.MessageBox]::Show(
+        "SysPilot laeuft im Hintergrund weiter (Tray-Symbol).`n`n" +
+        "'Ja'     = nur minimieren (Tray)`n" +
+        "'Nein'   = SysPilot wirklich beenden`n" +
+        "'Abbrechen' = Fenster bleibt offen",
+        'SysPilot beenden?', 'YesNoCancel', 'Question')
+    if ($choice -eq 'Cancel') {
+        $e.Cancel = $true
+        return
+    }
+    if ($choice -eq 'No') {
+        $script:reallyClose = $true
+        try { Set-SysPilotGuardianPause } catch { }
+        try {
+            $script:notifyIcon.Visible = $false
+            $script:notifyIcon.Dispose()
+        } catch { }
+        return
+    }
+    # Ja -> Tray minimieren
+    $e.Cancel = $true
+    $win.Hide()
+    # Keine stoerenden Balloontips waehrend des Spielens
+    if (-not (Test-SysPilotGamingActive)) {
+        $script:notifyIcon.ShowBalloonTip(2000, 'SysPilot', 'Laeuft im Hintergrund weiter. Rechtsklick aufs Symbol -> Beenden.', 'Info')
     }
 })
 

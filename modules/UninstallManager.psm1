@@ -1929,7 +1929,7 @@ function Show-SysPilotUninstallMenu {
             @{ Label = 'Browser-Erweiterungen entfernen (Chrome/Edge/Brave/Firefox/Opera)'; Color = 'Yellow'; Tag = 'ext' }
             @{ Label = 'Extension-Policy-Bloecke verwalten (Browser "verwaltet"?)'; Color = 'Yellow'; Tag = 'extpol' }
             @{ Label = 'Reste-Scanner (beliebiges Programm nach Ueberresten suchen)'; Color = 'Magenta'; Tag = 'left' }
-            @{ Label = "Reste Auto-Clean: $((if ((Get-SysPilotConfig).CleanSweep.AutoLeftoverClean -eq $true) { 'AN' } else { 'aus' })) - nach Deinstallation alle Reste automatisch loeschen"; Color = 'Magenta'; Tag = 'autol' }
+            @{ Label = "Reste Auto-Clean: $(if ((Get-SysPilotConfig).CleanSweep.AutoLeftoverClean -eq $true) { 'AN' } else { 'aus' }) - nach Deinstallation alle Reste automatisch loeschen"; Color = 'Magenta'; Tag = 'autol' }
             @{ Label = 'Verwaiste Programme finden (Ordner ohne Uninstall-Eintrag)'; Color = 'Yellow'; Tag = 'orph' }
             @{ Label = 'Defekte Deinstallationseintraege reparieren';            Color = 'Red';    Tag = 'broken' }
             @{ Label = 'Force-Uninstall (Pfad/Ordner manuell)';                  Color = 'Red';    Tag = 'force' }
