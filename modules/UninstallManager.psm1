@@ -1346,7 +1346,21 @@ function Show-SysPilotExtensionRemoval {
                 # nur die Prozesse DIESes Browsers beenden (BrowserOS laeuft
                 # z.B. als chrome.exe - Stop-Process -Name wuerde Chrome treffen)
                 $procs | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
-                Start-Sleep -Seconds 2
+                # Stop-Process kehrt sofort zurueck - Chrome braucht aber
+                # sekundenlang zum Sterben und schreibt dabei noch Prefs.
+                # Warten bis der Prozessbaum wirklich leer ist, sonst
+                # ueberschreibt der sterbende Browser unsere Edits.
+                $deadline = (Get-Date).AddSeconds(15)
+                while ((Get-Date) -lt $deadline) {
+                    if (@(Get-SysPilotBrowserProcesses -Browser $rb).Count -eq 0) { break }
+                    Start-Sleep -Milliseconds 500
+                }
+                $still = @(Get-SysPilotBrowserProcesses -Browser $rb)
+                if ($still.Count -gt 0) {
+                    Write-Host "  [!] $rb laeuft noch ($($still.Count) Prozess(e)) - Entfernen kann zurueckgesetzt werden." -ForegroundColor Yellow
+                } else {
+                    Write-Host "  $rb beendet." -ForegroundColor Green
+                }
                 $killedBrowsers[$rb] = $true
                 Write-SysPilotLog "$rb fuer Extension-Entfernung beendet"
             } elseif ($dec -eq 'skip' -or $null -eq $dec) {
@@ -1380,7 +1394,11 @@ function Show-SysPilotExtensionRemoval {
             if ($again.Count -gt 0) {
                 Write-Host "  $rb laeuft wieder - beende erneut, sonst kommt die Extension zurueck ..." -ForegroundColor Yellow
                 $again | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
-                Start-Sleep -Seconds 2
+                $deadline = (Get-Date).AddSeconds(15)
+                while ((Get-Date) -lt $deadline) {
+                    if (@(Get-SysPilotBrowserProcesses -Browser $rb).Count -eq 0) { break }
+                    Start-Sleep -Milliseconds 500
+                }
                 Write-SysPilotLog "$rb vor Entfernung erneut beendet (war zwischendurch neu gestartet)"
             }
         }
