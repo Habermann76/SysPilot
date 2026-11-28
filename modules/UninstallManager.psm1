@@ -1327,6 +1327,7 @@ function Show-SysPilotExtensionRemoval {
         }
         $runInfo = @($running.Keys | ForEach-Object { "${_}:$(@($running[$_]).Count)" }) -join ', '
         Write-SysPilotDebug "Laufende Browser unter den Zielen: $runInfo"
+        $killedBrowsers = @{}
         foreach ($rb in @($running.Keys)) {
             $procs = @($running[$rb] | Select-Object -Unique)
             $cnt = @($chosen | Where-Object { $_.Browser -eq $rb }).Count
@@ -1346,6 +1347,7 @@ function Show-SysPilotExtensionRemoval {
                 # z.B. als chrome.exe - Stop-Process -Name wuerde Chrome treffen)
                 $procs | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
                 Start-Sleep -Seconds 2
+                $killedBrowsers[$rb] = $true
                 Write-SysPilotLog "$rb fuer Extension-Entfernung beendet"
             } elseif ($dec -eq 'skip' -or $null -eq $dec) {
                 $chosen = @($chosen | Where-Object { $_.Browser -ne $rb })
@@ -1366,6 +1368,21 @@ function Show-SysPilotExtensionRemoval {
         if (-not $finalOk) {
             Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
             continue
+        }
+        # Zwischen Kill-Frage und Endbestaetigung kann ein Browser neu
+        # gestartet worden sein (User oeffnet ihn wieder, Autostart) -
+        # ein laufender Browser ueberschreibt unsere Pref-Edits beim
+        # Beenden und die Extension kommt zurueck (dann muss der User den
+        # ganzen Flow wiederholen). Kill-Consent liegt bereits vor ->
+        # einfach erneut beenden.
+        foreach ($rb in @($killedBrowsers.Keys)) {
+            $again = @(Get-SysPilotBrowserProcesses -Browser $rb)
+            if ($again.Count -gt 0) {
+                Write-Host "  $rb laeuft wieder - beende erneut, sonst kommt die Extension zurueck ..." -ForegroundColor Yellow
+                $again | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+                Start-Sleep -Seconds 2
+                Write-SysPilotLog "$rb vor Entfernung erneut beendet (war zwischendurch neu gestartet)"
+            }
         }
         $ok = 0
         $removedOk = @()
