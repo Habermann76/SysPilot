@@ -1514,14 +1514,17 @@ function Initialize-SysPilotConsoleInput {
        und liefert KEINE Mouse-Records an die App - ohne das Ausschalten
        bleiben Klicks/Rad wirkungslos. Der Original-Modus wird gespeichert
        und in Restore-SysPilotConsoleInput wiederhergestellt. #>
-    if ($script:ConsoleInputReady) { return ($script:ConsoleInputHandle -ne [IntPtr]::Zero) }
+    if (-not ('SysPilotConsoleInput' -as [type])) { return $false }
     try {
-        if (-not ('SysPilotConsoleInput' -as [type])) { return $false }
         $h = [SysPilotConsoleInput]::GetStdHandle(-10)
         if ($h.ToInt64() -eq -1 -or $h -eq [IntPtr]::Zero) { return $false }
         $mode = 0
         if (-not [SysPilotConsoleInput]::GetConsoleMode($h, [ref]$mode)) { return $false }
-        $script:ConsoleInputOrigMode = $mode
+        # Modus bei JEDEM Aufruf neu anwenden: Falls ein anderes Tool den
+        # Console-Mode inzwischen verstellt hat (Maus aus, QuickEdit an),
+        # war ConsoleInputReady noch $true, der Modus aber falsch - Klicks
+        # bleiben dann dauerhaft wirkungslos. Idempotent, self-healing.
+        if (-not $script:ConsoleInputReady) { $script:ConsoleInputOrigMode = $mode }
         $newMode = ($mode -bor 0x0010) -band (-bnot 0x0040)
         [void][SysPilotConsoleInput]::SetConsoleMode($h, $newMode)
         $script:ConsoleInputHandle = $h
@@ -1598,7 +1601,14 @@ function Read-SysPilotMenuEvent {
     $buf = [Array]::CreateInstance([type]'SysPilotConsoleInput+INPUT_RECORD', 32)
     while ($true) {
         if ($script:_menuEventQueue.Count -gt 0) { return $script:_menuEventQueue.Dequeue() }
-        [void][SysPilotConsoleInput]::WaitForSingleObject($script:ConsoleInputHandle, [uint32]::MaxValue)
+        $wr = [SysPilotConsoleInput]::WaitForSingleObject($script:ConsoleInputHandle, [uint32]::MaxValue)
+        if ($wr -ne 0) {
+            # Handle defekt (WAIT_FAILED): ReadConsoleInput wuerde 0 liefern
+            # und die Schleife wuerde sich endlos drehen - stattdessen
+            # einmalig auf den ReadKey-Fallback ausweichen.
+            $k = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+            return @{ Kind = 'Key'; Vk = [int]$k.VirtualKeyCode }
+        }
         $n = 0
         [void][SysPilotConsoleInput]::ReadConsoleInput($script:ConsoleInputHandle, $buf, 32, [ref]$n)
         for ($i = 0; $i -lt $n; $i++) {
@@ -2025,7 +2035,10 @@ function Show-SysPilotWpfMultiSelect {
     $collect = {
         $out = @()
         foreach ($w in $wrapped) { if ($w.Checked) { $out += $w.Tag } }
-        ,$out
+        # NICHT ',$out' + '@(& $collect)' verwenden - das verschachtelt
+        # Selected ein Level zu tief (Array im Array) und bricht alle
+        # Aufrufer, die Tags direkt weiterverarbeiten (z.B. $c.Browser).
+        $out
     }
     $finishAction = {
         param($actTag)
