@@ -43,6 +43,7 @@ Name: "autopilot"; Description: "Autopilot bei Windows-Anmeldung starten (empfoh
 Name: "smartboost"; Description: "Smart Boost: RAM automatisch freigeben, wenn er knapp wird (empfohlen)"; GroupDescription: "Automatiken (Haeckchen nach Wunsch entfernen):"
 Name: "guardian"; Description: "Guardian: SysPilot startet mit Windows im Infobereich (Ausgeblendete Symbole) und wird neu gestartet, falls es nicht laeuft (empfohlen)"; GroupDescription: "Automatiken (Haeckchen nach Wunsch entfernen):"
 Name: "runasadmin"; Description: "SysPilot immer als Administrator ausfuehren (empfohlen - sonst funktionieren Plaene/Dienste nicht)"; GroupDescription: "Automatiken (Haeckchen nach Wunsch entfernen):"
+Name: "herbertfs"; Description: "Pilot Herbert immer im Vollbildmodus starten"; GroupDescription: "Automatiken (Haeckchen nach Wunsch entfernen):"
 
 [Files]
 Source: "SysPilot.ps1"; DestDir: "{app}"; Flags: ignoreversion
@@ -59,6 +60,8 @@ Source: "ROADMAP.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "modules\*.psm1"; DestDir: "{app}\modules"; Flags: ignoreversion recursesubdirs
 Source: "scripts\*.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion recursesubdirs
+Source: "extension\*"; DestDir: "{app}\extension"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
+Source: "kaggle-tpu\*"; DestDir: "{app}\kaggle-tpu"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
 
 [Dirs]
 Name: "{app}\backup"
@@ -78,6 +81,7 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Win
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -SmartBoost"; Tasks: smartboost; Flags: runhidden waituntilterminated
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -Guardian"; Tasks: guardian; Flags: runhidden waituntilterminated
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -RunAsAdmin"; Tasks: runasadmin; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\setup-automation.ps1"" -HerbertFullscreen"; Tasks: herbertfs; Flags: runhidden waituntilterminated
 Filename: "powershell.exe"; Parameters: "-STA -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"""; Description: "SysPilot jetzt starten"; Flags: nowait postinstall skipifsilent
 ; Stilles Update (z. B. aus SysPilot heraus): SysPilot danach unsichtbar im Tray wieder starten
 Filename: "powershell.exe"; Parameters: "-STA -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{app}\SysPilot-GUI.ps1"" -StartHidden"; Flags: nowait runhidden; Check: WizardSilent

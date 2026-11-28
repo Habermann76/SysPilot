@@ -1,8 +1,96 @@
-# SysPilot 0.9.4.9 beta — Dein intelligenter PC-Autopilot
+# SysPilot 0.9.5.0 beta — Dein intelligenter PC-Autopilot
 
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
 Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
 alles bleibt auf deinem PC.
+
+## Version 0.9.5.0 beta
+
+### Was ist neu?
+
+- **Download-Portale & Web-Kataloge (NEU)**: 17 kuratierte Download-
+  Portale (DE: ComputerBild, CHIP, Heise, GIGAZONE, Softonic, WinFuture,
+  ComputerBase, Deskmodder; EN: FileHippo, MajorGeeks, Uptodown,
+  FOSSHub, Softpedia, AlternativeTo, Ghacks, PortableApps.com, Ninite)
+  als eigener `[Portal]`-Block in „Apps & Store-Clients" und im
+  Update-Center. **Ninite vollautomatisierbar**: 160 Apps, Mehrfach-
+  Auswahl, stiller Installer im Hintergrund. **Automatisierte
+  Versions-Abfrage** bei Ninite/MajorGeeks/Uptodown/FOSSHub mit
+  „NEUESTE"-Markierung — letzte Stufe der Update-Kette
+  (winget → choco/scoop → Web-Quellen), 13 Portale als Suchlinks.
+- **KI-Apps-Kategorie (NEU)**: 57 kuratierte KI-Tools im Programm-
+  Katalog — lokale LLMs (Ollama, LM Studio, llama.cpp, Jan, GPT4All,
+  KoboldCpp, LocalAI), Desktop-Clients (Cherry Studio, Chatbox, Msty,
+  AnythingLLM, NextChat, LobeChat, Open WebUI, LibreChat, Dify,
+  Langflow), Agenten/CLI (Aider, Open Interpreter, Goose, opencode,
+  Gemini CLI, Codex CLI, Cline, Continue, Tabby, Void, Zed, Melty)
+  und Exoten (PocketAI Hub, Layla, FreeLLMAPI, OmniRoute, freelm,
+  MCP Inspector, MCPDeskClient, Windows ODR). Erkennung auch für
+  portabel/npm-Tools; npm-/pip-Install-Aktionen direkt im Katalog.
+- **KI-Suche & KI-Version (NEU)**: KI-Suche öffnet jetzt eine Auswahl
+  freier Web-KIs mit fertiger Anfrage (Perplexity mit Websuche,
+  Duck.ai, Gemini, Copilot). Zusätzlich headless-Abfrage an
+  pollinations.ai (kostenlos, kein Key) für Version + Download-URL —
+  im Web-Quellen-Menü wählbar, ehrlich als „KI-Angabe — bitte prüfen"
+  gelabelt (freies Modell ohne Web-Zugriff, Antworten können
+  veraltet sein). **Link-Verifikation** prüft die URL direkt
+  (erreichbar/nicht erreichbar). **KI-Fork-/Alternativen-Suche**:
+  strukturierte Trefferliste mit Mini-Beschreibung und Link zu
+  GitHub/GitLab/FOSSHub/Offiziell-Seite — für jede Katalog-App
+  verfügbar.
+- **Media-Center-Kategorie (NEU)**: Kodi (kodi.tv), Plex, Plex Media
+  Server, Plex HTPC, Plexamp, Jellyfin Server + Media Player, Emby
+  (Store-Hinweis), Stremio, Moonfin, Navidrome, Madsonic
+  (Subsonic-Fork), Universal Media Server.
+- **KI-Assistenz (NEU)**: eigener Assistent **„Pilot Herbert,
+  Flug 667"** mit OpenAI-kompatiblen Providern und Fallback-Kette —
+  lokale Router (Ollama, LM Studio, FreeLLMAPI, OmniRoute) auto-
+  erkannt, **Pollinations free ohne Key** sofort nutzbar, dazu
+  kostenlose Cloud-Tiers mit eigenem Key (Gemini AI Studio, Groq,
+  OpenRouter, GitHub Models, Mistral, Cerebras; Keys DPAPI-
+  verschlüsselt). **Ersteinrichtung** beim ersten Start (Ollama via
+  winget, OmniRoute via npm, freelm via pip, FreeLLMAPI via Docker
+  oder direkter Key-Import mit Sofort-Test), **Key-Backup** nach
+  `Dokumente\api keys\`. **Schwebender KI-Button** in der GUI mit
+  Chat-Overlay (verschiebbar, versteckt sich bei Spielen), Watcher
+  meldet Log-Fehler proaktiv, **„Übernehmen"-Buttons** für
+  registrierte Reparatur-Aktionen (mit Risikostufe + Warnhinweis),
+  und **MCP-Tool-Calls**: Herbert kann Werkzeuge von MCP-Servern
+  (desktop-commander, powershell, github, browseros-neo u.a. —
+  automatisch aus vorhandenen MCP-Configs importiert) vorschlagen;
+  Ausführung nur per Klick mit Bestätigungs-Dialog. **Programm-
+  Start-Hinweise**: Herbert erkennt neu geöffnete Programme und
+  bietet Hilfe an — per „Hinweise"-Checkbox stumm schaltbar.
+  **Bord-Ansagen**: Pilot Herbert macht hin und wieder Piloten-
+  Durchsagen (Wetterbericht, „bitte einstellen Rauchen", Turbulenzen
+  bei Log-Fehlern, Landung nach Aktionen) — eigene Texte im
+  Charter-Flug-667-Stil.
+  Chat, Schnellfrage und „KI fragen: Fehler analysieren" in
+  Fehlgeschlagenen Updates.
+- **Task-Manager (NEU)**: eigener Prozess-Manager — Liste (RAM-/
+  CPU-Sort, Filter), beenden inkl. Kindprozessen, Programm starten,
+  tiefe Analyse (Signatur, Parent, Netzwerk) und **Process Explorer**
+  (offizielles Sysinternals-Tool, portabel nachladbar).
+- **Fortschritt + Hänger-Erkennung (NEU)**: Jeder Download und jede
+  Installation zeigt jetzt Spinner, Laufzeit und letzte
+  Statuszeile — bei Downloads zusätzlich Prozent, MB/s und ETA.
+  Erkennt „Hängen" (keine Ausgabe/CPU-Aktivität) und bietet
+  Abbruch (Q) oder Weiterwarten (Enter) an.
+- **Miniflux / RSS (NEU)**: kompletter Self-Host-RSS-Stack —
+  Miniflux+Postgres per Docker-Compose, feste öffentliche URL via
+  Tailscale Funnel oder Cloudflare-Tunnel, Media-Proxy für
+  Bilder/Audio/Video, 365-Tage-Archiv. Client-Setup für Android
+  (FluxNews, Miniflutt — inkl. ADB-Automation), iOS und Windows
+  (Fluent Reader, Panda Reader) mit QR-Code, OPML-Export und
+  Fever/Google-Reader-Integrationen. Unbegrenzt, kostenlos,
+  Open Source.
+- **Security-Lab (NEU)**: geführtes Setup für Kali Linux in WSL +
+  unzensierte/abliterated/heretic-Modelle (HuggingFace-GGUF-Suche
+  mit Quant-Filtern) — für eigene Systeme, autorisierte Tests und
+  Learning, mit Rechtshinweisen.
+- **Herbert-Wissen**: neue Blöcke für Skills/MCP-Verwaltung,
+  Vibe-Coding-Crashkurs und Security-Lab; Miniflux-Client-Erfahrung
+  (URL-Fallen, ADB-Tricks) ist direkt im Assistenten-Wissen.
 
 ## Version 0.9.4.9 beta
 

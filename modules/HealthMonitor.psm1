@@ -1,5 +1,5 @@
-﻿# SysPilot - HealthMonitor: Smart Health Monitor (neu entworfen)
-# Überwacht CPU, GPU, SSD, Lüfter, Temperatur via LibreHardwareMonitor + Fallbacks
+# SysPilot - HealthMonitor: Smart Health Monitor (neu entworfen)
+# Ueberwacht CPU, GPU, SSD, Luefter, Temperatur via LibreHardwareMonitor + Fallbacks
 # Bei Abweichungen: KI-freundliche Ursachenanalyse, Warnsymbol, Reparatur-Howtos, Ersatzteil-Empfehlungen
 #Requires -Version 5.1
 
@@ -67,7 +67,7 @@ function Get-SysPilotLhmSensors {
     return $sensors
 }
 
-# ---------- Temperatur über bestehende Temperature.psm1 ----------
+# ---------- Temperatur ueber bestehende Temperature.psm1 ----------
 function Get-SysPilotCpuTemperatureSimple {
     if (Get-Command Get-SysPilotCpuTemperature -ErrorAction SilentlyContinue) {
         return Get-SysPilotCpuTemperature
@@ -77,7 +77,7 @@ function Get-SysPilotCpuTemperatureSimple {
 
 # ---------- SSD Health via SMART (PowerShell Fallback) ----------
 function Get-SysPilotSsdHealth {
-    <# Versucht SSD-Gesundheit über PowerShell / WMI zu ermitteln #>
+    <# Versucht SSD-Gesundheit ueber PowerShell / WMI zu ermitteln #>
     $disks = Get-PhysicalDisk -ErrorAction SilentlyContinue
     $results = @()
     foreach ($d in $disks) {
@@ -92,23 +92,23 @@ function Get-SysPilotSsdHealth {
     return $results
 }
 
-# ---------- Lüfter-Geschwindigkeit ----------
+# ---------- Luefter-Geschwindigkeit ----------
 function Get-SysPilotFanSpeeds {
     $sensors = Get-SysPilotLhmSensors
     $fans = $sensors | Where-Object { $_.SensorType -eq 'Fan' }
     return $fans
 }
 
-# ---------- Gesamte Gesundheitsprüfung ----------
+# ---------- Gesamte Gesundheitspruefung ----------
 function Invoke-SysPilotHealthCheck {
-    <# Führt eine vollständige Gesundheitsprüfung durch und gibt Zustand zurück.
+    <# Fuehrt eine vollstaendige Gesundheitspruefung durch und gibt Zustand zurueck.
        Modus: NORMAL | WARNUNG | KRITISCH
-       Bei WARNUNG/KRITISCH: intensivere Prüfung, Ursachenanalyse #>
+       Bei WARNUNG/KRITISCH: intensivere Pruefung, Ursachenanalyse #>
     param([switch]$Quick)
     $state = Get-SysPilotHealthState
-    # Rate-Limiting: Bei NORMAL-Modus nicht zu oft prüfen
+    # Rate-Limiting: Bei NORMAL-Modus nicht zu oft pruefen
     if (-not (Test-SysPilotHealthRateLimit -Modus $state.Modus)) {
-        # Letzten Zustand zurückgeben ohne teure Prüfung
+        # Letzten Zustand zurueckgeben ohne teure Pruefung
         return [PSCustomObject]@{
             Modus = $state.Modus
             Werte = @{}
@@ -135,10 +135,10 @@ function Invoke-SysPilotHealthCheck {
     if ($cpuTemp.Celsius) {
         $werte.CpuTemp = $cpuTemp.Celsius
         if ($cpuTemp.Celsius -ge $script:HealthThresholds.CpuCritC) {
-            $warnungen += @{ Komponente = 'CPU'; Wert = $cpuTemp.Celsius; Einheit = '°C'; Schweregrad = 'KRITISCH'; Text = 'CPU-Temperatur kritisch - mögliche Thermaldrosselung' }
+            $warnungen += @{ Komponente = 'CPU'; Wert = $cpuTemp.Celsius; Einheit = ' Grad C'; Schweregrad = 'KRITISCH'; Text = 'CPU-Temperatur kritisch - moegliche Thermaldrosselung' }
             $modus = 'KRITISCH'
         } elseif ($cpuTemp.Celsius -ge $script:HealthThresholds.CpuWarnC) {
-            $warnungen += @{ Komponente = 'CPU'; Wert = $cpuTemp.Celsius; Einheit = '°C'; Schweregrad = 'WARNUNG'; Text = 'CPU-Temperatur erhöht - Kühlung prüfen' }
+            $warnungen += @{ Komponente = 'CPU'; Wert = $cpuTemp.Celsius; Einheit = ' Grad C'; Schweregrad = 'WARNUNG'; Text = 'CPU-Temperatur erhoeht - Kuehlung pruefen' }
             if ($modus -eq 'NORMAL') { $modus = 'WARNUNG' }
         }
     }
@@ -148,10 +148,10 @@ function Invoke-SysPilotHealthCheck {
     if ($gpuTemp) {
         $werte.GpuTemp = $gpuTemp.Value
         if ($gpuTemp.Value -ge $script:HealthThresholds.GpuCritC) {
-            $warnungen += @{ Komponente = 'GPU'; Wert = $gpuTemp.Value; Einheit = '°C'; Schweregrad = 'KRITISCH'; Text = 'GPU-Temperatur kritisch' }
+            $warnungen += @{ Komponente = 'GPU'; Wert = $gpuTemp.Value; Einheit = ' Grad C'; Schweregrad = 'KRITISCH'; Text = 'GPU-Temperatur kritisch' }
             $modus = 'KRITISCH'
         } elseif ($gpuTemp.Value -ge $script:HealthThresholds.GpuWarnC) {
-            $warnungen += @{ Komponente = 'GPU'; Wert = $gpuTemp.Value; Einheit = '°C'; Schweregrad = 'WARNUNG'; Text = 'GPU-Temperatur erhöht' }
+            $warnungen += @{ Komponente = 'GPU'; Wert = $gpuTemp.Value; Einheit = ' Grad C'; Schweregrad = 'WARNUNG'; Text = 'GPU-Temperatur erhoeht' }
             if ($modus -eq 'NORMAL') { $modus = 'WARNUNG' }
         }
     }
@@ -164,17 +164,17 @@ function Invoke-SysPilotHealthCheck {
         }
     }
 
-    # Lüfter
+    # Luefter
     foreach ($fan in $fans) {
         if ($fan.Value -and $fan.Value -lt $script:HealthThresholds.FanMinRpm) {
-            $warnungen += @{ Komponente = 'Lüfter'; Wert = $fan.Value; Einheit = 'RPM'; Schweregrad = 'WARNUNG'; Text = "Lüfter '$($fan.SensorName)' läuft langsam ($([math]::Round($fan.Value)) RPM) - evtl. verschmutzt oder defekt" }
+            $warnungen += @{ Komponente = 'Luefter'; Wert = $fan.Value; Einheit = 'RPM'; Schweregrad = 'WARNUNG'; Text = "Luefter '$($fan.SensorName)' laeuft langsam ($([math]::Round($fan.Value)) RPM) - evtl. verschmutzt oder defekt" }
             if ($modus -eq 'NORMAL') { $modus = 'WARNUNG' }
         }
-        # Unrund-Erkennung bei WARNUNG/KRITISCH (Rate-Limiting: nur wenn nötig, nicht im Quick-Modus)
+        # Unrund-Erkennung bei WARNUNG/KRITISCH (Rate-Limiting: nur wenn noetig, nicht im Quick-Modus)
         if (-not $Quick -and $modus -ne 'NORMAL' -and $fan.Value -and $fan.Value -gt 0) {
             $unrund = Test-SysPilotFanUnrund -SensorName $fan.SensorName -Messungen 3 -IntervallMs 500
             if ($unrund.Unrund) {
-                $warnungen += @{ Komponente = 'Lüfter'; Wert = $unrund.Standardabweichung; Einheit = 'RPM-Varianz'; Schweregrad = 'WARNUNG'; Text = "Lüfter '$($fan.SensorName)' läuft unrund (Varianz: $([math]::Round($unrund.Standardabweichung)) RPM) - evtl. dreckig oder Lager verschlissen" }
+                $warnungen += @{ Komponente = 'Luefter'; Wert = $unrund.Standardabweichung; Einheit = 'RPM-Varianz'; Schweregrad = 'WARNUNG'; Text = "Luefter '$($fan.SensorName)' laeuft unrund (Varianz: $([math]::Round($unrund.Standardabweichung)) RPM) - evtl. dreckig oder Lager verschlissen" }
                 if ($modus -eq 'NORMAL') { $modus = 'WARNUNG' }
             }
         }
@@ -210,43 +210,43 @@ function Get-SysPilotHealthUrsachen {
         'CPU' {
             $temp = [double]$Wert
             if ($temp -ge 85) {
-                $ursachen += 'Thermalpaste möglicherweise ausgetrocknet (älter als 2-3 Jahre)'
-                $ursachen += 'CPU-Kühler/Lüfter verschmutzt oder defekt'
-                $ursachen += 'Gehäusebelüftung unzureichend (Staub, blocked airflow)'
-                $ursachen += 'CPU läuft im Dauer-Boost (zu hohe Spannung/Takt)'
-                $howtos += @{ Titel = 'Thermalpaste erneuern'; Beschreibung = 'CPU-Kühler abbauen, alte Paste entfernen, neue Wärmeleitpaste auftragen, Kühler wieder montieren.'; Schwierigkeit = 'Mittel'; ZeitMin = 30 }
-                $howtos += @{ Titel = 'CPU-Kühler reinigen'; Beschreibung = 'Staub vom Kühler und Lüfterblättern entfernen (Druckluft, weiche Bürste).'; Schwierigkeit = 'Einfach'; ZeitMin = 15 }
+                $ursachen += 'Thermalpaste moeglicherweise ausgetrocknet (aelter als 2-3 Jahre)'
+                $ursachen += 'CPU-Kuehler/Luefter verschmutzt oder defekt'
+                $ursachen += 'Gehaeusebelueftung unzureichend (Staub, blocked airflow)'
+                $ursachen += 'CPU laeuft im Dauer-Boost (zu hohe Spannung/Takt)'
+                $howtos += @{ Titel = 'Thermalpaste erneuern'; Beschreibung = 'CPU-Kuehler abbauen, alte Paste entfernen, neue Waermeleitpaste auftragen, Kuehler wieder montieren.'; Schwierigkeit = 'Mittel'; ZeitMin = 30 }
+                $howtos += @{ Titel = 'CPU-Kuehler reinigen'; Beschreibung = 'Staub vom Kuehler und Luefterblaettern entfernen (Druckluft, weiche Buerste).'; Schwierigkeit = 'Einfach'; ZeitMin = 15 }
             } elseif ($temp -ge 75) {
-                $ursachen += 'CPU-Temperatur im oberen Normalbereich - Gehäuselüftung prüfen'
-                $ursachen += 'Lüfterkurve im BIOS könnte aggressiver eingestellt werden'
-                $howtos += @{ Titel = 'Gehäuse staubfrei machen'; Beschreibung = 'Alle Lüfter und Filter im Gehäuse reinigen, Luftstrom prüfen.'; Schwierigkeit = 'Einfach'; ZeitMin = 20 }
+                $ursachen += 'CPU-Temperatur im oberen Normalbereich - Gehaeuselueftung pruefen'
+                $ursachen += 'Luefterkurve im BIOS koennte aggressiver eingestellt werden'
+                $howtos += @{ Titel = 'Gehaeuse staubfrei machen'; Beschreibung = 'Alle Luefter und Filter im Gehaeuse reinigen, Luftstrom pruefen.'; Schwierigkeit = 'Einfach'; ZeitMin = 20 }
             }
         }
         'GPU' {
             $temp = [double]$Wert
             if ($temp -ge 85) {
-                $ursachen += 'GPU-Lüfter verschmutzt oder defekt'
-                $ursachen += 'Grafikkarte im Gehäuse zu wenig Luftzufuhr'
-                $ursachen += 'Thermalpaste auf der GPU möglicherweise alt'
-                $howtos += @{ Titel = 'GPU-Lüfter reinigen'; Beschreibung = 'Grafikkarte ausbauen, Lüfter und Kühlrippen von Staub befreien.'; Schwierigkeit = 'Mittel'; ZeitMin = 25 }
+                $ursachen += 'GPU-Luefter verschmutzt oder defekt'
+                $ursachen += 'Grafikkarte im Gehaeuse zu wenig Luftzufuhr'
+                $ursachen += 'Thermalpaste auf der GPU moeglicherweise alt'
+                $howtos += @{ Titel = 'GPU-Luefter reinigen'; Beschreibung = 'Grafikkarte ausbauen, Luefter und Kuehlrippen von Staub befreien.'; Schwierigkeit = 'Mittel'; ZeitMin = 25 }
             }
         }
         'SSD' {
-            $ursachen += 'SSD nähert sich dem Lebensende (SMART-Werte kritisch)'
-            $ursachen += 'Überhitzung der SSD (keine Kühlung, schlechte Belüftung)'
+            $ursachen += 'SSD naehert sich dem Lebensende (SMART-Werte kritisch)'
+            $ursachen += 'Ueberhitzung der SSD (keine Kuehlung, schlechte Belueftung)'
             $ursachen += 'Viele Schreibzugriffe in kurzer Zeit'
-            $howtos += @{ Titel = 'Daten sofort sichern'; Beschreibung = 'Wichtige Daten auf externe Festplatte oder Cloud kopieren, bevor die SSD ausfällt.'; Schwierigkeit = 'Einfach'; ZeitMin = 60 }
-            $howtos += @{ Titel = 'SSD-Ersatz prüfen'; Beschreibung = 'Kompatible SSD ermitteln (NVMe M.2 oder SATA), kaufen und Daten klonen.'; Schwierigkeit = 'Mittel'; ZeitMin = 45 }
+            $howtos += @{ Titel = 'Daten sofort sichern'; Beschreibung = 'Wichtige Daten auf externe Festplatte oder Cloud kopieren, bevor die SSD ausfaellt.'; Schwierigkeit = 'Einfach'; ZeitMin = 60 }
+            $howtos += @{ Titel = 'SSD-Ersatz pruefen'; Beschreibung = 'Kompatible SSD ermitteln (NVMe M.2 oder SATA), kaufen und Daten klonen.'; Schwierigkeit = 'Mittel'; ZeitMin = 45 }
         }
-        'Lüfter' {
+        'Luefter' {
             $rpm = [double]$Wert
             if ($rpm -gt 0 -and $rpm -lt 600) {
-                $ursachen += 'Lüfter durch Staub oder Fusseln blockiert'
-                $ursachen += 'Lüfterlager verschlissen (laut, unrund)'
-                $ursachen += 'Lüfterkabel lose oder Stecker oxidiert'
-                $ursachen += 'BIOS-Lüfterkurve zu niedrig eingestellt'
-                $howtos += @{ Titel = 'Lüfter reinigen'; Beschreibung = 'Lüfter ausbauen, Blätter und Lager mit Druckluft reinigen, ggf. ein Tropfen Maschinenöl ins Lager.'; Schwierigkeit = 'Einfach'; ZeitMin = 15 }
-                $howtos += @{ Titel = 'Lüfter ersetzen'; Beschreibung = 'Passenden Ersatzlüfter (Größe, Anschluss 3-/4-Pin) kaufen und einbauen.'; Schwierigkeit = 'Einfach'; ZeitMin = 10 }
+                $ursachen += 'Luefter durch Staub oder Fusseln blockiert'
+                $ursachen += 'Luefterlager verschlissen (laut, unrund)'
+                $ursachen += 'Luefterkabel lose oder Stecker oxidiert'
+                $ursachen += 'BIOS-Luefterkurve zu niedrig eingestellt'
+                $howtos += @{ Titel = 'Luefter reinigen'; Beschreibung = 'Luefter ausbauen, Blaetter und Lager mit Druckluft reinigen, ggf. ein Tropfen Maschinenoel ins Lager.'; Schwierigkeit = 'Einfach'; ZeitMin = 15 }
+                $howtos += @{ Titel = 'Luefter ersetzen'; Beschreibung = 'Passenden Ersatzluefter (Groesse, Anschluss 3-/4-Pin) kaufen und einbauen.'; Schwierigkeit = 'Einfach'; ZeitMin = 10 }
             }
         }
     }
@@ -264,22 +264,22 @@ function Get-SysPilotErsatzteile {
 
     switch ($Komponente) {
         'CPU' {
-            $teile += @{ Produkt = 'Wärmeleitpaste (z.B. Arctic MX-4, Noctua NT-H2)'; Zweck = 'Für CPU-Kühler'; PriceEur = '5-15 €' }
-            $teile += @{ Produkt = 'CPU-Kühler (Air oder AIO)'; Zweck = 'Wenn aktueller Kühler unzureichend'; PriceEur = '30-150 €' }
-            $teile += @{ Produkt = 'Gehäuselüfter (120/140mm)'; Zweck = 'Bessere Gehäusebelüftung'; PriceEur = '10-25 €' }
+            $teile += @{ Produkt = 'Waermeleitpaste (z.B. Arctic MX-4, Noctua NT-H2)'; Zweck = 'Fuer CPU-Kuehler'; PriceEur = '5-15 EUR' }
+            $teile += @{ Produkt = 'CPU-Kuehler (Air oder AIO)'; Zweck = 'Wenn aktueller Kuehler unzureichend'; PriceEur = '30-150 EUR' }
+            $teile += @{ Produkt = 'Gehaeuseluefter (120/140mm)'; Zweck = 'Bessere Gehaeusebelueftung'; PriceEur = '10-25 EUR' }
         }
         'GPU' {
-            $teile += @{ Produkt = 'Grafikkarten-Lüfter'; Zweck = 'Ersatz für defekte GPU-Lüfter'; PriceEur = '15-40 €' }
-            $teile += @{ Produkt = 'GPU-Halterung'; Zweck = 'Vermeidet Durchhängen und Belastung'; PriceEur = '15-30 €' }
+            $teile += @{ Produkt = 'Grafikkarten-Luefter'; Zweck = 'Ersatz fuer defekte GPU-Luefter'; PriceEur = '15-40 EUR' }
+            $teile += @{ Produkt = 'GPU-Halterung'; Zweck = 'Vermeidet Durchhaengen und Belastung'; PriceEur = '15-30 EUR' }
         }
         'SSD' {
-            $teile += @{ Produkt = 'NVMe M.2 SSD (1-2 TB)'; Zweck = 'Ersatz für ausfallgefährdete SSD'; PriceEur = '60-150 €' }
-            $teile += @{ Produkt = 'SATA SSD (1-4 TB)'; Zweck = 'Ersatz für ältere SATA-SSDs'; PriceEur = '50-120 €' }
-            $teile += @{ Produkt = 'SSD-Kühlkörper / Heatsink'; Zweck = 'Vermeidung von SSD-Überhitzung'; PriceEur = '10-25 €' }
+            $teile += @{ Produkt = 'NVMe M.2 SSD (1-2 TB)'; Zweck = 'Ersatz fuer ausfallgefaehrdete SSD'; PriceEur = '60-150 EUR' }
+            $teile += @{ Produkt = 'SATA SSD (1-4 TB)'; Zweck = 'Ersatz fuer aeltere SATA-SSDs'; PriceEur = '50-120 EUR' }
+            $teile += @{ Produkt = 'SSD-Kuehlkoerper / Heatsink'; Zweck = 'Vermeidung von SSD-Ueberhitzung'; PriceEur = '10-25 EUR' }
         }
-        'Lüfter' {
-            $teile += @{ Produkt = 'Gehäuselüfter 120mm / 140mm (PWM)'; Zweck = 'Ersatz für defekte oder laute Lüfter'; PriceEur = '12-30 €' }
-            $teile += @{ Produkt = 'CPU-Lüfter'; Zweck = 'Ersatz für defekten CPU-Kühler-Lüfter'; PriceEur = '15-35 €' }
+        'Luefter' {
+            $teile += @{ Produkt = 'Gehaeuseluefter 120mm / 140mm (PWM)'; Zweck = 'Ersatz fuer defekte oder laute Luefter'; PriceEur = '12-30 EUR' }
+            $teile += @{ Produkt = 'CPU-Luefter'; Zweck = 'Ersatz fuer defekten CPU-Kuehler-Luefter'; PriceEur = '15-35 EUR' }
         }
     }
     return $teile
@@ -289,9 +289,9 @@ function Get-SysPilotErsatzteile {
 function Get-SysPilotHealthSymbol {
     param([string]$Modus)
     switch ($modus) {
-        'KRITISCH' { return @{ Symbol = '⚠'; Farbe = '#FF1744'; Text = 'KRITISCH' } }
-        'WARNUNG'  { return @{ Symbol = '⚠'; Farbe = '#FF9800'; Text = 'WARNUNG' } }
-        default    { return @{ Symbol = '✓'; Farbe = '#4CAF50'; Text = 'OK' } }
+        'KRITISCH' { return @{ Symbol = '!'; Farbe = '#FF1744'; Text = 'KRITISCH' } }
+        'WARNUNG'  { return @{ Symbol = '!'; Farbe = '#FF9800'; Text = 'WARNUNG' } }
+        default    { return @{ Symbol = 'v'; Farbe = '#4CAF50'; Text = 'OK' } }
     }
 }
 # ---------- Luefter "unrund"-Erkennung (RPM-Varianz ueber Zeit) ----------
@@ -344,7 +344,7 @@ function Get-SysPilotNearbyRepairShops {
             $ort = $geo.city
             if (-not $ort) { $ort = $geo.region }
         } catch {
-            $ort = Read-SysPilotChoice 'Stadt oder PLZ fuer Reparaturladen-Suche'
+            $ort = Read-SysPilotInput 'Stadt oder PLZ fuer Reparaturladen-Suche'
         }
     }
     if (-not $ort) { return @() }
@@ -407,11 +407,11 @@ function Get-SysPilotSsdBackupReminder {
 
 
 
-# ---------- Hintergrundmonitor für Health (sanft, nicht belastend) ----------
+# ---------- Hintergrundmonitor fuer Health (sanft, nicht belastend) ----------
 function Invoke-SysPilotHealthBackgroundMonitor {
     <# 
-      Sanfter Hintergrund-Monitor für Health.
-      Läuft nicht dauerhaft aktiv, sondern als geplante Aufgabe oder regelmäßig.
+      Sanfter Hintergrund-Monitor fuer Health.
+      Laeuft nicht dauerhaft aktiv, sondern als geplante Aufgabe oder regelmaessig.
       Nur bei abnormen Werten: Warnsignal im GUI, detaillierte Tests vorschlagen.
     #>
     param([string]$Modus = 'NORMAL', [int]$IntervallMinuten = 10)
@@ -427,21 +427,21 @@ function Invoke-SysPilotHealthBackgroundMonitor {
         }
     }
     
-    # Wenn im Normal-Modus, schnell prüfen (nur eine Kurzkontrolle)
+    # Wenn im Normal-Modus, schnell pruefen (nur eine Kurzkontrolle)
     if ($Modus -eq 'NORMAL') {
         $quickCheck = Invoke-SysPilotHealthCheck -Quick
         if ($quickCheck.Modus -eq 'WARNUNG' -or $quickCheck.Modus -eq 'KRITISCH') {
             # Wurde sofort auf abnorm gewechselt
             $state.Modus = $quickCheck.Modus
             Save-SysPilotHealthState -State $state
-            # GUI über Warnung informieren
-            Write-SysPilotLog "HEALTH: WICHTIGERWEISE auf $($quickCheck.Modus) gewechselt - Prüfung empfohlen" -Level 'WARN'
+            # GUI ueber Warnung informieren
+            Write-SysPilotLog "HEALTH: WICHTIGERWEISE auf $($quickCheck.Modus) gewechselt - Pruefung empfohlen" -Level 'WARN'
             return $quickCheck.Modus
         }
         $state.Modus = 'NORMAL'
         $state.LetzterPruefung = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         Save-SysPilotHealthState -State $state
-        Write-SysPilotLog "HEALTH: Hintergrundprüfung abgeschlossen (NORMAL)" -Level 'DEBUG'
+        Write-SysPilotLog "HEALTH: Hintergrundpruefung abgeschlossen (NORMAL)" -Level 'DEBUG'
         return 'NORMAL'
     }
     
@@ -451,7 +451,7 @@ function Invoke-SysPilotHealthBackgroundMonitor {
         $state.Modus = 'NORMAL'
         $state.LetzterPruefung = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         Save-SysPilotHealthState -State $state
-        Write-SysPilotLog "HEALTH: Hintergrundprüfung abgeschlossen (zurück auf NORMAL)" -Level 'DEBUG'
+        Write-SysPilotLog "HEALTH: Hintergrundpruefung abgeschlossen (zurueck auf NORMAL)" -Level 'DEBUG'
         return 'NORMAL'
     }
     
@@ -460,10 +460,10 @@ function Invoke-SysPilotHealthBackgroundMonitor {
     $state.LetzterPruefung = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
     Save-SysPilotHealthState -State $state
     
-    # Details sammeln für GUI
+    # Details sammeln fuer GUI
     $warnungen = @()
     if ($detailed.CpuTemp -and $detailed.CpuTemp -ge 75) {
-        $warnungen += @{ Komponente = 'CPU'; Wert = $detailed.CpuTemp; Einheit = '°C'; Schweregrad = 'WARNUNG'; Text = "CPU-Temperatur: $($detailed.CpuTemp)°C (grenzwertig)" }
+        $warnungen += @{ Komponente = 'CPU'; Wert = $detailed.CpuTemp; Einheit = ' Grad C'; Schweregrad = 'WARNUNG'; Text = "CPU-Temperatur: $($detailed.CpuTemp) Grad C (grenzwertig)" }
     }
     if ($detailed.SsdHealth.Count -gt 0 -and $detailed.SsdHealth[0].Gesundheit -ne 'Gesund') {
         $warnungen += @{ Komponente = 'SSD'; Wert = $detailed.SsdHealth[0].Gesundheit; Einheit = ''; Schweregrad = 'KRITISCH'; Text = "SSD-Status: $($detailed.SsdHealth[0].Gesundheit)" }
@@ -471,14 +471,14 @@ function Invoke-SysPilotHealthBackgroundMonitor {
     if ($detailed.Fans.Count -gt 0) {
         foreach ($fan in $detailed.Fans) {
             if ($fan.Value -lt 600 -or $fan.Value -gt 6000) {
-                $warnungen += @{ Komponente = 'Lüfter'; Wert = $fan.Value; Einheit = 'RPM'; Schweregrad = 'WARNUNG'; Text = "Lüfter '$($fan.SensorName)' liefert ungewöhnlich ($([math]::Round($fan.Value)) RPM)" }
+                $warnungen += @{ Komponente = 'Luefter'; Wert = $fan.Value; Einheit = 'RPM'; Schweregrad = 'WARNUNG'; Text = "Luefter '$($fan.SensorName)' liefert ungewoehnlich ($([math]::Round($fan.Value)) RPM)" }
             }
         }
     }
     
     if ($warnungen.Count -gt 0) {
         Write-SysPilotLog "HEALTH: Warnungen im Hintergrund erkannt" -Level 'WARN'
-        # Lade Hyperlink-Infos für Reparatur-HowTos (mit Fehlerbehandlung für Netzwerkausfälle)
+        # Lade Hyperlink-Infos fuer Reparatur-HowTos (mit Fehlerbehandlung fuer Netzwerkausfaelle)
         $howtos = @()
         foreach ($w in $warnungen) {
             try {
@@ -496,17 +496,17 @@ function Invoke-SysPilotHealthBackgroundMonitor {
                 Write-SysPilotLog "HEALTH: Fehler beim Laden der Reparatur-HowTos: $($_.Exception.Message)" -Level 'WARN'
             }
         }
-        # Speichere Warnungen für GUI
+        # Speichere Warnungen fuer GUI
         $state.Warnungen = $state.Warnungen + $warnungen
         Save-SysPilotHealthState -State $state
         Write-SysPilotLog "HEALTH: Warnungen gespeichert in health-state.json" -Level 'INFO'
 
-        # Teste auch nahegelegene Reparaturläden (mit Fehlerbehandlung für Netzwerkausfälle)
+        # Teste auch nahegelegene Reparaturlaeden (mit Fehlerbehandlung fuer Netzwerkausfaelle)
         try {
             $shops = Get-SysPilotNearbyRepairShops -ErrorAction Stop
             $state.Reparaturlaeden = $shops
             Save-SysPilotHealthState -State $state
-            Write-SysPilotLog "HEALTH: Reparaturläden gesucht: $($shops.Count) gefunden" -Level 'INFO'
+            Write-SysPilotLog "HEALTH: Reparaturlaeden gesucht: $($shops.Count) gefunden" -Level 'INFO'
         } catch {
             Write-SysPilotLog "HEALTH: Fehler bei Reparaturladen-Suche: $($_.Exception.Message)" -Level 'WARN'
         }

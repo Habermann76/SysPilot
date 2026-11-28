@@ -1,5 +1,5 @@
 # SysPilot - AISearch Helper: Open browser with AI/Websuche
-# Kein API-Provider benötigt - nutzt den Browser des Users.
+# Kein API-Provider benoetigt - nutzt den Browser des Users.
 
 #Requires -Version 5.1
 
@@ -33,16 +33,16 @@ function Get-SysPilotAISearchBaseUrl {
 function Invoke-SysPilotAISearch {
     <#
     .SYNOPSIS
-    Öffnet den Browser mit einer KI/Websuche für ein HowTo oder Thema.
+    Oeffnet den Browser mit einer KI/Websuche fuer ein HowTo oder Thema.
     .DESCRIPTION
-    Öffnet den Standard-Browser des Users mit einer Suchanfrage.
-    Unterstützt: DuckDuckGo, SearxNG, Bing, Google.
+    Oeffnet den Standard-Browser des Users mit einer Suchanfrage.
+    Unterstuetzt: DuckDuckGo, SearxNG, Bing, Google.
     .EXAMPLE
         Invoke-SysPilotAISearch -Query 'Windows PowerShell DNS Server setzen'
-        Invoke-SysPilotAISearch -Query 'SysPilot Toolbox Erklärung' -Provider Goog
+        Invoke-SysPilotAISearch -Query 'SysPilot Toolbox Erklaerung' -Provider Goog
     .EXAMPLE
         # Wie bearbeite ich einen doppelten Shortcut in Windows 10?
-        Invoke-SysPilotAISearch -Query 'doppelte Shortcut-Verknüpfung in Windows 10 auflösen'
+        Invoke-SysPilotAISearch -Query 'doppelte Shortcut-Verknuepfung in Windows 10 aufloesen'
     #>
     param(
         [Parameter(Mandatory=$true)]
@@ -53,15 +53,15 @@ function Invoke-SysPilotAISearch {
         Write-Host '[!] Query ist leer' -ForegroundColor Yellow
         return
     }
-    # Query säubern: Leerzeichen durch + ersetzen
+    # Query saeubern: Leerzeichen durch + ersetzen
     $safeQuery = ($Query.Trim() -replace '\s+','+')
     $url = Get-SysPilotAISearchBaseUrl -ProviderName $Provider
     $fullUrl = $url + [System.Web.HttpUtility]::UrlEncode($Query)
-    Write-Host "  [i] Öffne Browser: $fullUrl" -ForegroundColor DarkGray
+    Write-Host "  [i] Oeffne Browser: $fullUrl" -ForegroundColor DarkGray
     try {
         Start-Process -FilePath $fullUrl -ErrorAction Stop
     } catch {
-        Write-Host "  [!] Konnte Browser nicht öffnen: $_" -ForegroundColor Red
+        Write-Host "  [!] Konnte Browser nicht oeffnen: $_" -ForegroundColor Red
         Write-Host "      URL: $fullUrl" -ForegroundColor DarkGray
     }
 }
@@ -69,7 +69,7 @@ function Invoke-SysPilotAISearch {
 function Get-SysPilotHowToLinks {
     <#
     .SYNOPSIS
-    Liefert Standard-HowTo-Links für häufige SysPilot-Handwerksaufgaben.
+    Liefert Standard-HowTo-Links fuer haeufige SysPilot-Handwerksaufgaben.
     .EXAMPLE
         $links = Get-SysPilotHowToLinks -Topic 'Dns'
         $links | ForEach-Object { Write-Host $_.Title ": " $_.Url }
@@ -84,7 +84,7 @@ function Get-SysPilotHowToLinks {
         @{
             Topic='dns'; Title='Windows DNS Server manuell setzen (Netzwerkadapter)'
             Url='https://learn.microsoft.com/en-us/windows-server/networking/technologies/dns/dns-top'
-            Desc='Schritt-für-Schritt: DNS auf Netzwerkadapter setzen'
+            Desc='Schritt-fuer-Schritt: DNS auf Netzwerkadapter setzen'
         },
         @{
             Topic='dns'; Title='DNS Cache leeren (ipconfig /flushdns)'
@@ -97,20 +97,20 @@ function Get-SysPilotHowToLinks {
             Desc='Anbieter wechseln: Cloudflare, Google, Quad9, AdGuard, Mullvad'
         },
         @{
-            Topic='dns'; Title='VPN x DNS: Wie schütze ich vor Datenleakage?'
+            Topic='dns'; Title='VPN x DNS: Wie schuetze ich vor Datenleakage?'
             Url='https://support.apple.com/de-de/guide/mac-help/mchleaba2d38/14.0/mac/14.0'
             Desc='VPN nutzt DNS-Leckage vermeiden'
         },
         # Shortcut / Datei-Probleme
         @{
-            Topic='shortcut'; Title='Doppelte Verknüpfung auflösen (Windows)'
+            Topic='shortcut'; Title='Doppelte Verknuepfung aufloesen (Windows)'
             Url='https://support.microsoft.com/de-de/windows/was-sind-verknuepfungen-3798534e-056a-4816-8643-8d3cc8d4a0ef'
             Desc='Doppelte oder defekte Shortcuts finden und entfernen'
         },
         @{
-            Topic='shortcut'; Title='Windows-Shortcut auf anderes Ziel ändern'
+            Topic='shortcut'; Title='Windows-Shortcut auf anderes Ziel aendern'
             Url='https://support.microsoft.com/de-at/windows/was-sind-verknuepfungen-3798534e-056a-4816-8643-8d3cc8d4a0ef'
-            Desc='Shortcut-Ziel ändern oder deaktivieren'
+            Desc='Shortcut-Ziel aendern oder deaktivieren'
         },
         # System-Optimierung
         @{
@@ -121,7 +121,7 @@ function Get-SysPilotHowToLinks {
         @{
             Topic='optimize'; Title='RAM-Management unter Windows (Smart Boost)'
             Url='https://learn.microsoft.com/en-us/windows/clients/manage/optimize-memory'
-            Desc='Windows-RAM-Optimierung und Prozeß-Prioritäten'
+            Desc='Windows-RAM-Optimierung und Prozess-Prioritaeten'
         },
         # Sicherheit
         @{
@@ -132,7 +132,7 @@ function Get-SysPilotHowToLinks {
         @{
             Topic='security'; Title='Windows Defender SmartScreen deaktivieren/enable'
             Url='https://support.microsoft.com/de-de/windows/windows-defender-smartscreen-so-beheben-sie-probleme-2c9f5b3a-4e56-4a32-9b8e-7a2a5b5b5b5b'
-            Desc='SmartScreen für Downloads und Apps verwalten'
+            Desc='SmartScreen fuer Downloads und Apps verwalten'
         },
         # Netzwerk-Reparatur
         @{
@@ -156,7 +156,7 @@ function Get-SysPilotHowToLinks {
 function Get-SysPilotExamples {
     <#
     .SYNOPSIS
-    Bereitgestellte Beispielabfragen für den User (tabelle-ähnlich).
+    Bereitgestellte Beispielabfragen fuer den User (tabelle-aehnlich).
     .EXAMPLE
         Get-SysPilotExamples | Format-Table -AutoSize
     #>
@@ -169,9 +169,9 @@ function Get-SysPilotExamples {
         @{ Category='Security'; Question='Wie richte ich Windows Defender Firewall ein?'; Url='https://learn.microsoft.com/en-us/windows/security/operating-system-security/firewalls/manage-firewall-rules' }
         @{ Category='Netrepair'; Question='Wie repariere ich das TCP/IP-Stack?'; Url='https://learn.microsoft.com/en-us/troubleshoot/windows-client/networking/network-repair-commands' }
         @{ Category='Netrepair'; Question='Wie identifiziere ich virtuelle Adapter?'; Url='https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-drivers' }
-        @{ Category='Dns'; Question='Wie teste ich die DNS-Lösung?' ; Url='https://learn.microsoft.com/en-us/windows-server/networking/technologies/dns/dns-top' }
+        @{ Category='Dns'; Question='Wie teste ich die DNS-Loesung?' ; Url='https://learn.microsoft.com/en-us/windows-server/networking/technologies/dns/dns-top' }
         @{ Category='Dns'; Question='Wie behebe ich DNS-Leakage?'; Url='https://support.apple.com/de-de/guide/mac-help/mchleaba2d38/14.0/mac/14.0' }
-        @{ Category='Optimize'; Question='Wie optimiere ich die CPU-Priorität?'; Url='https://learn.microsoft.com/en-us/windows/client-management/manage/optimize' }
+        @{ Category='Optimize'; Question='Wie optimiere ich die CPU-Prioritaet?'; Url='https://learn.microsoft.com/en-us/windows/client-management/manage/optimize' }
         @{ Category='Security'; Question='Wie pflege ich Windows Defender?'; Url='https://learn.microsoft.com/en-us/windows/security/operating-system-security/firewalls/manage-firewall-rules' }
     )
 }

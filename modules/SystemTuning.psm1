@@ -198,7 +198,7 @@ function Set-SysPilotContextMenuMode {
         New-Item -Path "$clsid\InprocServer32" -Force | Out-Null
         Set-ItemProperty "$clsid\InprocServer32" -Name '(default)' -Value '' -Force
         Write-Host '  [OK] Klassisches Kontextmenue aktiviert (neuer Explorer noetig bzw. automatisch).' -ForegroundColor Green
-        Write-Host '      Die Windows-11-Variante ist unter „Weitere anzeigen" erreichbar.' -ForegroundColor DarkGray
+        Write-Host '      Die Windows-11-Variante ist unter "Weitere anzeigen" erreichbar.' -ForegroundColor DarkGray
     } else {
         Remove-Item $clsid -Recurse -Force -ErrorAction SilentlyContinue
         Write-Host '  [OK] Windows-11-Kontextmenue wiederhergestellt.' -ForegroundColor Green
@@ -323,10 +323,10 @@ function Restore-SysPilotWin11ContextMenu {
 
 function Add-SysPilotAdminContextMenus {
     <# Fuegt Admin-Kontextmenue-Eintraege hinzu:
-       - Ordner-Hintergrund: „Terminal (Admin) oeffnen"
-       - Laufwerke:        „Terminal (Admin) oeffnen"
-       - Ordner:            „Terminal (Admin) oeffnen"
-       - .ps1-Dateien:      „Mit PowerShell (Admin) oeffnen"
+       - Ordner-Hintergrund: "Terminal (Admin) oeffnen"
+       - Laufwerke:        "Terminal (Admin) oeffnen"
+       - Ordner:            "Terminal (Admin) oeffnen"
+       - .ps1-Dateien:      "Mit PowerShell (Admin) oeffnen"
        HKCU-Classes = pro Benutzer, kein Admin noetig. #>
     $added = @()
 
@@ -361,7 +361,7 @@ function Add-SysPilotAdminContextMenus {
 
     Write-Host ("  [OK] {0} Kontextmenue-Eintraege hinzugefuegt." -f $added.Count) -ForegroundColor Green
     Write-Host '      Hinweis: Im neuen Win11-Menue erscheinen Background-Eintraege direkt,' -ForegroundColor DarkGray
-    Write-Host '      Ordner-/Datei-Eintraege ggf. unter „Weitere anzeigen".' -ForegroundColor DarkGray
+    Write-Host '      Ordner-/Datei-Eintraege ggf. unter "Weitere anzeigen".' -ForegroundColor DarkGray
     Write-SysPilotLog "Admin-Kontextmenues hinzugefuegt ($($added.Count))"
 }
 

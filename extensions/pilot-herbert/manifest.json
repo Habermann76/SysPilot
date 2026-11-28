@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Pilot Herbert - SysPilot KI-Waechter",
+  "version": "1.0.0",
+  "description": "Erkennt fuer SysPilot interessante KI-/LLM-Tools auf GitHub und schlaegt Installation + Einrichtung ueber den gefuehrten SysPilot-Assistenten vor.",
+  "content_scripts": [
+    {
+      "matches": ["*://github.com/*", "*://www.github.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": ["*://github.com/*"],
+  "icons": {}
+}

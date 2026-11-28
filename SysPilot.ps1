@@ -5,18 +5,58 @@ param(
     [switch]$Autopilot,
     [switch]$CheckupAuto,
     [switch]$UpdateAuto,
+    [switch]$IndexUpdate,
     [switch]$Guardian,
     [switch]$Loop,
     [string]$Tool,
+    [string]$ProtocolRepo,
+    [int]$ApiPort = 0,
     [switch]$FromGui
 )
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $script:Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Module laden
+# Module laden - Fehler werden geloggt und als EINZEILIGE Warnung
+# angezeigt (Parse-Fehlerflut unterdruecken, Ursache bleibt im Log).
 Get-ChildItem (Join-Path $script:Root 'modules') -Filter '*.psm1' | ForEach-Object {
-    Import-Module $_.FullName -Force -Global
+    try {
+        Import-Module $_.FullName -Force -Global -ErrorAction SilentlyContinue
+        $m = Get-Module $_.BaseName
+        if (-not $m -or $m.Path -ne $_.FullName) { throw "Modul nicht geladen" }
+    } catch {
+        $first = ($_.Exception.Message -split "`r?`n")[0]
+        Write-Host "  [WARN] Modul $($_.BaseName) fehlgeschlagen: $first" -ForegroundColor Yellow
+        try { Write-SysPilotLog "MODUL-IMPORT FEHLER: $($_.BaseName) - $($_.Exception.Message)" } catch { }
+    }
+}
+
+# PowerShell-7-Umschaltung (config.json Start.PwshMode): laeuft SysPilot
+# unter powershell.exe, aber Modus verlangt pwsh -> einmalig weiterreichen.
+# Env-Guard verhindert Schleifen; Modi 'ps51' lassen alles beim Alten.
+if (-not $env:SYSPILOT_PWSH_RELAUNCHED -and $PSVersionTable.PSEdition -eq 'Desktop') {
+    try {
+        if (Get-Command Get-SysPilotPreferredShell -ErrorAction SilentlyContinue) {
+            $sh = Get-SysPilotPreferredShell
+            if ($sh.IsPwsh -and $sh.Exe -ne 'powershell.exe') {
+                $fwd = @()
+                if ($Autopilot) { $fwd += '-Autopilot' }
+                if ($CheckupAuto) { $fwd += '-CheckupAuto' }
+                if ($UpdateAuto) { $fwd += '-UpdateAuto' }
+                if ($IndexUpdate) { $fwd += '-IndexUpdate' }
+                if ($Guardian) { $fwd += '-Guardian' }
+                if ($Loop) { $fwd += '-Loop' }
+                if ($FromGui) { $fwd += '-FromGui' }
+                if ($Tool) { $fwd += @('-Tool', $Tool) }
+                if ($ProtocolRepo) { $fwd += @('-ProtocolRepo', $ProtocolRepo) }
+                if ($ApiPort -gt 0) { $fwd += @('-ApiPort', "$ApiPort") }
+                $argList = @('-STA','-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"") + $fwd
+                $env:SYSPILOT_PWSH_RELAUNCHED = '1'
+                Start-Process $sh.Exe -ArgumentList $argList | Out-Null
+                return
+            }
+        }
+    } catch {}
 }
 
 # Direkt in den Autopilot (fuer geplante Aufgabe)
@@ -47,6 +87,16 @@ if ($CheckupAuto) {
     return
 }
 
+# Index-Aktualisierung (fuer geplante Aufgabe "SysPilot AppIndex"): baut den App-Index still neu
+if ($IndexUpdate) {
+    if (Get-Command Update-SysPilotAppIndex -ErrorAction SilentlyContinue) {
+        Update-SysPilotAppIndex | Out-Null
+    } else {
+        Write-SysPilotLog 'IndexUpdate: AppStore-Modul nicht geladen'
+    }
+    return
+}
+
 # Automatisches Update (fuer geplante Aufgabe "SysPilot Update"): scannt und installiert alle winget/choco-Updates silent
 if ($UpdateAuto) {
     if (Get-Command Invoke-SysPilotAutoUpdate -ErrorAction SilentlyContinue) {
@@ -54,6 +104,33 @@ if ($UpdateAuto) {
         Write-SysPilotLog "UpdateAuto: $($r.Ok)/$($r.Total) aktualisiert, $($r.Fail) Fehler"
     } else {
         Write-SysPilotLog 'UpdateAuto: SoftwareUpdateCenter-Modul nicht geladen'
+    }
+    return
+}
+
+# Herbert-API Auto-Start (ai-assist.json: ApiAutoStart) - nur im
+# interaktiven Pfad, nicht bei -Tool/-FromGui/Geplanten Laeufen.
+if (-not $Tool -and -not $FromGui -and -not $Autopilot -and -not $Guardian -and -not $CheckupAuto -and -not $UpdateAuto -and -not $IndexUpdate -and -not $ProtocolRepo) {
+    try {
+        if (Get-Command Read-SysPilotAiAssistConfig -ErrorAction SilentlyContinue) {
+            $ac = Read-SysPilotAiAssistConfig
+            if ($ac.ApiAutoStart -and (Get-Command Start-SysPilotHerbertApi -ErrorAction SilentlyContinue)) {
+                $hst = Get-SysPilotHerbertApiStatus
+                if (-not $hst.Running) { Start-SysPilotHerbertApi | Out-Null }
+            }
+        }
+    } catch {}
+}
+
+# syspilot://-Protokoll (z.B. aus der Pilot-Herbert-Browser-Extension):
+# 'syspilot://repo/Owner/Name' oeffnet den gefuehrten KI-Installations-Assistenten
+if ($ProtocolRepo) {
+    Import-Module (Join-Path $script:Root 'modules\AiAssist.psm1') -Force -ErrorAction SilentlyContinue
+    if (Get-Command Show-SysPilotAiGuidedInstall -ErrorAction SilentlyContinue) {
+        Show-SysPilotAiGuidedInstall -Repo $ProtocolRepo
+    } else {
+        Write-Host "  [!] AiAssist-Modul nicht geladen - Installation nicht moeglich." -ForegroundColor Red
+        Read-SysPilotChoice 'Weiter' | Out-Null
     }
     return
 }
@@ -102,7 +179,7 @@ function Edit-SysPilotConfig {
         }
         $field = $sel
         Write-Host "  Aktuell: $($cfg.$field -join ', ')" -ForegroundColor DarkGray
-        $new = Read-SysPilotChoice "Neuer Prozessname (ohne .exe, leer = abbrechen)"
+        $new = Read-SysPilotInput "Neuer Prozessname (ohne .exe, leer = abbrechen)"
         if ($new) {
             $json = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json
             $json.$field = @($json.$field) + $new
@@ -135,12 +212,17 @@ function Show-SysPilotSettingsMenu {
             @{ Label = "Immer als Administrator starten: $aaTxt"; Color = 'White'; Tag = 'alwaysadmin' },
             @{ Label = "Beim Beenden im Hintergrund weiterlaufen (Tray): $geTxt"; Color = 'White'; Tag = 'guionexit' },
             @{ Label = "GUI beim Start nur im Tray (ohne Fenster): $tsTxt"; Color = 'White'; Tag = 'traystart' },
+            @{ Label = "PowerShell-Laufzeit (5.1 / 7+)"; Color = 'White'; Tag = 'pwsh' },
             @{ Label = "Konfiguration (Programme, Spiele, Ballast)"; Color = 'White'; Tag = 'config' },
             @{ Label = "Zurueck"; Color = 'DarkGray'; Tag = $null }
         )
         $sel = Show-SysPilotArrowMenu -Items $items -Title 'Einstellungen'
         if ($null -eq $sel) { return }
         switch ($sel) {
+            'pwsh' {
+                if (Get-Command Show-SysPilotPwshMenu -ErrorAction SilentlyContinue) { Show-SysPilotPwshMenu }
+                else { Write-Host '  [!] Common-Modul zu alt - SysPilot aktualisieren.' -ForegroundColor Red; Read-SysPilotChoice 'Weiter' | Out-Null }
+            }
             'alwaysadmin' {
                 $new = -not $alwaysAdmin
                 Set-SysPilotConfigValue -Section 'Start' -Key 'AlwaysAdmin' -Value $new
@@ -254,20 +336,41 @@ function Show-SysPilotMenu {
         @{ Label = 'LAUFZEITEN (VC++, .NET, .NET Framework, AIO Runtimes)'; Color = 'Green'; Tag = 'runtimes' }
         @{ Label = 'STAMMZERTIFIKATE aktualisieren (Root-Certs)'; Color = 'Yellow'; Tag = 'rootcerts' }
         @{ Label = 'APPS & STORE-CLIENTS (UniGetUI, Komi, Uptodown, WinUtil, WinToys, iTop Easy Desktop, Ferdium, Flipboard, MuMu)'; Color = 'Green'; Tag = 'papps' }
-        @{ Label = 'UPDATE / DOWNLOAD CENTER (winget, Chocolatey, Katalog, GitHub, MajorGeeks)'; Color = 'Green'; Tag = 'updates' }
+        @{ Label = 'SOFTWARECENTER (Updates, Store, Downloads: winget, Chocolatey, Katalog, GitHub, MajorGeeks)'; Color = 'Green'; Tag = 'updates' }
+        @{ Label = 'DOWNLOAD-SUCHE (KI-Pseudo-Paketmanager: PM + Kataloge + Suchmaschinen + Herbert)'; Color = 'Green'; Tag = 'dlfind' }
+        @{ Label = 'PROGRAMM-SUCHE (alle Paketmanager + SmartDownload: winget/choco/scoop/npm/pip/dotnet/PSGallery + Web + Herbert, installierbar)'; Color = 'Green'; Tag = 'appsearch' }
+        @{ Label = 'APP-STORE / MEGASTORE (lokaler Index: PMs + Kataloge + GitHub/GitLab, nach Kategorien, installierbar)'; Color = 'Green'; Tag = 'appstore' }
         @{ Label = 'DATENSCHUTZ & WERBE-FIX (PrivacyGuard)'; Color = 'Magenta'; Tag = 'privacyfix' }
+        @{ Label = 'HERBERT-EINSTELLUNGEN (KI empfiehlt Tweaks, per Klick anwendbar/rueckgaengig)'; Color = 'Green'; Tag = 'herbertset' }
+        @{ Label = 'PILOT HERBERT (schwebender Assistent, rechts positionierbar, Aktionen per Klick)'; Color = 'Green'; Tag = 'herbert' }
+        @{ Label = 'HERBERT ERSTEINRICHTUNG (optionale Extras: pwsh7/git/bun/dotnet/WSL + Ueberblick)'; Color = 'Green'; Tag = 'herbertonboard' }
         @{ Label = 'NETZWERKADAPTER identifizieren (was ist vgate0?)'; Color = 'Cyan'; Tag = 'adapters' }
         @{ Label = 'AUTOMATIC CHECKUP (Komplett-Scan, Erklaerungen, Reparatur)'; Color = 'Green'; Tag = 'checkup' }
         @{ Label = 'TOOLBOX (alle Werkzeuge nach Kategorien)';     Color = 'Cyan';     Tag = 'toolbox' }
         @{ Label = 'SMART HEALTH MONITOR';                         Color = 'Cyan';     Tag = 'health' }
         @{ Label = 'ADVANCED DNS MANAGER';                         Color = 'Cyan';     Tag = 'dns' }
+        @{ Label = 'SYSTEMPFLEGE-CENTER (Registry-Cleaner, Shredder, Privacy-Erase, Disk, Timeline, Boot)'; Color = 'Yellow'; Tag = 'carecenter' }
+        @{ Label = 'TWEAK-STUDIO (Registry-/Dienst-Tweaks, Kontextmenue, Favoriten, Backups)'; Color = 'Cyan'; Tag = 'tweakstudio' }
+        @{ Label = 'REGISTRY-GALERIE (.reg-Dateien, Risiko-Scan, KI-Pruefung, Backup/Restore)'; Color = 'Magenta'; Tag = 'reggallery' }
+        @{ Label = 'CLOUDFLARE (WARP 1.1.1.1, Tunnel, CF-Downloads)'; Color = 'Green'; Tag = 'cloudflare' }
         @{ Label = 'KI-Suche';                                     Color = 'White';    Tag = 'aisearch' }
+        @{ Label = 'KI-ASSISTENZ (Chat, Provider, kostenlose Cloud-KIs)'; Color = 'Green'; Tag = 'kiassist' }
+        @{ Label = 'MCP-SERVER (desktop-commander, powershell, github, browseros)'; Color = 'Cyan'; Tag = 'mcp' }
+        @{ Label = 'HERBERT-API + MCP (Provider + MCP fuer VS Code/Cline)'; Color = 'Green'; Tag = 'herbertapimenu' }
+        @{ Label = 'TASK-MANAGER (Prozesse: Liste, beenden, starten, analysieren)'; Color = 'Yellow'; Tag = 'procs' }
         @{ Label = 'SPEICHER-ANALYSE (pagefile, hiberfil, Temp, WinSxS)'; Color = 'Cyan'; Tag = 'storage' }
         @{ Label = 'PC-ANALYSE (CPU, RAM, GPU, Mainboard, Laufwerke)'; Color = 'Cyan'; Tag = 'hardware' }
         @{ Label = 'TREIBER-WERKSTATT (Problemgeraete, Inventar, Rollback)'; Color = 'Yellow'; Tag = 'drivers' }
         @{ Label = 'WIZTREE (Festplatten-/Ordneranalyse)';            Color = 'White';    Tag = 'wiztree' }
         @{ Label = 'Beenden (SysPilot laeuft im Tray weiter)';     Color = 'DarkGray'; Tag = 'tray' }
     )
+
+    # Ersteinrichtung-Hinweis: solange KI-Assistenz nicht onboarded
+    # ist, erscheint ein prominenter Eintrag ganz oben.
+    if ((Get-Command Get-SysPilotAiOnboardState -ErrorAction SilentlyContinue) -and
+        -not (Get-SysPilotAiOnboardState)) {
+        $items = @(@{ Label = '>>> KI-ASSISTENZ einrichten (empfohlen - kostenlos) <<<' ; Color = 'Green'; Tag = 'kiassist' }) + $items
+    }
 
     while ($true) {
         $sel = Show-SysPilotArrowMenu -Items $items -Title "SysPilot $(Get-SysPilotVersion) - PC-Autopilot [$adminTag]" -Footer 'Pfeiltasten hoch/runter, Enter = ausfuehren, Esc = beenden'
@@ -340,7 +443,7 @@ function Show-SysPilotDnsWindow {
 
         if ($sel -eq 'LOOKUP') {
             Write-Host ""
-            $domain = Read-SysPilotChoice 'Domain (z.B. google.com)'
+            $domain = Read-SysPilotInput 'Domain (z.B. google.com)'
             if ($domain) {
                 $r = Invoke-SysPilotDnsLookup -Domain $domain
                 Write-Host ""
@@ -354,7 +457,7 @@ function Show-SysPilotDnsWindow {
 
         if ($sel -eq 'REVERSE') {
             Write-Host ""
-            $ip = Read-SysPilotChoice 'IP-Adresse (z.B. 8.8.8.8)'
+            $ip = Read-SysPilotInput 'IP-Adresse (z.B. 8.8.8.8)'
             if ($ip) {
                 $r = Invoke-SysPilotReverseDns -IpAddress $ip
                 Write-Host ""
@@ -398,7 +501,7 @@ function Show-SysPilotDnsWindow {
 
         if ($provSel -eq 'CUSTOM') {
             Write-Host ""
-            $custom = Read-SysPilotChoice 'DNS-Server (kommagetrennt, z.B. 8.8.8.8, 1.1.1.1)'
+            $custom = Read-SysPilotInput 'DNS-Server (kommagetrennt, z.B. 8.8.8.8, 1.1.1.1)'
             if ($custom) {
                 $servers = ($custom -split ',') | ForEach-Object { $_.Trim() }
                 if (Set-SysPilotDnsServers -InterfaceIndex $adapter.ifIndex -ServerAddresses $servers) {
@@ -518,7 +621,7 @@ function Show-SysPilotHealthDashboard {
 
         if ($sel -eq 'ONLINEHOWTOS') {
             Write-Host ""
-            $suchbegriff = Read-SysPilotChoice 'Suchbegriff (z.B. "CPU zu heiss", "SSD langsam", "Luefter laut")'
+            $suchbegriff = Read-SysPilotInput 'Suchbegriff (z.B. "CPU zu heiss", "SSD langsam", "Luefter laut")'
             if ($suchbegriff) {
                 Write-Host "  Suche online nach Reparatur-Howtos ..." -ForegroundColor DarkGray
                 $howtos = Get-SysPilotRepairHowtosOnline -Suchbegriff $suchbegriff
@@ -670,7 +773,7 @@ function Invoke-SysPilotTool {
                     Write-Host "  Vorhandene Backups:" -ForegroundColor DarkGray
                     $backups | ForEach-Object { Write-Host "    $($_.Name)" -ForegroundColor DarkGray }
                     if (Confirm-SysPilot "Dienste aus einem Backup wiederherstellen?") {
-                        $bn = Read-SysPilotChoice "Backup-Name"
+                        $bn = Read-SysPilotInput "Backup-Name"
                         $bp = Join-Path $script:Root "backup\$bn"
                         if (Test-Path $bp) { Restore-SysPilotServices -BackupPath $bp }
                     }
@@ -679,10 +782,50 @@ function Invoke-SysPilotTool {
             Read-SysPilotChoice 'Weiter' | Out-Null; return
         }
         'aisearch'     {
-            $q = Read-SysPilotChoice 'KI-Suche (Begriff)' 'SysPilot'
+            $q = Read-SysPilotInput 'KI-Suche (Begriff)' 'SysPilot'
             if ($q) { Start-Process 'https://duckduckgo.com/?q=' + [Uri]::EscapeDataString($q) }
             Read-SysPilotChoice 'Weiter' | Out-Null; return
         }
+        'kiassist'     { Show-SysPilotAiAssist; return }
+        'kisetup'      { Show-SysPilotKiSetupWizard; return }
+        'kimgr'        { Show-SysPilotHerbertManager; return }
+        'kitools'      { Show-SysPilotAiAppsInstall; return }
+        'kinews'       { Show-SysPilotAiNews; return }
+        'kimodels'     { Show-SysPilotAiModelFinder; return }
+        'kiguide'      { Show-SysPilotAiGuidedInstall; return }
+        'kionboard'    { Show-SysPilotAiOnboarding; return }
+        'kiquick'      {
+            $q = Read-SysPilotInput 'Deine Frage an die KI'
+            if ($q) { Show-SysPilotAiQuickAsk -Prompt $q -Title 'Schnellfrage' | Out-Null; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
+            return
+        }
+        'kibackup'     {
+            $n = Save-SysPilotAiKeyBackup
+            if ($n -gt 0) { Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
+            return
+        }
+        'kiprocs'      {
+            $cur = Get-SysPilotAiProcessHintsEnabled
+            $new = -not $cur
+            Set-SysPilotAiProcessHintsEnabled -On $new
+            Write-Host ("  Prozess-Hinweise: " + $(if($new){'AN'}else{'AUS (stumm)'})) -ForegroundColor $(if($new){'Green'}else{'DarkGray'})
+            Read-SysPilotChoice 'Weiter mit Enter' | Out-Null; return
+        }
+        'kiannouncements' {
+            $cur = Get-SysPilotHerbertAnnouncementsEnabled
+            $new = -not $cur
+            Set-SysPilotHerbertAnnouncementsEnabled -On $new
+            Write-Host ("  Bord-Ansagen: " + $(if($new){'AN'}else{'AUS (stumm)'})) -ForegroundColor $(if($new){'Green'}else{'DarkGray'})
+            Read-SysPilotChoice 'Weiter mit Enter' | Out-Null; return
+        }
+        'mcp'          { Show-SysPilotMcpMenu; return }
+        'herbertapi'   { Start-SysPilotHerbertApiServer -Port $ApiPort; return }
+        'herbertmcp'   { Invoke-SysPilotHerbertMcpStdio; return }
+        'herbertapimenu'{ Show-SysPilotHerbertApiMenu; return }
+        'yscout'       { Show-SysPilotYoutubeKeyScout; return }
+        'selftest'     { Test-SysPilotHealth; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null; return }
+        'debugreport'  { Send-SysPilotDebugReport; return }
+        'procs'        { Show-SysPilotProcessMenu; return }
         'startup'      { Show-SysPilotStartupManager; return }
         'hosts'        { Show-SysPilotHostsEditor; return }
         'services'     { Show-SysPilotServiceTuner; Read-SysPilotChoice 'Weiter' | Out-Null; return }
@@ -705,8 +848,25 @@ function Invoke-SysPilotTool {
         'runtimes'     { Show-SysPilotRuntimesMenu; return }
         'rootcerts'    { Show-SysPilotRootCertMenu; return }
         'papps'        { Show-SysPilotPortableAppsMenu; return }
-        'updates'      { Show-SysPilotUpdateCenter; return }
+        'updates'      { Show-SysPilotUpdateCenterWindow; return }
+        'updatesc'     { Show-SysPilotUpdateCenter; return }
+        'dlfind'       { Show-SysPilotDownloadFinder; return }
+        'appsearch'    { Show-SysPilotAppSearchWindow; return }
+        'appstore'     { Show-SysPilotAppStoreWindow; return }
+        'smartdrv'     { Invoke-SysPilotSmartDriverSearch; return }
+        'drvstudio'    { Show-SysPilotDriverStudioWindow; return }
         'privacyfix'   { Show-SysPilotPrivacyFix; return }
+        'herbertset'   { Invoke-SysPilotSettingsAssistant; return }
+        'herbert'      { Import-Module (Join-Path $script:Root 'modules\AiAssist.psm1') -Force -ErrorAction SilentlyContinue; Show-SysPilotHerbertAssistant -Context 'SysPilot Hauptmenue'; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'herbertfull'  { Import-Module (Join-Path $script:Root 'modules\AiAssist.psm1') -Force -ErrorAction SilentlyContinue; Show-SysPilotHerbertAssistant -Fullscreen -Context 'SysPilot Hauptmenue'; return }
+        'herbertonboard' {
+            Import-Module (Join-Path $script:Root 'modules\AiAssist.psm1') -Force -ErrorAction SilentlyContinue
+            if (Get-Command Show-SysPilotHerbertOnboarding -ErrorAction SilentlyContinue) {
+                Show-SysPilotHerbertOnboarding
+                Read-SysPilotChoice 'Weiter' | Out-Null
+            } else { Write-Host "  [!] Onboarding nicht verfuegbar." -ForegroundColor Yellow }
+            return
+        }
         'adapters'     { Show-SysPilotNetworkAdapters; return }
         'winupdate'    { Update-SysPilotWindows; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'backup'       { $b = New-SysPilotBackup -Label 'tool'; Write-Host "  Backup: $b" -ForegroundColor Green; Read-SysPilotChoice 'Weiter' | Out-Null; return }
@@ -725,6 +885,10 @@ function Invoke-SysPilotTool {
         'sysinfo'      { Show-SysPilotSystemInfo; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'autooptimize' { Invoke-SysPilotAutoOptimize; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'dns'          { Show-SysPilotDnsWindow; Read-SysPilotChoice 'Weiter' | Out-Null; return }
+        'cloudflare'   { Show-SysPilotCloudflareMenu; return }
+        'carecenter'   { Show-SysPilotCareCenter; return }
+        'tweakstudio'  { Show-SysPilotTweakStudio; return }
+        'reggallery'   { Show-SysPilotRegGallery; return }
         'health'       { Show-SysPilotHealthDashboard; Read-SysPilotChoice 'Weiter' | Out-Null; return }
         'storage'      { Show-SysPilotStorageMenu; return }
         default        { Write-Host "  [!] Unbekanntes Werkzeug: $Name" -ForegroundColor Yellow; Read-SysPilotChoice 'Weiter' | Out-Null; return }

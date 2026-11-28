@@ -270,7 +270,7 @@ function Get-SysPilotToolbox {
         Desc = 'Stellt das moderne Windows-11-Kontextmenue mit Befehlsleiste wieder her - entfernt Tweaker-CLSIDs (HKCU+HKLM), blockierte Erweiterungen, startet Explorer neu.'
         NeedsAdmin = $false; Action = { Restore-SysPilotWin11ContextMenu } }
     $tools += @{ Category = 'System optimieren'; Key = 'win11ctxadmin'; Name = 'Admin-Kontextmenue-Eintraege'
-        Desc = 'Fuegt „Terminal (Admin) oeffnen" (Ordner/Laufwerk) und „Mit PowerShell (Admin) oeffnen" (.ps1) hinzu oder entfernt sie.'
+        Desc = 'Fuegt "Terminal (Admin) oeffnen" (Ordner/Laufwerk) und "Mit PowerShell (Admin) oeffnen" (.ps1) hinzu oder entfernt sie.'
         NeedsAdmin = $false; Action = { Show-SysPilotAdminContextMenuManager } }
     $tools += @{ Category = 'System optimieren'; Key = 'runtimes'; Name = 'Laufzeiten (Runtimes)'
         Desc = 'VC++ Redistributables, .NET Desktop Runtime, .NET Framework, All in One Runtimes - Status, lokale Installer nutzen oder offiziell herunterladen.'
@@ -278,9 +278,21 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'System optimieren'; Key = 'papps'; Name = 'Apps & Store-Clients'
         Desc = 'UniGetUI, Komi Store (ehem. GitHub Store), Uptodown Desktop (offizieller Installer, SHA256-geprueft), Chris Titus WinUtil, Ultimate Windows Tweaker 5, Microsoft PC Manager (Store-App, regionsbeschraenkt), WinToys (winget/Store), iTop Easy Desktop (winget), Ferdium (winget), MuMu Player (Android-Emulator), Flipboard (Web) - herunterladen, installieren, starten.'
         NeedsAdmin = $false; Action = { Show-SysPilotPortableAppsMenu } }
-    $tools += @{ Category = 'System optimieren'; Key = 'updates'; Name = 'Update / Download Center'
-        Desc = 'Einheitliches Update-Center: winget + Chocolatey-Scan installierter Programme, kuratierter Programm-Katalog (147 Apps in 7 Kategorien), GitHub-Release-Downloads, MajorGeeks-Resolver, Web-Kataloge (Heise, FileHippo, Uptodown, CHIP).'
+    $tools += @{ Category = 'System optimieren'; Key = 'updates'; Name = 'Softwarecenter'
+        Desc = 'Softwarecenter: winget + Chocolatey-Scan installierter Programme, Programm-Suche/Store (winget remote), kuratierter Programm-Katalog, GitHub-Release-Downloads, MajorGeeks-Resolver, Web-Kataloge (Heise, FileHippo, Uptodown, CHIP).'
         NeedsAdmin = $false; Action = { Show-SysPilotUpdateCenter } }
+    $tools += @{ Category = 'System optimieren'; Key = 'dlfind'; Name = 'Download-Suche (KI)'
+        Desc = 'KI-Pseudo-Paketmanager: findet fehlende Download-Links ueber Paketmanager (choco/scoop), Web-Kataloge (Ninite, Uptodown, FileHorse, MajorGeeks), Suchmaschinen (DuckDuckGo, Bing) und Herbert-KI-Bewertung - mit Live-Protokoll und Direktlinks.'
+        NeedsAdmin = $false; Action = { Show-SysPilotDownloadFinder } }
+    $tools += @{ Category = 'System optimieren'; Key = 'appsearch'; Name = 'Programm-Suche (alle PMs + KI)'
+        Desc = 'Sucht Programme/Apps in ALLEN Paketmanagern (winget, choco, scoop, npm, pip, dotnet, PSGallery) - Treffer direkt installierbar - plus SmartDownload (Web-Kataloge, Suchmaschinen, Herbert-KI) mit klickbaren Links.'
+        NeedsAdmin = $false; Action = { Show-SysPilotAppSearchWindow } }
+    $tools += @{ Category = 'System optimieren'; Key = 'appstore'; Name = 'App-Store / Megastore'
+        Desc = 'Lokaler App-Index (Inhaltsverzeichnis) aus Paketmanagern, Web-Katalogen, GitHub und GitLab - als kategorisierter Store mit Icons, Beschreibungen und Install-Buttons. Woechentlich per geplanter Aufgabe aktualisierbar.'
+        NeedsAdmin = $false; Action = { Show-SysPilotAppStoreWindow } }
+    $tools += @{ Category = 'System optimieren'; Key = 'kiassist'; Name = 'KI-Assistenz'
+        Desc = 'Chat-Assistent mit kostenlosen Providern: lokale Router (Ollama, LM Studio, FreeLLMAPI, OmniRoute), Pollinations (free, kein Key) + Cloud-Tiers mit eigenem Key (Gemini, Groq, OpenRouter, GitHub Models, Mistral, Cerebras). Fehleranalyse, Einstellungshilfe, Download-/Install-Beratung.'
+        NeedsAdmin = $false; Action = { Show-SysPilotAiAssist } }
     $tools += @{ Category = 'System optimieren'; Key = 'privacyfix'; Name = 'Datenschutz & Werbe-Fix'
         Desc = 'PrivacyGuard: Werbe-ID, Telemetrie, Copilot, Recall, Werbe-Flags, Edge-Tweaks, GameDVR, Taskbar - mit Status und Batch-Fix.'
         NeedsAdmin = $false; Action = { Show-SysPilotPrivacyFix } }
@@ -296,6 +308,9 @@ function Get-SysPilotToolbox {
     $tools += @{ Category = 'System optimieren'; Key = 'priorities'; Name = 'Prozess-Prioritaeten'
         Desc = 'Wichtige Programme hoeher, Ballast niedriger priorisieren. Wirkt sofort.'
         NeedsAdmin = $false; Action = { Set-SysPilotPriorities; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'System optimieren'; Key = 'procs'; Name = 'Task-Manager (Prozesse)'
+        Desc = 'Prozesse auflisten, beenden, starten, Details, analysieren - inkl. Process-Explorer-Integration.'
+        NeedsAdmin = $false; Action = { Show-SysPilotProcessMenu; Read-SysPilotChoice 'Weiter' | Out-Null } }
     $tools += @{ Category = 'System optimieren'; Key = 'features'; Name = 'Windows-Funktionen & Gaming-Tweaks'
         Desc = 'Game Mode, HAGS, Werbung an/aus, visuelle Effekte huebsch oder schnell.'
         NeedsAdmin = $false; Action = { Show-SysPilotFeaturesMenu } }
@@ -379,11 +394,38 @@ function Get-SysPilotToolbox {
         Desc = 'Festplatten-/Ordneranalyse: vorhandene Installation erkennen, silent installieren, starten.'
         NeedsAdmin = $false; Action = { Show-SysPilotWizTreeMenu } }
     $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'rootcerts'; Name = 'Stammzertifikate aktualisieren'
-        Desc = 'Lädt das portable UpdateRootCertificates-Tool (GitHub) nach PortableApps und aktualisiert Windows-Root-Zertifikate.'
+        Desc = 'Laedt das portable UpdateRootCertificates-Tool (GitHub) nach PortableApps und aktualisiert Windows-Root-Zertifikate.'
         NeedsAdmin = $true; Action = { Show-SysPilotRootCertMenu } }
     $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'drivers'; Name = 'Treiber-Werkstatt'
         Desc = 'Problemgeraete finden, Treiber-Inventar, veraltete Treiber, fehlende Komponenten, Rollback-Anleitung.'
         NeedsAdmin = $true; Action = { Show-SysPilotDriverMenu } }
+    $tools += @{ Category = 'Sicherheit & Reparatur'; Key = 'drvstudio'; Name = 'SmartDriver Studio (Treiber-Werkstatt)'
+        Desc = 'Hardware-Analyse, Multi-Select-Treiberinstallation (WU, MS-Catalog .cab, Web-Installer), Treiber-Backup/Wiederherstellung, Webkatalog, Herbert Auto-Install.'
+        NeedsAdmin = $true; Action = { Show-SysPilotDriverStudioWindow; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'System optimieren'; Key = 'herbertset'; Name = 'Herbert-Einstellungen (KI-Assistent)'
+        Desc = 'Herbert analysiert dein System und empfiehlt die besten Datenschutz-/System-Tweaks - sortiert, pro Klick anwendbar und rueckgaengig.'
+        NeedsAdmin = $false; Action = { Invoke-SysPilotSettingsAssistant } }
+    $tools += @{ Category = 'System optimieren'; Key = 'herbertapimenu'; Name = 'Herbert-API + MCP (externe KI-Tools)'
+        Desc = 'Stellt Herbert als OpenAI-kompatiblen Provider (127.0.0.1:8377/v1) fuer VS Code/Cline/Continue bereit und als MCP-Server (stdio) fuer MCP-Clients einreibbar.'
+        NeedsAdmin = $false; Action = { Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path (Split-Path $PSScriptRoot) 'SysPilot.ps1'),'-Tool','herbertapimenu') } }
+    $tools += @{ Category = 'System optimieren'; Key = 'herbert'; Name = 'Pilot Herbert (schwebender Assistent)'
+        Desc = 'KI-Bordassistent als schwebendes Fenster - Rechtspositionierung, Kontext pro Tool, Schnellfragen, SysPilot-Aktionen per Uebernehmen-Button.'
+        NeedsAdmin = $false; Action = { Show-SysPilotHerbertAssistant -Context 'SysPilot Toolbox'; Read-SysPilotChoice 'Weiter' | Out-Null } }
+    $tools += @{ Category = 'System optimieren'; Key = 'carecenter'; Name = 'Systempflege-Center (Registry, Shredder, Privacy, Disk, Boot)'
+        Desc = 'Registry-Cleaner mit Backup, File-Shredder (sicheres Ueberschreiben), Privacy-Erase (Browser-/Windows-Spuren), Disk-Optimieren, Aktivitaets-Timeline, Passwort-Generator, Boot-Analyse.'
+        NeedsAdmin = $false; Action = { Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path (Split-Path $PSScriptRoot) 'SysPilot.ps1'),'-Tool','carecenter') } }
+    $tools += @{ Category = 'System optimieren'; Key = 'tweakstudio'; Name = 'Tweak-Studio (Registry-/Dienst-Tweaks)'
+        Desc = 'Eigener Tweak-Katalog: Kontextmenue (PowerShell/Terminal hier), Explorer, Taskleiste, Leistung, Datenschutz, Dienste - mit Status, .reg-Backup vor Aenderung, Favoriten und Rueckgaengigmachung.'
+        NeedsAdmin = $false; Action = { Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path (Split-Path $PSScriptRoot) 'SysPilot.ps1'),'-Tool','tweakstudio') } }
+    $tools += @{ Category = 'System optimieren'; Key = 'reggallery'; Name = 'Registry-Galerie (.reg-Dateien)'
+        Desc = 'Kuratierte .reg-Sammlung nach Themen, Import/URL-Download, heuristischer Risiko-Scan, optionale KI-Sicherheitspruefung, .reg-Backup vor dem Anwenden und Wiederherstellung.'
+        NeedsAdmin = $false; Action = { Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path (Split-Path $PSScriptRoot) 'SysPilot.ps1'),'-Tool','reggallery') } }
+    $tools += @{ Category = 'System optimieren'; Key = 'cloudflare'; Name = 'Cloudflare-Manager (WARP, Tunnel, CF-Downloads)'
+        Desc = 'WARP 1.1.1.1 (Install/Connect/Modi), cloudflared-Tunnel (quick/named/delete), CF-geschuetzte Downloads via curl_cffi-Chrome-Impersion.'
+        NeedsAdmin = $false; Action = { Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path (Split-Path $PSScriptRoot) 'SysPilot.ps1'),'-Tool','cloudflare') } }
+    $tools += @{ Category = 'System optimieren'; Key = 'herbertonboard'; Name = 'Herbert-Ersteinrichtung (Extras)'
+        Desc = 'Einmalige Auswahl optionaler Erweiterungen (PowerShell 7, Bun, .NET SDK, WSL Ubuntu) + Ueberblick was Herbert kann - jederzeit wieder aufrufbar.'
+        NeedsAdmin = $false; Action = { Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path (Split-Path $PSScriptRoot) 'SysPilot.ps1'),'-Tool','herbertonboard') } }
 
     # Als Objekte zurueckgeben: Group-Object Category funktioniert nur
     # mit echten Eigenschaften, nicht mit Hashtable-Keys (PS 5.1).

@@ -3,7 +3,7 @@
 
 #Requires -Version 5.1
 
-# Root Ordner (für Logs und Config)
+# Root Ordner (fuer Logs und Config)
 $script:SysPilotRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 
 # ---------- Hilfsfunktionen ----------
@@ -37,7 +37,7 @@ function Get-SysPilotHealthSampler {
         Disk_TotalMB= if ($disk) { [math]::Round($disk.Size / 1MB) } else { 0 }
         Disk_Util = if ($disk) { [math]::Round(100 * ($disk.Size / 1MB - $disk.FreeSpace / 1MB) / ($disk.Size / 1MB)) } else { 0 }
         Temp_C    = if ($temp) { [math]::Round($temp.CurrentReading, 1) } else { -1 }
-        Temp_Source = if ($temp) { 'LHM' } else { 'Schätzung' }
+        Temp_Source = if ($temp) { 'LHM' } else { 'Schaetzung' }
         Timestamp = Get-Date -Format 'o'
     }
 }
@@ -83,9 +83,9 @@ function Show-SysPilotHealthDashboard {
         Show-SysPilotHealthDashboard
     #>
     Write-Host ''
-    Write-Host '  █████████████████████████████████████████'
-    Write-Host '  █  SYSHEALTH — Live-Dashboard (Smart Health Monitor)' -ForegroundColor Cyan
-    Write-Host '  █████████████████████████████████████████'
+    Write-Host '  ========================================='
+    Write-Host '  =  SYSHEALTH - Live-Dashboard (Smart Health Monitor)' -ForegroundColor Cyan
+    Write-Host '  ========================================='
     Write-Host ''
     $sample = Get-SysPilotHealthSampler
     $sample | Add-Member -MemberType NoteProperty -Name 'Log' -Value (Get-SysPilotHealthHistory -Count 20)
@@ -95,10 +95,10 @@ function Show-SysPilotHealthDashboard {
     Write-Host "  RAM: $($sample.RAM_UsedMB) / $($sample.RAM_TotalMB) MB  ($($sample.RAM_Util)%)"
     Write-Host "  Disk: $($sample.Disk_UsedMB) / $($sample.Disk_TotalMB) MB  ($($sample.Disk_Util)%)"
     if ($sample.Temp_C -ge 0) {
-        Write-Host "  Temp: $($sample.Temp_C)°C  (via $($sample.Temp_Source))"
-        if ($sample.Temp_C -ge 80) { Write-Host '    ⚠️  Hitzeschutz: Kühl-Plan aktiviert' -ForegroundColor Yellow }
+        Write-Host "  Temp: $($sample.Temp_C) Grad C  (via $($sample.Temp_Source))"
+        if ($sample.Temp_C -ge 80) { Write-Host '    !  Hitzeschutz: Kuehl-Plan aktiviert' -ForegroundColor Yellow }
     } else {
-        Write-Host '  Temp: Schätzung (LibreHardwareMonitor empfohlen)'
+        Write-Host '  Temp: Schaetzung (LibreHardwareMonitor empfohlen)'
     }
     Write-Host ''
 
@@ -107,7 +107,7 @@ function Show-SysPilotHealthDashboard {
         Write-Host '  Verlauf (letzte 30 Messungen):'
         $hist | ForEach-Object {
             $d = [datetime]::Parse($_.Timestamp)
-            Write-Host "    $($_.Timestamp)  CPU=$($_.CPU_Usage)% RAM=$($_.RAM_Util)% Disk=$($_.Disk_Util)% Temp=$($_.Temp_C)°C"
+            Write-Host "    $($_.Timestamp)  CPU=$($_.CPU_Usage)% RAM=$($_.RAM_Util)% Disk=$($_.Disk_Util)% Temp=$($_.Temp_C) Grad C"
         }
     }
     Write-Host ''
@@ -116,7 +116,7 @@ function Show-SysPilotHealthDashboard {
 function Show-SysPilotHealthGUI {
     <#
     .SYNOPSIS
-    Erzeugt ein WPF-Dashboard für die Maussteuerung.
+    Erzeugt ein WPF-Dashboard fuer die Maussteuerung.
     .EXAMPLE
         Show-SysPilotHealthGUI
     #>
@@ -124,6 +124,7 @@ function Show-SysPilotHealthGUI {
     $window.Title = 'SysPilot - Smart Health Monitor'
     $window.Width = 680; $window.Height = 460
     $window.WindowStartupLocation = 'CenterScreen'
+    if (Get-Command Set-SysPilotWpfDarkTheme -ErrorAction SilentlyContinue) { Set-SysPilotWpfDarkTheme -Win $window }
 
     $grid = New-Object System.Windows.Controls.Grid
     $grid.Margin = '14'
@@ -153,6 +154,7 @@ function Show-SysPilotHealthGUI {
     [System.Windows.Controls.Grid]::SetRow($btnExport,3); $grid.Children.Add($btnExport)|Out-Null
 
     $window.Content = $grid
+    Add-SysPilotAssistantToWindow -Win $window -Context 'Show-SysPilotHealthGUI'
     $window.ShowDialog() | Out-Null
 }
 

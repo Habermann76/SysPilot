@@ -12,3 +12,10 @@ Thumbs.db
 /_*.ps1
 /_*.txt
 /_*.log
+
+# Lokale Experimente/Drittanbieter-Clones ( enthalten Credentials )
+/miniflux-ai/
+
+# Scratch-Dateien (JSON/Python-Testartefakte)
+/_*.json
+/_*.py

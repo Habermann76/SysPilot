@@ -1,4 +1,4 @@
-﻿# SysPilot - Package Managers (0.9.4.9)
+# SysPilot - Package Managers (0.9.4.9)
 # Einheitliche Schicht ueber ALLE Paketmanager: WinGet, Chocolatey, Scoop,
 # Homebrew, APT, DNF, Pacman, Flatpak, Snap, pip, npm, Bun, .NET Tool,
 # PowerShell Gallery. Idee nach UniGetUI (github.com/Devolutions/UniGetUI).
@@ -144,6 +144,23 @@ function Repair-SysPilotScoopBuckets {
                 continue
             }
         }
+        # 1b) Fehlendes Upstream-Tracking reparieren: 'git pull' ohne
+        #     Tracking-Info bricht mit 'There is no tracking information
+        #     for the current branch' ab und blockiert 'scoop update'
+        #     komplett (Bucket bleibt ewig 'out of date').
+        $sb = (& git -C $b.FullName status -sb 2>$null | Select-Object -First 1)
+        if ($sb -match '^##\s+\S+\s*$') {
+            Write-Host "  -> Bucket '$($b.Name)': Upstream-Tracking fehlt - wird gesetzt ..." -ForegroundColor DarkGray
+            $def = (& git -C $b.FullName symbolic-ref --short refs/remotes/origin/HEAD 2>$null | ForEach-Object { $_ -replace '^origin/','' })
+            if (-not $def) { $def = 'master' }
+            $cur = (& git -C $b.FullName rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
+            if ($cur) {
+                & git -C $b.FullName branch --set-upstream-to="origin/$def" $cur 2>$null
+                if ($LASTEXITCODE -ne 0) {
+                    & git -C $b.FullName branch --set-upstream-to="origin/master" $cur 2>$null
+                }
+            }
+        }
         # 2) Lokale Aenderungen stashen (recoverbar), dann ff-only pull
         $dirty = & git -C $b.FullName status --porcelain 2>$null
         if ($dirty) {
@@ -152,7 +169,7 @@ function Repair-SysPilotScoopBuckets {
         }
         & git -C $b.FullName pull --ff-only --quiet 2>$null
         if ($LASTEXITCODE -ne 0) {
-            # ff-only unmöglich -> auf origin-Stand zuruecksetzen (Bucket-Manifeste
+            # ff-only unmoeglich -> auf origin-Stand zuruecksetzen (Bucket-Manifeste
             # sind upstream-verwaltet; stash enthaelt evtl. eigene Aenderungen)
             & git -C $b.FullName reset --hard '@{u}' --quiet 2>$null
             if ($LASTEXITCODE -ne 0) { & git -C $b.FullName reset --hard origin/master --quiet 2>$null }
@@ -167,21 +184,58 @@ function Update-SysPilotScoopBuckets {
        in %LOCALAPPDATA%\SysPilot\autofix). Bei anhaltendem WARN werden
        die Bucket-Git-Repos repariert und erneut versucht. #>
     if (-not (Test-SysPilotAutoFixDue -Name 'scoop-buckets' -Hours 24)) { return $false }
-    Save-SysPilotAutoFixStamp -Name 'scoop-buckets'
+    # KEIN Stamp vor dem Versuch: nur bei nachweislich behobenem WARN
+    # stempeln - sonst bleibt ein hartnaeckiger WARN 24h sichtbar.
     Write-Host '  -> Scoop-Buckets veraltet - aktualisiere automatisch (scoop update) ...' -ForegroundColor DarkGray
     Write-Host '     Das kann eine Minute dauern (Buckets werden per Git gezogen).' -ForegroundColor DarkGray
-    & scoop update 2>&1 | Out-Host
-    Write-SysPilotLog "Scoop-Buckets automatisch aktualisiert (Exit $LASTEXITCODE)"
+    $out = (& scoop update 2>&1 | Out-String)
+    # Nur relevante Zeilen zeigen - Git-Fetch-Laerm (refs, %, 'Already up to date')
+    # sah bisher aus wie eine Flut aus Fehlern/Warnungen.
+    $keep = @($out -split "`r?`n" | Where-Object {
+        $_.Trim() -ne '' -and $_ -match '(?i)warn|error|fail|abort|out of date|updated|already up.to.date|scoop update|github\.com'
+    })
+    if ($keep.Count -eq 0) { $keep = @($out -split "`r?`n" | Select-Object -Last 6) }
+    foreach ($l in ($keep | Select-Object -First 30)) { Write-Host "     $($l.Trim())" -ForegroundColor DarkGray }
     # Pruefen ob WARN noch besteht -> Bucket-Repos reparieren + retry
     # (scoop-WARNs sind nur via cmd /c auffangbar, siehe Invoke-SysPilotScoopRaw)
     $st = (cmd /c 'scoop status 2>&1' | Out-String)
-    if ($st -match 'out of date') {
+    $fixed = ($st -notmatch 'out of date')
+    if (-not $fixed) {
         Write-Host '  -> WARN besteht weiter - repariere Bucket-Repositories ...' -ForegroundColor DarkGray
         Repair-SysPilotScoopBuckets
-        & scoop update 2>&1 | Out-Host
+        $out2 = (& scoop update 2>&1 | Out-String)
+        $keep2 = @($out2 -split "`r?`n" | Where-Object {
+            $_.Trim() -ne '' -and $_ -match '(?i)warn|error|fail|abort|updated|already up.to.date|scoop update'
+        })
+        if ($keep2.Count -eq 0) { $keep2 = @($out2 -split "`r?`n" | Select-Object -Last 6) }
+        foreach ($l in ($keep2 | Select-Object -First 30)) { Write-Host "     $($l.Trim())" -ForegroundColor DarkGray }
         Write-SysPilotLog "Scoop-Buckets Retry nach Repo-Reparatur (Exit $LASTEXITCODE)"
+        $st2 = (cmd /c 'scoop status 2>&1' | Out-String)
+        $fixed = ($st2 -notmatch 'out of date')
+    }
+    if ($fixed) {
+        Save-SysPilotAutoFixStamp -Name 'scoop-buckets'
+        Write-SysPilotLog 'Scoop-Buckets automatisch aktualisiert: WARN behoben'
+    } else {
+        Write-SysPilotLog 'Scoop-Buckets Auto-Fix: WARN besteht weiterhin (kein Stamp - naechster Scan retryt)'
     }
     return $true
+}
+
+function Get-SysPilotScoopExePath {
+    <# Direkter Pfad zur scoop.cmd (Shim) - bevorzugt gegenueber
+       scoop.ps1, damit Invoke-SysPilotMonitoredProcess cmd /c nutzt. #>
+    $shim = Join-Path $env:USERPROFILE 'scoop\shims\scoop.cmd'
+    if (Test-Path $shim) { return $shim }
+    $c = Get-Command scoop -ErrorAction SilentlyContinue
+    if ($c) {
+        if ($c.Source -match '\.ps1$') {
+            $cmd = [IO.Path]::ChangeExtension($c.Source, '.cmd')
+            if (Test-Path $cmd) { return $cmd }
+        }
+        return $c.Source
+    }
+    return $null
 }
 
 function Invoke-SysPilotScoopRaw {
@@ -189,12 +243,36 @@ function Invoke-SysPilotScoopRaw {
        werden die Buckets automatisch aktualisiert und der Befehl
        einmal wiederholt. Gibt die Output-Zeilen zurueck.
        WICHTIG: scoop.cmd schreibt WARNs an die Konsole und umgeht
-       PowerShell-Redirection -> muss ueber 'cmd /c' gekapselt werden. #>
-    param([Parameter(Mandatory)][string[]]$ScoopArgs)
+       PowerShell-Redirection -> muss ueber 'cmd /c' gekapselt werden.
+       LAEUFT ueber Invoke-SysPilotMonitoredProcess (cmd /c-Wrapper,
+       Timeout + Prozessbaum-Abbruch) - vorher blockierte ein haengender
+       scoop-Befehl den kompletten Update-Lauf fuer immer. #>
+    param([Parameter(Mandatory)][string[]]$ScoopArgs, [int]$TimeoutSec = 300, [switch]$Quiet)
+    $exe = Get-SysPilotScoopExePath
+    if (-not $exe) { $exe = 'scoop' }
     $argStr = ($ScoopArgs | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
-    $out = (cmd /c "scoop $argStr 2>&1" | Out-String)
-    if ($out -match 'bucket\(s\) out of date' -and (Update-SysPilotScoopBuckets)) {
-        $out = (cmd /c "scoop $argStr 2>&1" | Out-String)
+    $run = {
+        param($e,$a)
+        $r = Invoke-SysPilotMonitoredProcess -FilePath $e -ArgList $a -Label "scoop $($a -join ' ')" -TimeoutSec $TimeoutSec -Quiet:$Quiet.IsPresent
+        return @{ Out=[string]$r.Output; Code=$r.ExitCode }
+    }
+    $rr = & $run $exe @($ScoopArgs)
+    $out = [string]$rr.Out
+    $script:ScoopLastExitCode = $rr.Code
+    if ($out -match 'bucket\(s\) out of date') {
+        if (Update-SysPilotScoopBuckets) {
+            $rr = & $run $exe @($ScoopArgs); $out = [string]$rr.Out; $script:ScoopLastExitCode = $rr.Code
+            # WARN haette an? -> Bucket-Repos reparieren + letzter Retry
+            # (eigener 24h-Stempel, damit haengende Git-Repos nicht
+            # bei jedem scoop-Aufruf neu repariert werden)
+            if ($out -match 'bucket\(s\) out of date' -and
+                (Test-SysPilotAutoFixDue -Name 'scoop-bucket-repair' -Hours 24)) {
+                Save-SysPilotAutoFixStamp -Name 'scoop-bucket-repair'
+                Write-SysPilotLog 'Scoop WARN nach Update weiterhin - repariere Bucket-Repos'
+                Repair-SysPilotScoopBuckets
+                $rr = & $run $exe @($ScoopArgs); $out = [string]$rr.Out; $script:ScoopLastExitCode = $rr.Code
+            }
+        }
     } elseif ($out -match 'bad object|did not send all necessary objects' -and
               (Test-SysPilotAutoFixDue -Name 'scoop-bucket-repair' -Hours 24)) {
         # Korruptes Bucket-Repo (z.B. games): WARN ist evtl. schon weg,
@@ -202,7 +280,7 @@ function Invoke-SysPilotScoopRaw {
         Save-SysPilotAutoFixStamp -Name 'scoop-bucket-repair'
         Write-Host '  -> Scoop-Bucket-Repo korrupt - repariere automatisch ...' -ForegroundColor DarkGray
         Repair-SysPilotScoopBuckets
-        $out = (cmd /c "scoop $argStr 2>&1" | Out-String)
+        $rr = & $run $exe @($ScoopArgs); $out = [string]$rr.Out; $script:ScoopLastExitCode = $rr.Code
     }
     return $out
 }
@@ -317,6 +395,55 @@ function Get-SysPilotDotnetTools {
     return $rows
 }
 
+function Get-SysPilotDotnetOutdated {
+    <# Outdated-Check fuer globale .NET-Tools ueber die NuGet-Flatcontainer-
+       API: EIN HTTP-Call pro Tool (index.json = alle Versionen), also
+       verguenstig genug fuer den Scan. #>
+    $exe = (Get-Command dotnet -ErrorAction SilentlyContinue).Source
+    if (-not $exe) { return @() }
+    $tools = @(Get-SysPilotDotnetTools | Select-Object -First 15)
+    $rows = @()
+    foreach ($t in $tools) {
+        if (-not $t.Installed) { continue }
+        try {
+            $idx = Invoke-RestMethod -Uri "https://api.nuget.org/v3-flatcontainer/$($t.Id.ToLower())/index.json" -TimeoutSec 8 -ErrorAction Stop
+            $vers = @($idx.versions)
+            $latest = [string]$vers[-1]
+            if ($latest -and [version]$latest -gt [version]$t.Installed) {
+                $rows += [pscustomobject]@{ Name=$t.Name; Id=$t.Id; Installed=[string]$t.Installed; Available=$latest; Source='dotnet' }
+            }
+        } catch { }
+    }
+    return $rows
+}
+
+function Get-SysPilotBunOutdated {
+    <# Outdated-Check fuer globale Bun-Pakete. 'bun outdated' kennt nur
+       Projekt-Kontext -> globale Pakete werden via 'bun pm ls -g'
+       aufgelistet und gegen die npm-Registry (latest-Tag) geprueft. #>
+    $exe = (Get-Command bun -ErrorAction SilentlyContinue).Source
+    if (-not $exe) { return @() }
+    try { $out = (& bun pm ls -g --all 2>$null | Out-String) } catch { return @() }
+    if (-not $out) { return @() }
+    $rows = @()
+    foreach ($line in ($out -split "`r?`n")) {
+        # 'pkg@1.2.3' oder 'pkg 1.2.3' - nur Zeilen mit Version
+        if ($line -match '^\s*[^\w\s]*\s*([A-Za-z0-9][A-Za-z0-9@._/-]*?)\s*[@ ]\s*(\d+\.\d+\.\d+[^\s]*)') {
+            $id = $Matches[1]; $cur = $Matches[2]
+            if ($id -match '^(bun|node_modules|dependencies|-+$)') { continue }
+            try {
+                $meta = Invoke-RestMethod -Uri "https://registry.npmjs.org/$($id -replace '/','%2f')/latest" -TimeoutSec 8 -ErrorAction Stop
+                $latest = [string]$meta.version
+                if ($latest -and [version]$latest -gt [version]$cur) {
+                    $rows += [pscustomobject]@{ Name=$id; Id=$id; Installed=$cur; Available=$latest; Source='bun' }
+                }
+            } catch { }
+        }
+        if ($rows.Count -ge 25) { break }
+    }
+    return $rows
+}
+
 function Update-SysPilotNuGetProvider {
     <# Stellt sicher, dass der NuGet-PackageProvider aktuell ist
        (Find-Module/Install-Module warnen sonst). Drossel: 1x pro 30 Tagen. #>
@@ -366,13 +493,38 @@ function Get-SysPilotPmOutdated {
     if ($status['scoop'].Status -eq 'installed')   { $rows += Get-SysPilotScoopOutdated }
     if ($status['npm'].Status -eq 'installed')     { $rows += Get-SysPilotNpmOutdated }
     if ($status['pip'].Status -eq 'installed')     { $rows += Get-SysPilotPipOutdated }
+    if ($status['bun'].Status -eq 'installed')     { $rows += Get-SysPilotBunOutdated }
+    if ($status['dotnet'].Status -eq 'installed')  { $rows += Get-SysPilotDotnetOutdated }
     if ($status['psgallery'].Status -eq 'installed') { $rows += Get-SysPilotPsGalleryOutdated }
-    # dotnet-Tools haben keinen Outdated-Check (nuget-Suche zu teuer) -
-    # sie erscheinen nicht im Scan, sind aber suchbar/installierbar.
+    # WSL-PM (apt/dnf/pacman/flatpak/snap) und brew: Updates laufen bewusst
+    # NICHT automatisch - distro-uebergreifende Upgrades sind zu invasiv
+    # fuer einen stillen Hintergrund-Scan. Sie bleiben suchbar/installierbar.
 
     # Quelle umbenennen fuer Update-Center-Dispatch
     foreach ($r in $rows) { $r.Source = "pm:$($r.Source)" }
+
+    # Abdeckungs-Info fuer die Anzeige: welche Manager wurden tatsaechlich
+    # abgefragt, welche sind installsiert aber bewusst ausgenommen
+    # (brew/WSL - zu invasiv fuer stillen Scan), welche fehlen komplett.
+    $autoIds = @('scoop','npm','pip','bun','dotnet','psgallery')
+    $q = @(); $skipInst = @(); $notInst = @()
+    foreach ($m in (Get-SysPilotPackageManagers)) {
+        if ($m.Id -in @('winget','chocolatey')) { continue }  # eigener Scan
+        if ($m.Status -ne 'installed') { $notInst += $m.Name; continue }
+        if ($autoIds -contains $m.Id) { $q += $m.Name } else { $skipInst += $m.Name }
+    }
+    $cov = "Abgefragt: " + $(if ($q.Count) { $q -join ', ' } else { 'keiner' })
+    if ($skipInst.Count) { $cov += " | Installiert, nicht auto: $($skipInst -join ', ')" }
+    if ($notInst.Count) { $cov += " | Nicht installiert: $($notInst -join ', ')" }
+    $script:SysPilotPmCoverage = $cov
     return $rows
+}
+
+function Get-SysPilotPmCoverage {
+    <# Letzte Abdeckungs-Zusammenfassung aus Get-SysPilotPmOutdated
+       (welche PMs wurden abgefragt bzw. bewusst uebersprungen). #>
+    if (-not $script:SysPilotPmCoverage) { return 'Pm-Scan noch nicht gelaufen.' }
+    return $script:SysPilotPmCoverage
 }
 
 # =====================================================================
@@ -401,46 +553,120 @@ function Invoke-SysPilotPmUpgrade {
     $id  = [string]$Row.Id
     $sw  = [Diagnostics.Stopwatch]::StartNew()
 
+    # Alle externen Aufrufe laufen ueber Invoke-SysPilotMonitoredProcess:
+    # echter Timeout + taskkill /T (Prozessbaum) bei Haengern. Vorher
+    # blockierten npm/pip/dotnet/brew/scoop OHNE Timeout den kompletten
+    # Update-Lauf ("Auto-Lauf" schien zu haengen).
+    $run = {
+        param($exe, $argv, $lbl)
+        $r = Invoke-SysPilotMonitoredProcess -FilePath $exe -ArgList $argv -Label $lbl -TimeoutSec 300 -Quiet
+        return @{ Out=[string]$r.Output; Code=$r.ExitCode; Timeout=[bool]$r.Timeout }
+    }
     switch ($mgr) {
         'scoop' {
-            $out = Invoke-SysPilotScoopRaw -ScoopArgs @('update', $id)
-            $ok = ($LASTEXITCODE -eq 0)
-            return @{ Ok=$ok; Error=$(if($ok){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}); Ms=$sw.ElapsedMilliseconds }
+            $out = Invoke-SysPilotScoopRaw -ScoopArgs @('update', $id) -TimeoutSec 600 -Quiet
+            $ok = ($script:ScoopLastExitCode -eq 0)
+            $err = $(if($ok){''}else{$out.Substring([Math]::Max(0,$out.Length-300))})
+            return @{ Ok=$ok; Error=$err; Ms=$sw.ElapsedMilliseconds }
         }
         'npm' {
-            $out = & npm install -g "$id@latest" 2>&1 | Out-String
-            $ok = ($LASTEXITCODE -eq 0)
-            return @{ Ok=$ok; Error=$(if($ok){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}); Ms=$sw.ElapsedMilliseconds }
+            $r = & $run 'npm' @('install','-g',"$id@latest") 'npm install'
+            $ok = ($r.Code -eq 0 -and -not $r.Timeout)
+            $err = $(if($r.Timeout){'npm: Timeout nach 300s'}elseif(-not $ok){$r.Out.Substring([Math]::Max(0,$r.Out.Length-300))}else{''})
+            return @{ Ok=$ok; Error=$err; Ms=$sw.ElapsedMilliseconds }
         }
         'pip' {
             # pip.exe kann sich nicht selbst updaten ("To modify pip, please
             # run: python -m pip ...") -> bevorzugt python -m pip nutzen.
             $py = Get-SysPilotPythonExeForPip
-            if ($py) { $out = & $py -m pip install --upgrade $id 2>&1 | Out-String }
-            else     { $out = & pip install --upgrade $id 2>&1 | Out-String }
-            $ok = ($LASTEXITCODE -eq 0)
+            if ($py) { $r = & $run $py @('-m','pip','install','--upgrade',$id) 'pip upgrade' }
+            else     { $r = & $run 'pip' @('install','--upgrade',$id) 'pip upgrade' }
+            $ok = ($r.Code -eq 0 -and -not $r.Timeout)
             # Fallback: python -m pip scheiterte -> classic pip nochmal
-            if (-not $ok -and $py) { $out = & pip install --upgrade $id 2>&1 | Out-String; $ok = ($LASTEXITCODE -eq 0) }
-            return @{ Ok=$ok; Error=$(if($ok){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}); Ms=$sw.ElapsedMilliseconds }
+            if (-not $ok -and -not $r.Timeout -and $py) { $r = & $run 'pip' @('install','--upgrade',$id) 'pip upgrade'; $ok = ($r.Code -eq 0 -and -not $r.Timeout) }
+            $err = $(if($r.Timeout){'pip: Timeout nach 300s'}elseif(-not $ok){$r.Out.Substring([Math]::Max(0,$r.Out.Length-300))}else{''})
+            return @{ Ok=$ok; Error=$err; Ms=$sw.ElapsedMilliseconds }
+        }
+        'bun' {
+            $r = & $run 'bun' @('install','-g',"$id@latest") 'bun install'
+            $ok = ($r.Code -eq 0 -and -not $r.Timeout)
+            $err = $(if($r.Timeout){'bun: Timeout nach 300s'}elseif(-not $ok){$r.Out.Substring([Math]::Max(0,$r.Out.Length-300))}else{''})
+            return @{ Ok=$ok; Error=$err; Ms=$sw.ElapsedMilliseconds }
         }
         'dotnet' {
-            $out = & dotnet tool update --global $id 2>&1 | Out-String
-            $ok = ($LASTEXITCODE -eq 0)
-            return @{ Ok=$ok; Error=$(if($ok){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}); Ms=$sw.ElapsedMilliseconds }
+            $r = & $run 'dotnet' @('tool','update','--global',$id) 'dotnet tool update'
+            $ok = ($r.Code -eq 0 -and -not $r.Timeout)
+            $err = $(if($r.Timeout){'dotnet: Timeout nach 300s'}elseif(-not $ok){$r.Out.Substring([Math]::Max(0,$r.Out.Length-300))}else{''})
+            return @{ Ok=$ok; Error=$err; Ms=$sw.ElapsedMilliseconds }
         }
         'psgallery' {
-            try { Update-Module -Name $id -Force -ErrorAction Stop; return @{ Ok=$true; Error=''; Ms=$sw.ElapsedMilliseconds } }
+            try { Update-Module -Name $id -Force -Confirm:$false -ErrorAction Stop; return @{ Ok=$true; Error=''; Ms=$sw.ElapsedMilliseconds } }
             catch { return @{ Ok=$false; Error=$_.Exception.Message; Ms=$sw.ElapsedMilliseconds } }
         }
         'brew' {
-            $out = & brew upgrade $id 2>&1 | Out-String
-            $ok = ($LASTEXITCODE -eq 0)
-            return @{ Ok=$ok; Error=$(if($ok){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}); Ms=$sw.ElapsedMilliseconds }
+            $r = & $run 'brew' @('upgrade',$id) 'brew upgrade'
+            $ok = ($r.Code -eq 0 -and -not $r.Timeout)
+            $err = $(if($r.Timeout){'brew: Timeout nach 300s'}elseif(-not $ok){$r.Out.Substring([Math]::Max(0,$r.Out.Length-300))}else{''})
+            return @{ Ok=$ok; Error=$err; Ms=$sw.ElapsedMilliseconds }
         }
         default {
             return @{ Ok=$false; Error="Manager '$mgr' hat keinen Upgrade-Pfad"; Ms=$sw.ElapsedMilliseconds }
         }
     }
+}
+
+function Install-SysPilotPmPackage {
+    <# Installiert ein Paket ueber den angegebenen Manager.
+       param: Manager ('winget','chocolatey','scoop','npm','pip','dotnet','psgallery'), Id.
+       Gibt @{Ok;Error} zurueck. #>
+    param([Parameter(Mandatory)][string]$Manager, [Parameter(Mandatory)][string]$Id)
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    $mgr = $Manager.ToLower()
+    if ($mgr -eq 'winget') {
+        $w = Get-SysPilotWingetExe
+        if (-not $w) { return @{ Ok=$false; Error='winget nicht gefunden' } }
+        $r = Invoke-SysPilotWingetRaw -ArgList @('install','--id',$Id,'--exact','--accept-package-agreements','--accept-source-agreements','--disable-interactivity') -TimeoutSec 900
+        return @{ Ok=[bool]$r.Ok; Error=[string]$r.Error }
+    }
+    if ($mgr -eq 'chocolatey') {
+        $c = Find-SysPilotChocoExeLocal
+        if (-not $c) { return @{ Ok=$false; Error='choco nicht gefunden' } }
+        if (Test-SysPilotAdmin) {
+            $r = Invoke-SysPilotMonitoredProcess -FilePath $c -ArgList @('install',$Id,'-y','--no-progress','--limit-output') -Label "choco install $Id" -TimeoutSec 600
+            $out=[string]$r.Output; $code=$r.ExitCode
+        } else {
+            $p = Start-Process $c -ArgumentList @('install',$Id,'-y','--no-progress','--limit-output') -Verb RunAs -PassThru
+            $p.WaitForExit(900000) | Out-Null; $code=$p.ExitCode; $out=''
+        }
+        $low = "$out".ToLower()
+        $ok = ($code -eq 0 -and $low -notmatch 'was not found|could not find|0/\d+ packages')
+        return @{ Ok=$ok; Error=$(if($ok){''}else{"choco exit $code"}) }
+    }
+    if ($mgr -eq 'scoop') {
+        $out = Invoke-SysPilotScoopRaw -ScoopArgs @('install', $Id)
+        return @{ Ok=($LASTEXITCODE -eq 0); Error=$(if($LASTEXITCODE -eq 0){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}) }
+    }
+    if ($mgr -eq 'npm') {
+        $out = & npm install -g "$Id" 2>&1 | Out-String
+        return @{ Ok=($LASTEXITCODE -eq 0); Error=$(if($LASTEXITCODE -eq 0){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}) }
+    }
+    if ($mgr -eq 'pip') {
+        $py = Get-SysPilotPythonExeForPip
+        if ($py) { $out = & $py -m pip install $Id 2>&1 | Out-String }
+        else     { $out = & pip install $Id 2>&1 | Out-String }
+        $ok = ($LASTEXITCODE -eq 0)
+        if (-not $ok -and $py) { $out = & pip install $Id 2>&1 | Out-String; $ok = ($LASTEXITCODE -eq 0) }
+        return @{ Ok=$ok; Error=$(if($ok){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}) }
+    }
+    if ($mgr -eq 'dotnet') {
+        $out = & dotnet tool install --global $Id 2>&1 | Out-String
+        return @{ Ok=($LASTEXITCODE -eq 0); Error=$(if($LASTEXITCODE -eq 0){''}else{$out.Substring([Math]::Max(0,$out.Length-300))}) }
+    }
+    if ($mgr -eq 'psgallery') {
+        try { Install-Module -Name $Id -Force -Scope CurrentUser -AllowClobber -ErrorAction Stop; return @{ Ok=$true; Error='' } }
+        catch { return @{ Ok=$false; Error=$_.Exception.Message } }
+    }
+    return @{ Ok=$false; Error="Manager '$Manager' wird nicht unterstuetzt" }
 }
 
 # =====================================================================
@@ -449,14 +675,19 @@ function Invoke-SysPilotPmUpgrade {
 
 function Get-SysPilotPmSearchResults {
     <# Sucht in allen installierten Managern. Gibt gruppierte Ergebnisse:
-       @{Manager;Id;Name;Detail} #>
-    param([Parameter(Mandatory)][string]$Query)
+       @{Manager;Id;Name;Detail}
+       Optional: -OnProgress Scriptblock fuer Statuszeilen. #>
+    param([Parameter(Mandatory)][string]$Query, [scriptblock]$OnProgress = $null)
+    $say = { param($m) if ($OnProgress) { $null = & $OnProgress ([string]$m) } }
     $results = @()
     $status = @{}
     foreach ($m in (Get-SysPilotPackageManagers)) { $status[$m.Id] = $m }
 
     if ($status['winget'].Status -eq 'installed') {
-        $w = Get-SysPilotWingetExe
+        & $say 'PM-Suche: winget search ...'
+        $w = $null
+        if (Get-Command Get-SysPilotWingetExe -ErrorAction SilentlyContinue) { $w = Get-SysPilotWingetExe }
+        if (-not $w) { $wg = Get-Command winget.exe -ErrorAction SilentlyContinue; if ($wg) { $w = $wg.Source } }
         if ($w) {
             $out = & $w search $Query --accept-source-agreements 2>$null | Out-String
             foreach ($line in ($out -split "`r?`n")) {
@@ -468,6 +699,7 @@ function Get-SysPilotPmSearchResults {
         }
     }
     if ($status['chocolatey'].Status -eq 'installed') {
+        & $say 'PM-Suche: choco search ...'
         $c = Find-SysPilotChocoExeLocal
         if ($c) {
             $out = & $c search $Query --limit-output 2>$null | Out-String
@@ -480,6 +712,7 @@ function Get-SysPilotPmSearchResults {
         }
     }
     if ($status['scoop'].Status -eq 'installed') {
+        & $say 'PM-Suche: scoop search ...'
         $out = Invoke-SysPilotScoopRaw -ScoopArgs @('search', $Query)
         foreach ($line in ($out -split "`r?`n")) {
             $t = $line -split '\s+' | Where-Object { $_ -ne '' }
@@ -489,6 +722,7 @@ function Get-SysPilotPmSearchResults {
         }
     }
     if ($status['npm'].Status -eq 'installed') {
+        & $say 'PM-Suche: npm search ...'
         $out = & npm search $Query --json 2>$null | Out-String
         try {
             $json = $out | ConvertFrom-Json -ErrorAction Stop
@@ -498,12 +732,14 @@ function Get-SysPilotPmSearchResults {
         } catch { }
     }
     if ($status['pip'].Status -eq 'installed') {
+        & $say 'PM-Suche: pip (kein echtes Search - Installations-Hinweis) ...'
         # pip hat keine echte Such-API mehr (pip search entfernt).
         # pip index versions geht nur exakt -> auf PyPI-Projektnamen raten.
         # Wir bieten stattdessen pip direkt als Installer an.
         $results += [pscustomobject]@{ Manager='pip'; Id="pip install $Query"; Name="pip: '$Query' installieren"; Detail='pip install' }
     }
     if ($status['dotnet'].Status -eq 'installed') {
+        & $say 'PM-Suche: dotnet tool search ...'
         $out = & dotnet tool search $Query 2>$null | Out-String
         foreach ($line in ($out -split "`r?`n")) {
             $t = $line -split '\s+' | Where-Object { $_ -ne '' }
@@ -513,6 +749,7 @@ function Get-SysPilotPmSearchResults {
         }
     }
     if ($status['psgallery'].Status -eq 'installed') {
+        & $say 'PM-Suche: PSGallery Find-Module ...'
         $mods = Find-Module -Name "*$Query*" -Repository PSGallery -ErrorAction SilentlyContinue |
                 Select-Object -First 10 Name, Version
         foreach ($m in $mods) {
@@ -528,7 +765,7 @@ function Get-SysPilotPmSearchResults {
 
 function Install-SysPilotPackageManager {
     <# Installiert einen fehlenden Paketmanager automatisch:
-       offizielles Skript oder winget, PATH wird geprueft/ergänzt. #>
+       offizielles Skript oder winget, PATH wird geprueft/ergaenzt. #>
     param([Parameter(Mandatory)][string]$Id)
     $defs = @{}
     foreach ($d in (Get-SysPilotPackageManagerDefs)) { $defs[$d.Id] = $d }
@@ -546,7 +783,7 @@ function Install-SysPilotPackageManager {
             Start-Sleep -Seconds 2
             $scoopExe = "$env:USERPROFILE\scoop\shims\scoop.cmd"
             if ((Get-Command scoop -ErrorAction SilentlyContinue) -or (Test-Path $scoopExe)) {
-                # PATH im Current-Scope ergänzen falls nötig
+                # PATH im Current-Scope ergaenzen falls noetig
                 $userPath = [Environment]::GetEnvironmentVariable('Path','User')
                 if ($userPath -notlike "*$env:USERPROFILE\scoop\shims*") {
                     [Environment]::SetEnvironmentVariable('Path', "$userPath;$env:USERPROFILE\scoop\shims", 'User')
@@ -564,7 +801,7 @@ function Install-SysPilotPackageManager {
             & powershell -NoProfile -Command "irm bun.sh/install.ps1 | iex"
             $bunDir = "$env:USERPROFILE\.bun\bin"
             if (Test-Path "$bunDir\bun.exe") {
-                # PATH prüfen und ergänzen
+                # PATH pruefen und ergaenzen
                 $userPath = [Environment]::GetEnvironmentVariable('Path','User')
                 if ($userPath -notlike "*$bunDir*") {
                     [Environment]::SetEnvironmentVariable('Path', "$userPath;$bunDir", 'User')
@@ -680,7 +917,7 @@ function Install-SysPilotWslDistro {
         'snap'    { 'snap' }
         default   { $Pm }
     }
-    # Prüfe ob PM in der Distro existiert
+    # Pruefe ob PM in der Distro existiert
     $chk = (& wsl.exe -d $Distro -u root -- sh -c "command -v $pmExe" 2>$null)
     if ($chk) {
         Write-Host "  [OK] $Pm ist in '$Distro' bereits vorhanden." -ForegroundColor Green
@@ -759,7 +996,7 @@ function Install-SysPilotWslManager {
 
 function Set-SysPilotWslGuiConfig {
     <# Stellt .wslconfig fuer WSLg (GUI-Apps) + sinnvolle Defaults sicher.
-       Ueberschreibt Nichts - nur fehlende Keys werden ergänzt. #>
+       Ueberschreibt Nichts - nur fehlende Keys werden ergaenzt. #>
     $cfg = Join-Path $env:USERPROFILE '.wslconfig'
     $exists = Test-Path $cfg
     $content = if ($exists) { Get-Content $cfg -Raw -ErrorAction SilentlyContinue } else { '' }
@@ -778,7 +1015,7 @@ localhostForwarding=true
         [void]$sb.Append($wsl2Block)
         $changed = $true
     } elseif ($content -notmatch '(?m)^guiApplications\s*=') {
-        # guiApplications in bestehender [wsl2]-Sektion einfügen
+        # guiApplications in bestehender [wsl2]-Sektion einfuegen
         $new = [regex]::Replace($content, '(?m)(^\[wsl2\]\s*$)', "`$1`r`nguiApplications=true", 1)
         if ($new -ne $content) { Set-Content $cfg $new -Encoding UTF8; $changed = $true }
     }
@@ -914,6 +1151,41 @@ function Show-SysPilotWslDistroPicker {
     Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
 }
 
+function Show-SysPilotWslFirstRunGuide {
+    <# ADHS-Guide fuer WSL-Ersteinrichtung: WAS SysPilot automatisch
+       kann (Feature-Enable, wsl --install, Update) vs. was der User
+       in der Distro selbst macht (User, apt). #>
+    $wslOk = $null -ne (Get-Command wsl.exe -ErrorAction SilentlyContinue)
+    $steps = @(
+        @{ T='WSL aktivieren (Windows-Feature + Kernel-Update)';
+           Url='ms-settings:windowsfeatures'; Yt='install wsl2 windows 11';
+           Hint='Admin noetig. SysPilot kann wsl --install --no-distribution ausfuehren (naechster Schritt fragt). Danach evtl. NEUSTART noetig.' },
+        @{ T='Ubuntu-Distro installieren';
+           Url=$null; Yt='wsl install ubuntu tutorial';
+           Hint='SysPilot: Menu-Punkt "Linux-Distro installieren" waehlt Ubuntu und startet wsl --install -d Ubuntu automatisch.' },
+        @{ T='Erster Start: Linux-Username + Passwort vergeben';
+           Url=$null; Yt='wsl ubuntu first login username';
+           Hint='Beim ersten Start fragt Ubuntu nach UNIX-Username + Passwort (NICHT das Windows-Passwort). Danach: Terminal zeigt name@rechner:~$' },
+        @{ T='System aktualisieren + Optional: Docker in WSL';
+           Url=$null; Yt='docker inside wsl2 ubuntu';
+           Hint='In der Distro: sudo apt update && sudo apt upgrade -y. Fuer Docker: Menu "Linux-Distro + Paketmanager einrichten" bietet docker-ce an.' }
+    )
+    if (-not $wslOk) {
+        Write-Host "`n  WSL ist nicht installiert. Schritt 1 ausfuehren?" -ForegroundColor Yellow
+        if (Confirm-SysPilot 'wsl --install --no-distribution jetzt ausfuehren (Admin noetig)?') {
+            if (Test-SysPilotAdmin) {
+                Write-Host "  -> wsl --install --no-distribution ..." -ForegroundColor Cyan
+                & wsl.exe --install --no-distribution 2>&1 | Out-Host
+                Write-Host "  Falls Neustart noetig: SysPilot danach erneut aufrufen." -ForegroundColor Yellow
+            } else {
+                Write-Host "  [!] Admin noetig - SysPilot als Administrator neu starten." -ForegroundColor Red
+                Write-Host "      Oder manuell (Admin-PowerShell): wsl --install --no-distribution" -ForegroundColor DarkGray
+            }
+        }
+    }
+    [void](Show-SysPilotStepGuide -Steps $steps -Title 'WSL Ersteinrichtung' -DoneText 'WSL bereit - Distro ueber "Linux-Distro installieren" holen.')
+}
+
 function Show-SysPilotWslMenu {
     <# WSL-Verwaltung: Status, Manager installieren, GUI-Config, Distro-Setup. #>
     $wslOk = $null -ne (Get-Command wsl.exe -ErrorAction SilentlyContinue)
@@ -932,6 +1204,7 @@ function Show-SysPilotWslMenu {
 
         $items = @(
             @{ Label = 'WSL-Status anzeigen';                              Color = 'Cyan';   Tag = 'status' },
+            @{ Label = 'Ersteinrichtung Schritt-fuer-Schritt (ADHS-Guide, Videos)'; Color = 'Green'; Tag = 'firstrun' },
             @{ Label = 'WSL Manager installieren (GUI: Distro-Verwaltung, Backups, .wslconfig)'; Color = 'Green'; Tag = 'install-manager' },
             @{ Label = 'WSL Manager starten';                               Color = 'Green';  Tag = 'start-manager' },
             @{ Label = 'WSL aktualisieren (wsl --update)';                  Color = 'Yellow'; Tag = 'update' },
@@ -944,6 +1217,7 @@ function Show-SysPilotWslMenu {
         $sel = Show-SysPilotArrowMenu -Items $items -Title 'WSL-Verwaltung' -Footer 'Pfeiltasten, Enter = auswaehlen, Esc = zurueck'
         if (-not $sel -or $sel -eq 'back') { return }
         switch ($sel) {
+            'firstrun' { Show-SysPilotWslFirstRunGuide; Read-SysPilotChoice 'Weiter mit Enter' | Out-Null }
             'status' {
                 $st = Get-SysPilotWslStatus
                 Write-Host "`n  WSL-Version:  $($st.WslVersion)" -ForegroundColor White
@@ -1329,7 +1603,7 @@ function Show-SysPilotPmCompanionsMenu {
 # =====================================================================
 
 function Show-SysPilotPackageManagerStatus {
-    <# Übersicht aller Manager mit Status. #>
+    <# Uebersicht aller Manager mit Status. #>
     $rows = Get-SysPilotPackageManagers
     Write-Host ""
     Write-Host "  Paketmanager-Status:" -ForegroundColor Cyan
@@ -1341,13 +1615,22 @@ function Show-SysPilotPackageManagerStatus {
     }
     Write-Host ""
     Write-Host "  [gruen] installiert  [gelb] WSL noetig  [grau] fehlend" -ForegroundColor DarkGray
+    # Herbert bietet fehlende Manager proaktiv an (bun, brew, WSL-Distros ...)
+    $missingNative = @($rows | Where-Object { $_.Status -ne 'installed' -and $_.Status -ne 'wsl-needed' })
+    if ($missingNative.Count -gt 0) {
+        Write-Host ""
+        Write-Host "  Fehlend: $($missingNative.Name -join ', ')" -ForegroundColor Yellow
+        if (Confirm-SysPilot "Herbert kann fehlende Paketmanager installieren`n(z.B. Bun, Homebrew, WSL-Distros). Jetzt?") {
+            Show-SysPilotPackageManagerInstallMenu
+        }
+    }
     Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
 }
 
 function Show-SysPilotPackageManagerSearch {
     <# Suche in ALLEM installierten Managern. #>
     param([string]$Query = '')
-    $q = if ($Query) { $Query } else { Read-SysPilotChoice 'Suchbegriff (alle Paketmanager)' '7zip' }
+    $q = if ($Query) { $Query } else { Read-SysPilotInput 'Suchbegriff (alle Paketmanager)' '7zip' }
     if (-not $q) { return }
     Write-Host "  Suche in allen Paketmanagern ..." -ForegroundColor Cyan
     $results = Get-SysPilotPmSearchResults -Query $q
@@ -1368,7 +1651,7 @@ function Show-SysPilotPackageManagerSearch {
 }
 
 function Show-SysPilotPackageManagerMenu {
-    <# Hauptmenue für Paketmanager-Integration. #>
+    <# Hauptmenue fuer Paketmanager-Integration. #>
     while ($true) {
         $status = Get-SysPilotPackageManagers
         $installed = @($status | Where-Object { $_.Status -eq 'installed' }).Count
@@ -1411,7 +1694,7 @@ function Show-SysPilotPackageManagerInstallMenu {
     $missing = @($status | Where-Object { $_.Status -ne 'installed' })
     if ($missing.Count -eq 0) { Write-Host "  [OK] Alle Manager installiert." -ForegroundColor Green; return }
     $items = foreach ($m in $missing) {
-        $canInstall = $m.Status -ne 'wsl-needed' -or $true  # WSL-PMs können auch installiert werden (WSL-Distro)
+        $canInstall = $m.Status -ne 'wsl-needed' -or $true  # WSL-PMs koennen auch installiert werden (WSL-Distro)
         @{ Label="{0} ({1}) - {2}" -f $m.Name, $m.Kind, $m.Detail; Color='Yellow'; Tag=$m.Id }
     }
     $items += @{ Label='Zurueck'; Color='DarkGray'; Tag='back' }
@@ -1425,16 +1708,18 @@ function Show-SysPilotPackageManagerInstallMenu {
 
 Export-ModuleMember -Function Get-SysPilotPackageManagerDefs, Get-SysPilotPackageManagers,
     Get-SysPilotWslDistros, Get-SysPilotScoopOutdated, Get-SysPilotNpmOutdated,
-    Get-SysPilotPipOutdated, Get-SysPilotDotnetTools, Get-SysPilotPsGalleryOutdated,
-    Get-SysPilotPmOutdated, Invoke-SysPilotPmUpgrade, Get-SysPilotPmSearchResults,
+    Get-SysPilotPipOutdated, Get-SysPilotDotnetTools, Get-SysPilotDotnetOutdated,
+    Get-SysPilotBunOutdated, Get-SysPilotPsGalleryOutdated,
+    Get-SysPilotPmOutdated, Get-SysPilotPmCoverage, Invoke-SysPilotPmUpgrade, Get-SysPilotPmSearchResults,
     Install-SysPilotPackageManager, Install-SysPilotWslDistro,
     Show-SysPilotPackageManagerStatus, Show-SysPilotPackageManagerSearch,
     Show-SysPilotPackageManagerMenu, Show-SysPilotPackageManagerInstallMenu,
     Get-SysPilotWslStatus, Install-SysPilotWslManager, Set-SysPilotWslGuiConfig,
     Show-SysPilotWslMenu, Get-SysPilotWslOnlineDistros, Install-SysPilotWslDistroByName,
+    Show-SysPilotWslFirstRunGuide,
     Show-SysPilotWslDistroPicker, Update-SysPilotScoopBuckets, Invoke-SysPilotScoopRaw,
     Find-SysPilotChocoGui, Find-SysPilotOuiGui, Find-SysPilotChocoExeLocal,
     Install-SysPilotChocoGui, Install-SysPilotOuiGui, Install-SysPilotChocoBrowserExt,
     Install-SysPilotChocoAppStoreExt, Test-SysPilotChocoPkgInstalled,
     Show-SysPilotUnigetUi, Show-SysPilotPmCompanionsMenu, Show-SysPilotPmCompanionCatalogs,
-    Get-SysPilotPythonExeForPip
+    Get-SysPilotPythonExeForPip, Install-SysPilotPmPackage

@@ -1,4 +1,4 @@
-﻿# SysPilot - Scripts: Vorgefertigte, anpassbare Skripte (ohne KI)
+# SysPilot - Scripts: Vorgefertigte, anpassbare Skripte (ohne KI)
 #Requires -Version 5.1
 
 function Get-SysPilotScriptsDir {
@@ -31,7 +31,7 @@ function Invoke-SysPilotScript {
 
 function New-SysPilotScriptTemplate {
     $dir = Get-SysPilotScriptsDir
-    $name = Read-SysPilotChoice "Name des neuen Skripts (ohne .ps1)"
+    $name = Read-SysPilotInput "Name des neuen Skripts (ohne .ps1)"
     if (-not $name) { return }
     $name = ($name -replace '[^\w\-]', '')
     $path = Join-Path $dir "$name.ps1"

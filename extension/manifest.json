@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Herbert - KI-Assistent (SysPilot)",
+  "version": "1.0.0",
+  "description": "Herbert aus SysPilot im Browser: Seite zusammenfassen, uebersetzen, Transkript (YouTube), Assistent und Suche - ueber die lokale Herbert-API (127.0.0.1:8377).",
+  "permissions": ["storage", "contextMenus", "activeTab", "scripting"],
+  "host_permissions": [
+    "http://127.0.0.1:8377/*",
+    "http://localhost:8377/*",
+    "https://www.youtube.com/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Herbert"
+  },
+  "options_page": "options.html",
+  "browser_specific_settings": {
+    "gecko": { "id": "herbert-syspilot@local", "strict_min_version": "109.0" }
+  }
+}

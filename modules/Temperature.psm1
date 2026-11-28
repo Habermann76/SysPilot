@@ -113,7 +113,9 @@ function Install-SysPilotLHM {
         $asset = $rel.assets | Where-Object { $_.name -match '\.zip$' } | Select-Object -First 1
         if (-not $asset) { Write-Host "  [!] Download-Link nicht gefunden." -ForegroundColor Red; return }
         Write-Host "  Lade $($asset.name) herunter ..." -ForegroundColor DarkGray
-        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zip -UseBasicParsing
+        if (-not (Invoke-SysPilotFileDownload -Url $asset.browser_download_url -OutFile $zip -Label 'LibreHardwareMonitor' -TimeoutSec 300 -Title 'LibreHardwareMonitor')) {
+            Write-Host '  [!] Download fehlgeschlagen/abgebrochen.' -ForegroundColor Red; return
+        }
         Expand-Archive -Path $zip -DestinationPath $dest -Force
         Remove-Item $zip -Force -ErrorAction SilentlyContinue
         Write-Host "  [OK] Entpackt nach $dest" -ForegroundColor Green

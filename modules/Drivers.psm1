@@ -1,4 +1,4 @@
-﻿# SysPilot - Treiber-Werkstatt
+# SysPilot - Treiber-Werkstatt
 #Requires -Version 5.1
 # Problemgeraete finden, Treiber-Inventar, veraltete Treiber markieren,
 # Problemgeraete neu starten, Rollback-Anleitung.
@@ -21,7 +21,7 @@ $script:DriverErrorMeanings = @{
     42 = 'Nicht genuegend freie Ressourcen (Konfiguration)'
     43 = 'Geraet ist deaktiviert'
     45 = 'Noch nicht bereit (OOBE/Updates)'
-    47 = 'Geraet meldet Fehler gegenüber Windows'
+    47 = 'Geraet meldet Fehler gegenueber Windows'
     52 = 'Signaturpruefung fehlgeschlagen (unsigned Driver)'
 }
 
@@ -122,7 +122,7 @@ function Invoke-SysPilotDriverRollbackGuide {
     Write-Host '  4. Alternativ: Treiber deinstallieren und Windows neu starten -' -ForegroundColor Gray
     Write-Host '     Windows sucht dann einen passenden Treiber (Windows Update)' -ForegroundColor Gray
     Write-Host ''
-    Write-Host '  Hinweis: Aktuelle Treiber ueber Windows Update prüfen:' -ForegroundColor Yellow
+    Write-Host '  Hinweis: Aktuelle Treiber ueber Windows Update pruefen:' -ForegroundColor Yellow
     Write-Host '  Einstellungen -> Windows Update -> Optionale Updates -> Treiber' -ForegroundColor DarkGray
     if (Confirm-SysPilot 'Geraetemanager jetzt oeffnen?') {
         Start-Process 'devmgmt.msc'
@@ -175,7 +175,7 @@ function Get-SysPilotDriverMissingComponents {
 # =======================================================================
 
 function Get-SysPilotWUDriverUpdates {
-    <# Listet per Windows-Update-API verfügbare Treiber-Updates.
+    <# Listet per Windows-Update-API verfuegbare Treiber-Updates.
        Legitime Quelle: Microsoft Update (signierte Treiber). #>
     $updates = @()
     try {
@@ -308,6 +308,7 @@ function Show-SysPilotDriverSourcesMenu {
             @{ Label = 'DriversCloud Herstellerseite (Browser)'; Color = 'White'; Tag = 'dcweb' }
             @{ Label = 'Ueber SDI DriverPacks (Info)';         Color = 'DarkGray'; Tag = 'sdiinfo' }
             @{ Label = 'SDI: neueste Version laden + installieren'; Color = 'Green'; Tag = 'sdidownload' }
+            @{ Label = 'SmartDrivers KI-Suche (WU+Kataloge+Herbert)'; Color = 'Green'; Tag = 'smartdrv' }
             @{ Label = 'Zurueck';                              Color = 'DarkGray'; Tag = $null }
         )
         $sel = Show-SysPilotArrowMenu -Items $items -Title 'Treiber-Quellen' -Footer 'Pfeiltasten, Enter = ausfuehren, Esc = zurueck'
@@ -337,7 +338,7 @@ function Show-SysPilotDriverSourcesMenu {
                 $hw = @(Get-SysPilotDeviceHardwareIds)
                 if ($hw.Count -eq 0) {
                     Write-Host '  Keine Problemgeraete mit Hardware-ID gefunden.' -ForegroundColor Yellow
-                    $manual = Read-SysPilotChoice 'Hardware-ID manuell eingeben (z.B. PCI\VEN_1002&DEV_164C), leer = abbrechen'
+                    $manual = Read-SysPilotInput 'Hardware-ID manuell eingeben (z.B. PCI\VEN_1002&DEV_164C), leer = abbrechen'
                     if (-not $manual) { Read-SysPilotChoice 'Weiter' | Out-Null; continue }
                     $results = @(Find-SysPilotCatalogDrivers -Query $manual)
                 } else {
@@ -350,7 +351,7 @@ function Show-SysPilotDriverSourcesMenu {
                     $hItems += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
                     $pick = Show-SysPilotArrowMenu -Items $hItems -Title 'Geraet fuer Katalog-Suche waehlen' -Footer 'Enter = suchen, Esc = zurueck'
                     if ($null -eq $pick) { continue }
-                    $query = if ($pick -eq 'MANUAL') { Read-SysPilotChoice 'Hardware-ID eingeben' } else { $pick }
+                    $query = if ($pick -eq 'MANUAL') { Read-SysPilotInput 'Hardware-ID eingeben' } else { $pick }
                     if (-not $query) { continue }
                     Write-Host "  Katalog-Suche nach: $query" -ForegroundColor Cyan
                     $results = @(Find-SysPilotCatalogDrivers -Query $query)
@@ -373,7 +374,7 @@ function Show-SysPilotDriverSourcesMenu {
                     Select-Object Name, Manufacturer, DeviceID -First 20)
                 if ($devs.Count -eq 0) {
                     Write-Host '  Keine Problemgeraete mit Herstellerangabe gefunden.' -ForegroundColor Yellow
-                    $man = Read-SysPilotChoice 'Hersteller manuell eingeben (z.B. Realtek), leer = abbrechen'
+                    $man = Read-SysPilotInput 'Hersteller manuell eingeben (z.B. Realtek), leer = abbrechen'
                     if (-not $man) { Read-SysPilotChoice 'Weiter' | Out-Null; continue }
                     $url = Find-SysPilotDriversCloudManufacturer -Manufacturer $man
                     if ($url) { Write-Host "  $url" -ForegroundColor DarkGray; if (Confirm-SysPilot 'Seite im Browser oeffnen?') { Start-Process $url } }
@@ -387,7 +388,7 @@ function Show-SysPilotDriverSourcesMenu {
                 $dItems += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = $null }
                 $pick = Show-SysPilotArrowMenu -Items $dItems -Title 'Geraet fuer DriversCloud-Suche' -Footer 'Enter = Seite oeffnen, Esc = zurueck'
                 if ($null -eq $pick) { continue }
-                $manu = if ($pick -eq 'MANUAL') { Read-SysPilotChoice 'Hersteller eingeben' } else { $pick.Manufacturer }
+                $manu = if ($pick -eq 'MANUAL') { Read-SysPilotInput 'Hersteller eingeben' } else { $pick.Manufacturer }
                 if (-not $manu) { continue }
                 $url = Find-SysPilotDriversCloudManufacturer -Manufacturer $manu
                 if ($url) {
@@ -400,6 +401,15 @@ function Show-SysPilotDriverSourcesMenu {
                 Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
             }
             'sdidownload' { Install-SysPilotSdiLatest }
+            'smartdrv' {
+                try {
+                    Import-Module (Join-Path $PSScriptRoot 'SmartDrivers.psm1') -Force -ErrorAction SilentlyContinue
+                    Invoke-SysPilotSmartDriverSearch
+                } catch {
+                    Write-Host "  SmartDrivers nicht verfuegbar: $($_.Exception.Message)" -ForegroundColor Yellow
+                    Read-SysPilotChoice 'Weiter' | Out-Null
+                }
+            }
             'sdiinfo' {
                 Write-Host '  SDI (Snappy Driver Installer, SamLab) analysiert:' -ForegroundColor Cyan
                 Write-Host '  - DriverPacks: SamLab-eigene Treiber-Repacks als .7z-Archive' -ForegroundColor Gray
@@ -509,7 +519,7 @@ function Get-SysPilot7ZipExe {
 }
 
 function Install-SysPilotSdiLatest {
-    <# Lädt die neueste SDI-Version (offizielle Seite sdi-tool.org),
+    <# Laedt die neueste SDI-Version (offizielle Seite sdi-tool.org),
        entpackt sie nach %LOCALAPPDATA%\Programs\SDI und startet sie.
        Vollautomatisch nach einer einzigen Bestaetigung; kein Installer
        noetig (SDI ist portabel). SDI Full (Torrent) wird nicht angeboten. #>
@@ -548,7 +558,7 @@ function Install-SysPilotSdiLatest {
     $archive = Join-Path $tmpDir ("SDI_R$($release.Rev)." + ($release.Url -replace '.*\.', ''))
     try {
         Write-Host '  Lade Archiv herunter ...' -ForegroundColor Cyan
-        if (-not (Save-SysPilotUrlToFile -Uri $release.Url -OutFile $archive -TimeoutSec 300 -Label 'SDI-Archiv')) { throw 'Download fehlgeschlagen' }
+        if (-not (Invoke-SysPilotFileDownload -Url $release.Url -OutFile $archive -Label 'SDI-Archiv' -TimeoutSec 300 -Title 'SDI-Treiberarchiv')) { throw 'Download fehlgeschlagen' }
         $sizeMB = [math]::Round((Get-Item $archive).Length / 1MB, 1)
         Write-Host "  Download fertig ($sizeMB MB)." -ForegroundColor Green
 
@@ -704,6 +714,8 @@ function Show-SysPilotDriverMenu {
         @{ Label = 'Problemgeraet neu starten';           Color = 'White';    Tag = 'restart' }
         @{ Label = 'Rollback-Anleitung (aelterer Treiber)'; Color = 'White';   Tag = 'rollback' }
         @{ Label = 'TREIBER-QUELLEN (WU, MS-Katalog, SDI-Info)'; Color = 'Green'; Tag = 'sources' }
+        @{ Label = 'SMART-DRIVER STUDIO (Analyse+Multi-Select+Backup+Auto-Install)'; Color = 'Green'; Tag = 'drvstudio' }
+        @{ Label = 'SMART-DRIVERS (KI-Pseudo-Paketmanager)';    Color = 'Green';   Tag = 'smartdrv' }
         @{ Label = 'Zurueck';                             Color = 'DarkGray'; Tag = $null }
     )
 
@@ -760,6 +772,24 @@ function Show-SysPilotDriverMenu {
             }
             'rollback' { Invoke-SysPilotDriverRollbackGuide }
             'sources'  { Show-SysPilotDriverSourcesMenu }
+            'drvstudio' {
+                try {
+                    Import-Module (Join-Path $PSScriptRoot 'SmartDrivers.psm1') -Force -ErrorAction SilentlyContinue
+                    Show-SysPilotDriverStudioWindow
+                } catch {
+                    Write-Host "  Studio nicht verfuegbar: $($_.Exception.Message)" -ForegroundColor Yellow
+                    Read-SysPilotChoice 'Weiter' | Out-Null
+                }
+            }
+            'smartdrv' {
+                try {
+                    Import-Module (Join-Path $PSScriptRoot 'SmartDrivers.psm1') -Force -ErrorAction SilentlyContinue
+                    Invoke-SysPilotSmartDriverSearch
+                } catch {
+                    Write-Host "  SmartDrivers nicht verfuegbar: $($_.Exception.Message)" -ForegroundColor Yellow
+                    Read-SysPilotChoice 'Weiter' | Out-Null
+                }
+            }
         }
     }
 }

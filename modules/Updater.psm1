@@ -82,7 +82,9 @@ function Install-SysPilotUpdate {
     $ProgressPreference = 'SilentlyContinue'
     $ver = ($Version -replace '[^\d\.]', '')
     $file = Join-Path $env:TEMP "SysPilot-Setup-$ver.exe"
-    Invoke-WebRequest $DownloadUrl -OutFile $file -UseBasicParsing -Headers @{ 'User-Agent' = 'SysPilot-Updater' } -TimeoutSec 300 -ErrorAction Stop
+    if (-not (Invoke-SysPilotFileDownload -Url $DownloadUrl -OutFile $file -Label "SysPilot $ver" -TimeoutSec 300 -Title "SysPilot $ver")) {
+        throw 'Download fehlgeschlagen oder abgebrochen.'
+    }
     if (-not (Test-Path $file) -or (Get-Item $file).Length -lt 100000) { throw 'Download unvollstaendig.' }
     Write-SysPilotLog "Update: Installer $ver heruntergeladen, starte Installation"
     Start-Process $file -ArgumentList '/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Verb RunAs

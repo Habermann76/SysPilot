@@ -99,11 +99,24 @@ function Find-SysPilotRuntimeInstaller {
 }
 
 function Save-SysPilotRuntimeInstaller {
-    <# Laedt einen Installer von einer offiziellen URL nach Downloads. #>
-    param([Parameter(Mandatory)][string]$Url, [Parameter(Mandatory)][string]$FileName)
+    <# Laedt einen Installer von einer offiziellen URL nach Downloads.
+       Bei Fehlschlag oder fehlender URL: SmartDownload-Fallback
+       (PM + Kataloge + Suchmaschinen + Herbert-Link-Auswahl). #>
+    param(
+        [Parameter(Mandatory)][string]$Url,
+        [Parameter(Mandatory)][string]$FileName,
+        [string]$AppName = ''
+    )
     $dest = Join-Path (Get-SysPilotPortableAppsDir) $FileName
     Write-Host "  Lade $FileName von $Url ..." -ForegroundColor Cyan
-    if (-not (Save-SysPilotUrlToFile -Uri $Url -OutFile $dest -TimeoutSec 600 -Label $FileName)) { return $null }
+    if (-not (Invoke-SysPilotFileDownload -Url $Url -OutFile $dest -Label $FileName -TimeoutSec 600 -Title $FileName)) {
+        $sdName = $(if ($AppName) { $AppName } else { $FileName })
+        Import-SysPilotModule SmartDownload
+        if (Get-Command Save-SysPilotSmartDownload -ErrorAction SilentlyContinue) {
+            $sd = Save-SysPilotSmartDownload -Url $Url -OutFile $dest -Name $sdName -TimeoutSec 600 -Label $FileName
+            if ($sd -and $sd.Ok) { Write-Host "  [OK] Via SmartDownload: $($sd.Url)" -ForegroundColor DarkCyan }
+        }
+    }
     if (-not (Test-Path $dest) -or (Get-Item $dest).Length -lt 100KB) {
         Write-Host '  [!] Download unvollstaendig.' -ForegroundColor Red
         Remove-Item $dest -Force -ErrorAction SilentlyContinue
@@ -268,7 +281,7 @@ function Show-SysPilotRuntimesMenu {
                     $url = $script:VcRedistUrls[$arch]
                     $fn  = "vc_redist.$arch.exe"
                     if (Confirm-SysPilot "VC++ Redistributable $arch von Microsoft herunterladen und installieren?`n$url") {
-                        $p = Save-SysPilotRuntimeInstaller -Url $url -FileName $fn
+                        $p = Save-SysPilotRuntimeInstaller -Url $url -FileName $fn -AppName "Visual C++ Redistributable $arch"
                         if ($p) { Install-SysPilotRuntimePackage -Path $p -Type $type }
                     }
                 }
@@ -303,7 +316,7 @@ function Show-SysPilotRuntimesMenu {
                                 Write-Host "`n  [!] Lokaler Installer ist andere Version ($($local.Label)) - Download stattdessen." -ForegroundColor Yellow
                             }
                             if (Confirm-SysPilot ".NET Desktop Runtime $ver herunterladen und installieren?`n$($pick.Url)") {
-                                $p = Save-SysPilotRuntimeInstaller -Url $pick.Url -FileName "windowsdesktop-runtime-$ver-win-x64.exe"
+                                $p = Save-SysPilotRuntimeInstaller -Url $pick.Url -FileName "windowsdesktop-runtime-$ver-win-x64.exe" -AppName ".NET Desktop Runtime $ver"
                                 if ($p) { Install-SysPilotRuntimePackage -Path $p -Type 'dotnet' }
                             }
                         }
@@ -322,7 +335,7 @@ function Show-SysPilotRuntimesMenu {
                     if (-not $wg) {
                         # 2) Fallback: offizieller Web-Installer
                         if (Confirm-SysPilot ".NET Framework 4.8.1 (Web-Installer) herunterladen und installieren?`n$script:NetFx481Url") {
-                            $p = Save-SysPilotRuntimeInstaller -Url $script:NetFx481Url -FileName 'ndp481-web.exe'
+                            $p = Save-SysPilotRuntimeInstaller -Url $script:NetFx481Url -FileName 'ndp481-web.exe' -AppName '.NET Framework 4.8.1'
                             if ($p) { Install-SysPilotRuntimePackage -Path $p -Type 'netfx' }
                         }
                     }

@@ -148,8 +148,10 @@ function Get-SysPilotPrivacyStatus {
 }
 
 function Set-SysPilotPrivacyItem {
-    <# Schaltet einen Privacy-Tweak um (AN <-> aus). #>
-    param([Parameter(Mandatory)]$Tweak)
+    <# Schaltet einen Privacy-Tweak um (AN <-> aus).
+       -NoConfirm ueberspringt die Rueckfrage (fuer WPF-Assistenten
+       mit eigener Bestaetigung). #>
+    param([Parameter(Mandatory)]$Tweak, [switch]$NoConfirm)
     $st = Get-SysPilotPrivacyStatus | Where-Object { $_.Tweak.Key -eq $Tweak.Key } | Select-Object -First 1
     $toOn = ($st.State -ne 'AN')
     $target = if ($toOn) { $Tweak.On } else { $Tweak.Off }
@@ -159,7 +161,7 @@ function Set-SysPilotPrivacyItem {
         if ($r) { Restart-SysPilotElevated }
         return
     }
-    if (-not (Confirm-SysPilot "'$($Tweak.Name)' $(if ($toOn) {'einschalten'} else {'ausschalten'})?`n$($Tweak.Desc)")) { return }
+    if (-not $NoConfirm -and -not (Confirm-SysPilot "'$($Tweak.Name)' $(if ($toOn) {'einschalten'} else {'ausschalten'})?`n$($Tweak.Desc)")) { return }
 
     try {
         if ($Tweak.Type -eq 'DiagTrack') {

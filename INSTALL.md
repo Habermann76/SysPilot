@@ -1,8 +1,8 @@
-# SysPilot 0.9.4.9 — Installationsanleitung
+# SysPilot 0.9.5.0 — Installationsanleitung
 
 ## Schnellstart (empfohlen)
 
-1. **Installer herunterladen**: `SysPilot-Setup-0.9.4.9-x64.exe` von den
+1. **Installer herunterladen**: `SysPilot-Setup-0.9.5.0-x64.exe` von den
    [Releases](https://github.com/Habermann76/SysPilot/releases)
 2. **Doppelklick** → installiert nach `C:\Program Files\SysPilot`
 3. **Startmenü** → "SysPilot" öffnen
@@ -12,7 +12,7 @@ Fertig. SysPilot fragt beim ersten Start, ob es als Administrator laufen soll
 
 ## Portable Version (keine Installation)
 
-1. `SysPilot-0.9.4.9-beta-portable.zip` herunterladen
+1. `SysPilot-0.9.5.0-beta-portable.zip` herunterladen
 2. Entpacken (z. B. nach `C:\SysPilot`)
 3. `SysPilot.ps1` → Rechtsklick → "Mit PowerShell ausführen"
 
@@ -46,6 +46,12 @@ Installationsordner — kann manuell gelöscht werden).
 → [DEBUG.md](DEBUG.md) — Fehler melden, Vorschläge machen
 
 ---
+
+### Neue Features in 0.9.5.0
+
+- **KI-Apps-Kategorie**: 57 kuratierte KI-Tools im Programm-Katalog (lokale LLMs, Desktop-Clients, Agenten/CLI, Exoten wie PocketAI Hub, Layla, FreeLLMAPI, OmniRoute, freelm, MCP) — mit Erkennung auch für portabel/npm-Tools und npm-/pip-Install-Aktionen
+- **Download-Portale & Web-Kataloge**: 17 Download-Portale (DE+EN) in „Apps & Store-Clients" + Update-Center; Ninite vollautomatisierbar (still im Hintergrund); automatisierte Versions-Abfrage (Ninite/MajorGeeks/Uptodown/FOSSHub) mit „NEUESTE"-Markierung als letzte Update-Ketten-Stufe
+- **KI-Suche & KI-Version**: KI-Suche öffnet Auswahl freier Web-KIs (Perplexity/Duck.ai/Gemini/Copilot); headless pollinations.ai-Abfrage für Version + Download-URL (als „KI-Angabe" gelabelt)
 
 ### Neue Features in 0.9.4.9
 

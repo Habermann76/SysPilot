@@ -115,6 +115,29 @@ $script:PortableAppDefs = @(
     }
 )
 
+# Download-Portale (kein lokales Programm - oeffnen eine Katalogseite).
+# Werden im Apps-Menue als eigener Block am Ende gelistet.
+$script:PortablePortalDefs = @(
+    @{ Id='ninite';        Name='Ninite';                  Desc='Still-Installationsmanager (~160 Apps): App-Auswahl hier automatisiert - laedt + startet den stillen Installer'; Url='https://ninite.com/'; Auto=$true },
+    @{ Id='portableapps';  Name='PortableApps.com';        Desc='Groesstes Portal portabler Windows-Apps (400+)'; Url='https://www.portableapps.com/'; Auto=$false },
+    @{ Id='filehippo';     Name='FileHippo';               Desc='EN: versionsarchivierte Downloads, kein Bundleware - Bot-Schutz, manuell'; Url='https://filehippo.com/'; Auto=$false },
+    @{ Id='majorgeeks';    Name='MajorGeeks';              Desc='EN: kuratiert, Version+Mirror automatisiert auswertbar'; Url='https://www.majorgeeks.com/'; Auto=$true },
+    @{ Id='uptodown';      Name='Uptodown';                Desc='EN/DE: 25.000+ Apps, Version automatisch lesbar'; Url='https://uptodown.com/'; Auto=$true },
+    @{ Id='fosshub';       Name='FOSSHub';                 Desc='EN: nur Open-Source-Software, Version lesbar'; Url='https://www.fosshub.com/'; Auto=$true },
+    @{ Id='softpedia';     Name='Softpedia';               Desc='EN: riesige Datenbank, langsame Seite'; Url='https://www.softpedia.com/'; Auto=$false },
+    @{ Id='heise';         Name='Heise Download';          Desc='DE: redaktionell geprueft'; Url='https://www.heise.de/download/'; Auto=$false },
+    @{ Id='chip';          Name='CHIP Download';           Desc='DE: grosse Auswahl, viel Werbung'; Url='https://www.chip.de/download/'; Auto=$false },
+    @{ Id='computerbild';  Name='Computer Bild Downloads'; Desc='DE: gepruefte Installer'; Url='https://www.computerbild.de/downloads/'; Auto=$false },
+    @{ Id='computerbase';  Name='ComputerBase Downloads';  Desc='DE: technisch fundiert, sparsam kuratiert'; Url='https://www.computerbase.de/downloads/'; Auto=$false },
+    @{ Id='winfuture';     Name='WinFuture';               Desc='DE: Windows-Tweaks, Tools, ISOs'; Url='https://winfuture.de/'; Auto=$false },
+    @{ Id='deskmodder';    Name='Deskmodder';              Desc='DE: Tools, Windows-Tricks, Docks'; Url='https://www.deskmodder.de/'; Auto=$false },
+    @{ Id='softonic';      Name='Softonic';                Desc='DE: grosse Auswahl - nur mit Adblock empfohlen'; Url='https://de.softonic.com/'; Auto=$false },
+    @{ Id='giga';          Name='GIGAZONE';                Desc='DE: Cloud-Speicher/Datei-Host (keine Programm-Downloads)'; Url='https://giga.de/'; Auto=$false },
+    @{ Id='alternativeto'; Name='AlternativeTo';           Desc='EN: Suchmaschine fuer Software-Alternativen'; Url='https://alternativeto.net/'; Auto=$false },
+    @{ Id='ghacks';        Name='Ghacks';                  Desc='EN: Blog mit direkten Tool-Download-Links'; Url='https://www.ghacks.net/'; Auto=$false },
+    @{ Id='troypoint';     Name='TroyPoint';               Desc='EN: Fire-TV/Android-TV-Apps + APK-Downloads mit Install-Anleitungen (Kodi, IPTV, VPN, Launcher)'; Url='https://troypoint.com/'; Auto=$false }
+)
+
 function Find-SysPilotStoreApp {
     <# Sucht eine Store-/winget-App (z.B. WinToys, iTop Easy Desktop).
        1) Get-StartApps (MSIX + Startmenue-Kacheln)
@@ -368,9 +391,19 @@ function Install-SysPilotInstallerApp {
         return $null
     }
     $exe = Join-Path $env:TEMP ("inst_" + $App.Id + ".exe")
-    if (-not (Save-SysPilotUrlToFile -Uri $App.InstallerUrl -OutFile $exe -TimeoutSec 600 -Label $App.Name)) {
-        Remove-Item $exe -Force -ErrorAction SilentlyContinue
-        return $null
+    if (-not (Invoke-SysPilotFileDownload -Url $App.InstallerUrl -OutFile $exe -Label $App.Name -TimeoutSec 600 -Title $App.Name)) {
+        Import-SysPilotModule SmartDownload
+        if (Get-Command Save-SysPilotSmartDownload -ErrorAction SilentlyContinue) {
+            $sd = Save-SysPilotSmartDownload -Url $App.InstallerUrl -OutFile $exe -Name $App.Name -Id $App.Id -TimeoutSec 600 -Label $App.Name
+            if (-not ($sd -and $sd.Ok)) {
+                Remove-Item $exe -Force -ErrorAction SilentlyContinue
+                return $null
+            }
+            Write-Host "  [OK] Via SmartDownload: $($sd.Url)" -ForegroundColor DarkCyan
+        } else {
+            Remove-Item $exe -Force -ErrorAction SilentlyContinue
+            return $null
+        }
     }
     if ($App.Sha256) {
         $h = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
@@ -379,7 +412,7 @@ function Install-SysPilotInstallerApp {
             Remove-Item $exe -Force -ErrorAction SilentlyContinue
             return $null
         }
-        Write-Host '  [OK] SHA256 verifiziert (offizielle Prüfsumme)' -ForegroundColor Green
+        Write-Host '  [OK] SHA256 verifiziert (offizielle Pruefsumme)' -ForegroundColor Green
     }
     Write-Host "  Installiere $($App.Name) ..." -ForegroundColor Cyan
     # InstallArgs kann leer sein (interaktiver Installer, z.B. MuMu)
@@ -453,7 +486,13 @@ function Install-SysPilotPortableApp {
     if ($App.Type -eq 'script') {
         New-Item -ItemType Directory -Force -Path $destDir | Out-Null
         $dest = Join-Path $destDir $App.Exe
-        if (-not (Save-SysPilotUrlToFile -Uri $asset.Url -OutFile $dest -TimeoutSec 120 -Label $App.Name)) { return $null }
+        if (-not (Invoke-SysPilotFileDownload -Url $asset.Url -OutFile $dest -Label $App.Name -TimeoutSec 120 -Title $App.Name)) {
+            Import-SysPilotModule SmartDownload
+            if (Get-Command Save-SysPilotSmartDownload -ErrorAction SilentlyContinue) {
+                $sd = Save-SysPilotSmartDownload -Url $asset.Url -OutFile $dest -Name $App.Name -Id $App.Id -TimeoutSec 300 -Label $App.Name
+                if (-not ($sd -and $sd.Ok)) { return $null }
+            } else { return $null }
+        }
         if (-not (Test-Path $dest) -or (Get-Item $dest).Length -lt 10KB) {
             Write-Host '  [!] Download unvollstaendig.' -ForegroundColor Red
             Remove-Item $dest -Force -ErrorAction SilentlyContinue
@@ -468,7 +507,14 @@ function Install-SysPilotPortableApp {
     if ($App.DownloadMode -eq 'majorgeeks') {
         $dlOk = Save-SysPilotMajorGeeksFile -MirrorUrl $asset.MirrorUrl -OutFile $zip -Label $App.Name
     } else {
-        $dlOk = Save-SysPilotUrlToFile -Uri $asset.Url -OutFile $zip -TimeoutSec 600 -Label $App.Name
+        $dlOk = Invoke-SysPilotFileDownload -Url $asset.Url -OutFile $zip -Label $App.Name -TimeoutSec 600 -Title $App.Name
+        if (-not $dlOk) {
+            Import-SysPilotModule SmartDownload
+            if (Get-Command Save-SysPilotSmartDownload -ErrorAction SilentlyContinue) {
+                $sd = Save-SysPilotSmartDownload -Url $asset.Url -OutFile $zip -Name $App.Name -Id $App.Id -TimeoutSec 600 -Label $App.Name
+                $dlOk = ($sd -and $sd.Ok)
+            }
+        }
     }
     if (-not $dlOk) { Remove-Item $zip -Force -ErrorAction SilentlyContinue; return $null }
     try {
@@ -544,26 +590,118 @@ function Start-SysPilotPortableApp {
     }
 }
 
+function Get-SysPilotNiniteApps {
+    <# Holt den Ninite-App-Katalog von ninite.com: Slug, Anzeigename,
+       Version (steht im label-title-Attribut). #>
+    try {
+        $html = (Invoke-WebRequest 'https://ninite.com/' -UseBasicParsing -TimeoutSec 25 `
+                 -Headers @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } -ErrorAction Stop).Content
+    } catch { return @() }
+    $apps = @{}
+    # Struktur: <label ... title="Name version"><input ... name="apps" value="slug">
+    foreach ($m in [regex]::Matches($html, 'title="([^"]{3,120})"[^>]*>\s*<input[^>]*name="apps"\s+value="([a-z0-9\-]+)"')) {
+        $title = $m.Groups[1].Value.Trim()
+        $slug  = $m.Groups[2].Value
+        # Titel "Fast Browser by Google 158.0.8127.89" -> Name + Version
+        $ver = $null; $name = $title
+        if ($title -match '^(.*?)[\s\-\u2013]*(\d+\.\d[\d.]*)\s*$') { $name = $Matches[1].Trim(); $ver = $Matches[2] }
+        if (-not $apps.ContainsKey($slug)) {
+            $apps[$slug] = [pscustomobject]@{ Slug = $slug; Name = $name; Title = $title; Version = $ver }
+        }
+    }
+    return @($apps.Values)
+}
+
+function Install-SysPilotNiniteApps {
+    <# Erstellt einen stillen Ninite-Installer fuer die ausgewaehlten Apps:
+       POST auf ninite.com -> Antwort enthaelt /slug/ninite.exe -> Download
+       -> Start (ninite installiert still im Hintergrund, ueberspringt
+       aktuell installierte Apps). Gibt den EXE-Pfad zurueck. #>
+    param([Parameter(Mandatory)][string[]]$Slugs)
+    if (-not $Slugs -or $Slugs.Count -eq 0) { return $null }
+    $base = 'https://ninite.com'
+    $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $page = Invoke-WebRequest "$base/" -WebSession $session -UseBasicParsing -TimeoutSec 25 `
+            -Headers @{ 'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } -ErrorAction Stop
+    $xsrf = $null
+    if ($page.Content -match 'name="_xsrf"[^>]*value="([^"]+)"') { $xsrf = $Matches[1] }
+    if (-not $xsrf) { Write-Host '  [!] xsrf-Token nicht gefunden - Seite evtl. geaendert.' -ForegroundColor Red; return $null }
+    $body = "_xsrf=$([uri]::EscapeDataString($xsrf))"
+    foreach ($s in $Slugs) { $body += "&apps=$([uri]::EscapeDataString($s))" }
+    $resp = Invoke-WebRequest "$base/" -Method Post -Body $body -ContentType 'application/x-www-form-urlencoded' `
+            -WebSession $session -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
+    if ($resp.Content -notmatch 'href="(/[a-z0-9\-]+/ninite\.exe)"') {
+        Write-Host '  [!] Keine Installer-URL in Ninite-Antwort.' -ForegroundColor Red
+        return $null
+    }
+    $exeUrl = "$base$($Matches[1])"
+    $out = Join-Path $env:TEMP ("ninite_{0}.exe" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    Write-Host "  Lade Ninite-Installer ($($Slugs.Count) Apps) ..." -ForegroundColor Cyan
+    if (-not (Invoke-SysPilotFileDownload -Url $exeUrl -OutFile $out -Label 'Ninite-Installer' -TimeoutSec 300 -Title 'Ninite-Installer')) {
+        Write-Host '  [!] Ninite-Download fehlgeschlagen/abgebrochen.' -ForegroundColor Red
+        return $null
+    }
+    Write-Host "  Starte Installer - Installation laeuft still im Hintergrund (~1-5 Min)." -ForegroundColor Green
+    Start-Process $out
+    Write-SysPilotLog "Ninite-Installer erstellt: $($Slugs -join ',') -> $out"
+    return $out
+}
+
+function Show-SysPilotNinitePicker {
+    <# Ninite-Manager: App-Katalog laden, per Leertaste auswaehlen,
+       stillen Installer erstellen + starten. #>
+    Write-Host '  Lade Ninite-Katalog ...' -ForegroundColor Cyan
+    $apps = @(Get-SysPilotNiniteApps)
+    if ($apps.Count -eq 0) {
+        Write-Host '  [!] Ninite-Katalog nicht ladbar - Seite oeffnen?' -ForegroundColor Yellow
+        if (Confirm-SysPilot 'ninite.com im Browser oeffnen?') { Start-Process 'https://ninite.com/' }
+        return
+    }
+    $items = foreach ($a in $apps) {
+        $v = if ($a.Version) { "  [$($a.Version)]" } else { '' }
+        @{ Label = "$($a.Name)$v"; Color = 'White'; Tag = $a.Slug; Checked = $false }
+    }
+    $chosen = Show-SysPilotMultiSelectMenu -Items $items -Title "Ninite - Apps auswaehlen ($($apps.Count) verfuegbar)" -Footer 'Leertaste = markieren, Enter = Installer erstellen+starten, Esc = abbruch'
+    if ($null -eq $chosen -or $chosen.Count -eq 0) { return }
+    Write-Host "  $($chosen.Count) Apps ausgewaehlt." -ForegroundColor Cyan
+    if (-not (Confirm-SysPilot "Ninite-Installer fuer $($chosen.Count) Apps erstellen und starten?`nDer Installer laeuft still im Hintergrund und ueberspringt aktuelle Apps.")) { return }
+    Install-SysPilotNiniteApps -Slugs $chosen | Out-Null
+}
+
+function Get-SysPilotDownloadPortals {
+    <# Portalliste fuer andere Module (Update-Center Web-Kataloge). #>
+    return $script:PortablePortalDefs
+}
+
 function Show-SysPilotPortableAppsMenu {
-    <# Pfeiltasten-Menue fuer portable Apps / Store-Clients. #>
+    <# Pfeiltasten-Menue fuer portable Apps / Store-Clients
+       + Download-Portale (Web-Kataloge) als eigener Block am Ende. #>
+    # Portale als web-App-Pseudo-Eintraege (gleiches Auswahl-Handling)
+    $portalApps = foreach ($p in $script:PortablePortalDefs) {
+        @{ Id = $p.Id; Name = $p.Name; Desc = $p.Desc; Type = 'web'; Web = $p.Url; Portal = $true; Auto = $p.Auto }
+    }
+    $allApps = @($script:PortableAppDefs) + @($portalApps)
     while ($true) {
         $items = @()
-        foreach ($app in $script:PortableAppDefs) {
+        foreach ($app in $allApps) {
             $found = Find-SysPilotPortableApp -App $app
-            if ($app.Type -eq 'web') {
-                $mark = '[web]'; $color = 'DarkGray'
+            if ($app.Portal) {
+                $mark = '[portal]'; $color = 'DarkGray'
+                $typeTag = 'Portal'
+                if ($app.Auto) { $mark = '[portal/auto]' }
+            } elseif ($app.Type -eq 'web') {
+                $mark = '[web]'; $color = 'DarkGray'; $typeTag = 'Web'
             } else {
                 $mark = if ($found -and $found.Path) { '[installiert]' } elseif ($found -and $found.Installed) { '[installiert*]' } else { '[nicht vorhanden]' }
                 $color = if ($found -and $found.Path) { 'Green' } else { 'White' }
-            }
-            $typeTag = switch ($app.Type) {
-                'zip'        { 'portabel' }
-                'script'     { 'Skript' }
-                'installer'  { 'Installer' }
-                'winget'     { 'winget' }
-                'storeapp'   { 'Store' }
-                'web'        { 'Web' }
-                default      { $app.Type }
+                $typeTag = switch ($app.Type) {
+                    'zip'        { 'portabel' }
+                    'script'     { 'Skript' }
+                    'installer'  { 'Installer' }
+                    'winget'     { 'winget' }
+                    'storeapp'   { 'Store' }
+                    default      { $app.Type }
+                }
             }
             $items += @{ Label = "$($app.Name) [$typeTag] $mark"; Color = $color; Tag = "app:$($app.Id)" }
         }
@@ -595,11 +733,12 @@ function Show-SysPilotPortableAppsMenu {
         }
 
         if ($sel -eq 'details') {
-            foreach ($app in $script:PortableAppDefs) {
+            foreach ($app in $allApps) {
                 $f = Find-SysPilotPortableApp -App $app
                 Write-Host ''
                 Write-Host "  === $($app.Name) ===" -ForegroundColor Cyan
                 Write-Host "  $($app.Desc)" -ForegroundColor DarkGray
+                if ($app.Portal) { Write-Host "  Portal: $($app.Web)" -ForegroundColor Cyan }
                 if ($f -and $f.Path) { Write-Host "  Pfad: $($f.Path)" -ForegroundColor Green }
                 elseif ($f -and $f.Installed) { Write-Host '  Installiert (kein Startpfad gefunden)' -ForegroundColor Yellow }
                 else { Write-Host '  Nicht installiert' -ForegroundColor DarkGray }
@@ -610,12 +749,14 @@ function Show-SysPilotPortableAppsMenu {
         }
 
         $appId = $sel.Substring(4)
-        $app = $script:PortableAppDefs | Where-Object { $_.Id -eq $appId } | Select-Object -First 1
+        $app = $allApps | Where-Object { $_.Id -eq $appId } | Select-Object -First 1
         if (-not $app) { continue }
         # Untermenue: installieren / starten / seite oeffnen
-        $installLabel = if ($app.Type -eq 'winget') { 'Installieren (winget/Microsoft Store)' }
+        $installLabel = if ($app.Id -eq 'ninite') { 'Ninite-Manager (Apps auswaehlen, still installieren)' }
+                        elseif ($app.Type -eq 'winget') { 'Installieren (winget/Microsoft Store)' }
                         elseif ($app.Type -eq 'installer') { 'Herunterladen + installieren' }
                         elseif ($app.Type -eq 'storeapp') { 'Installationsseite oeffnen (Store-beschraenkt)' }
+                        elseif ($app.Type -eq 'web' -or $app.Portal) { 'Im Browser oeffnen' }
                         else { 'Herunterladen + installieren (portable)' }
         $sub = @(
             @{ Label = $installLabel;                            Color = 'Green';  Tag = 'install' }
@@ -626,8 +767,15 @@ function Show-SysPilotPortableAppsMenu {
         $pick = Show-SysPilotArrowMenu -Items $sub -Title "$($app.Name) - Aktion" -Footer 'Enter = auswaehlen, Esc = zurueck'
         if ($null -eq $pick) { continue }
         switch ($pick) {
-            'install' { Install-SysPilotPortableApp -App $app | Out-Null }
-            'run'     { Start-SysPilotPortableApp -App $app }
+            'install' {
+                if ($app.Id -eq 'ninite') { Show-SysPilotNinitePicker }
+                elseif ($app.Portal -or $app.Type -eq 'web') { Start-Process $app.Web }
+                else { Install-SysPilotPortableApp -App $app | Out-Null }
+            }
+            'run'     {
+                if ($app.Id -eq 'ninite') { Show-SysPilotNinitePicker }
+                else { Start-SysPilotPortableApp -App $app }
+            }
             'web'     { Start-Process $app.Web }
         }
         Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
@@ -637,4 +785,6 @@ function Show-SysPilotPortableAppsMenu {
 Export-ModuleMember -Function Find-SysPilotPortableApp, Get-SysPilotGitHubAssetUrl,
     Install-SysPilotPortableApp, Start-SysPilotPortableApp, Show-SysPilotPortableAppsMenu,
     Find-SysPilotStoreApp, Install-SysPilotWingetApp, Start-SysPilotStoreApp,
-    Install-SysPilotInstallerApp, Get-SysPilotMajorGeeksAsset, Save-SysPilotMajorGeeksFile
+    Install-SysPilotInstallerApp, Get-SysPilotMajorGeeksAsset, Save-SysPilotMajorGeeksFile,
+    Get-SysPilotNiniteApps, Install-SysPilotNiniteApps, Show-SysPilotNinitePicker,
+    Get-SysPilotDownloadPortals

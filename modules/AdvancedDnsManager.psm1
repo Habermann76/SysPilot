@@ -66,7 +66,7 @@ function Test-SysPilotDnsServer {
 
 function Set-SysPilotDnsProvider {
     param([Parameter(Mandatory)]$Adapter,[Parameter(Mandatory)]$Provider,[switch]$Confirmed)
-    if ($Adapter.VPN -and -not $Confirmed -and -not (Confirm-SysPilot "Adapter '$($Adapter.Name)' ist wahrscheinlich ein VPN. DNS trotzdem ändern?")) { return $false }
+    if ($Adapter.VPN -and -not $Confirmed -and -not (Confirm-SysPilot "Adapter '$($Adapter.Name)' ist wahrscheinlich ein VPN. DNS trotzdem aendern?")) { return $false }
     if (-not (Assert-SysPilotAdmin)) { return $false }
     $backup = Save-SysPilotDnsBackup
     try {
@@ -105,25 +105,25 @@ function Show-SysPilotDnsManager {
     $rows = @(Get-SysPilotDnsInventory)
     $items = @(
         @{ Label='Status aller Netzwerkadapter anzeigen'; Color='Cyan'; Tag='status' }
-        @{ Label='DNS testen (Ping + Namensauflösung)'; Color='White'; Tag='test' }
-        @{ Label='DNS-Anbieter für Adapter setzen'; Color='Green'; Tag='set' }
+        @{ Label='DNS testen (Ping + Namensaufloesung)'; Color='White'; Tag='test' }
+        @{ Label='DNS-Anbieter fuer Adapter setzen'; Color='Green'; Tag='set' }
         @{ Label='Custom DNS eintragen'; Color='Yellow'; Tag='custom' }
         @{ Label='Letztes DNS-Backup wiederherstellen'; Color='White'; Tag='restore' }
         @{ Label='Zurueck'; Color='DarkGray'; Tag=$null }
     )
-    $choice = Show-SysPilotArrowMenu -Items $items -Title 'DNS-MANAGER' -Footer 'Erst testen, dann aendern; VPN-Adapter separat bestätigen'
+    $choice = Show-SysPilotArrowMenu -Items $items -Title 'DNS-MANAGER' -Footer 'Erst testen, dann aendern; VPN-Adapter separat bestaetigen'
     if ($null -eq $choice) { return }
     if ($choice -eq 'status') {
         foreach ($row in $rows) {
             $dnsText = if ($row.Dns.Count) { $row.Dns -join ', ' } else { 'Provider/DHCP' }
             Write-Host "  $($row.Name) [$($row.Status)] $($dnsText)" -ForegroundColor $(if($row.VPN){'Yellow'}else{'White'})
-            if ($row.VPN) { Write-Host '    [!] VPN/virtueller Adapter - nicht ungefragt ändern.' -ForegroundColor Yellow }
+            if ($row.VPN) { Write-Host '    [!] VPN/virtueller Adapter - nicht ungefragt aendern.' -ForegroundColor Yellow }
         }
         Read-SysPilotChoice 'Weiter' | Out-Null; return
     }
     if ($choice -eq 'restore') { Restore-SysPilotDnsBackup; Read-SysPilotChoice 'Weiter' | Out-Null; return }
     if ($choice -eq 'test') {
-        $input = Read-SysPilotChoice 'DNS-Server IPs (Komma getrennt; leer = Cloudflare)'
+        $input = Read-SysPilotInput 'DNS-Server IPs (Komma getrennt; leer = Cloudflare)'
         $servers = if ($input) { @($input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) } else { @('1.1.1.1','1.0.0.1') }
         Test-SysPilotDnsServer -Servers $servers | Format-Table -AutoSize
         Read-SysPilotChoice 'Weiter' | Out-Null; return
@@ -136,8 +136,8 @@ function Show-SysPilotDnsManager {
     if ($null -eq $adapter) { return }
     $provider = $null
     if ($choice -eq 'custom') {
-        $v4 = Read-SysPilotChoice 'Custom IPv4 DNS (Komma getrennt)'
-        $v6 = Read-SysPilotChoice 'Custom IPv6 DNS (optional)'
+        $v4 = Read-SysPilotInput 'Custom IPv4 DNS (Komma getrennt)'
+        $v6 = Read-SysPilotInput 'Custom IPv6 DNS (optional)'
         $provider = [PSCustomObject]@{ Name='Custom'; Description='Benutzerdefinierte DNS-Server'; IPv4=@($v4 -split ',' | % Trim | ? { $_ }); IPv6=@($v6 -split ',' | % Trim | ? { $_ }) }
     } else {
         $providerItems = foreach ($entry in @(Get-SysPilotDnsCatalog)) { @{ Label="$($entry.Name): $($entry.Description)"; Color='White'; Tag=$entry } }
@@ -153,13 +153,15 @@ function Show-SysPilotDnsManager {
 # ---------- GUI ----------
 function Show-SysPilotDnsWindow {
     $window = New-Object System.Windows.Window
+    if (Test-SysPilotWindowAlreadyOpen -Key 'syspilot-dns' -Win $window) { return }
     $window.Title = 'SysPilot - DNS-Manager'; $window.Width = 780; $window.Height = 560
     $window.Owner = $win; $window.WindowStartupLocation = 'CenterOwner'
+    if (Get-Command Set-SysPilotWpfDarkTheme -ErrorAction SilentlyContinue) { Set-SysPilotWpfDarkTheme -Win $window }
     $grid = New-Object System.Windows.Controls.Grid; $grid.Margin = '14'
     0..4 | ForEach-Object { $row = New-Object System.Windows.Controls.RowDefinition; $row.Height = if($_ -eq 3){'*'}else{'Auto'}; $grid.RowDefinitions.Add($row) }
     $title = New-Object System.Windows.Controls.TextBlock; $title.Text='DNS-Manager'; $title.FontSize=20; $title.FontWeight='Bold'; $title.Foreground='#FF4FC3F7'; [System.Windows.Controls.Grid]::SetRow($title,0); $grid.Children.Add($title)|Out-Null
 
-    $info = New-Object System.Windows.Controls.TextBlock; $info.Text='Adapter auswählen, DNS-Anbieter testen und erst danach übernehmen. VPN-Adapter werden gewarnt.'; $info.Margin='0,4,0,8'; [System.Windows.Controls.Grid]::SetRow($info,1); $grid.Children.Add($info)|Out-Null
+    $info = New-Object System.Windows.Controls.TextBlock; $info.Text='Adapter auswaehlen, DNS-Anbieter testen und erst danach uebernehmen. VPN-Adapter werden gewarnt.'; $info.Margin='0,4,0,8'; $info.Foreground='#FFB0B0C0'; [System.Windows.Controls.Grid]::SetRow($info,1); $grid.Children.Add($info)|Out-Null
 
     $panel = New-Object System.Windows.Controls.StackPanel; $panel.Orientation='Horizontal'; [System.Windows.Controls.Grid]::SetRow($panel,2)
     $adapterBox=New-Object System.Windows.Controls.ComboBox; $adapterBox.Width=330; $adapterBox.Margin='0,0,8,0'; $panel.Children.Add($adapterBox)|Out-Null
@@ -167,25 +169,26 @@ function Show-SysPilotDnsWindow {
 
     $status=New-Object System.Windows.Controls.TextBox; $status.IsReadOnly=$true; $status.AcceptsReturn=$true; $status.TextWrapping='Wrap'; $status.VerticalScrollBarVisibility='Auto'; [System.Windows.Controls.Grid]::SetRow($status,3); $grid.Children.Add($status)|Out-Null
     $buttons=New-Object System.Windows.Controls.StackPanel; $buttons.Orientation='Horizontal'; $buttons.HorizontalAlignment='Center'; [System.Windows.Controls.Grid]::SetRow($buttons,4)
-    $test=New-Object System.Windows.Controls.Button; $test.Content='Testen'; $test.Margin='4'; $apply=New-Object System.Windows.Controls.Button; $apply.Content='Übernehmen'; $apply.Margin='4'; $refresh=New-Object System.Windows.Controls.Button; $refresh.Content='Aktualisieren'; $refresh.Margin='4'; $close=New-Object System.Windows.Controls.Button; $close.Content='Schließen'; $close.Margin='4'; foreach($b in @($test,$apply,$refresh,$close)){$buttons.Children.Add($b)|Out-Null}; $grid.Children.Add($buttons)|Out-Null
+    $test=New-Object System.Windows.Controls.Button; $test.Content='Testen'; $test.Margin='4'; $apply=New-Object System.Windows.Controls.Button; $apply.Content='Uebernehmen'; $apply.Margin='4'; $refresh=New-Object System.Windows.Controls.Button; $refresh.Content='Aktualisieren'; $refresh.Margin='4'; $close=New-Object System.Windows.Controls.Button; $close.Content='Schliessen'; $close.Margin='4'; foreach($b in @($test,$apply,$refresh,$close)){$buttons.Children.Add($b)|Out-Null}; $grid.Children.Add($buttons)|Out-Null
 
     $load = { $adapterBox.Items.Clear(); foreach($a in @(Get-SysPilotDnsInventory)){ $adapterBox.Items.Add($a)|Out-Null }; if($adapterBox.Items.Count){$adapterBox.SelectedIndex=0}; $providerBox.Items.Clear(); foreach($p in @(Get-SysPilotDnsCatalog)){$providerBox.Items.Add($p)|Out-Null}; if($providerBox.Items.Count){$providerBox.SelectedIndex=0} }
     $refresh.Add_Click({ & $load; $status.Text='Adapter- und Anbieterlisten aktualisiert.' })
     $test.Add_Click({
-        if(-not $adapterBox.SelectedItem -or -not $providerBox.SelectedItem){$status.Text='Bitte Adapter und Anbieter auswählen.';return}
+        if(-not $adapterBox.SelectedItem -or -not $providerBox.SelectedItem){$status.Text='Bitte Adapter und Anbieter auswaehlen.';return}
         $p=$providerBox.SelectedItem; $results=@(Test-SysPilotDnsServer -Servers $p.IPv4); $status.Text=($p.Name + ': IPv4 ' + ($p.IPv4 -join ', ') + "`n" + ($results|Out-String))
     })
     $apply.Add_Click({
-        if(-not $adapterBox.SelectedItem -or -not $providerBox.SelectedItem){$status.Text='Bitte Adapter und Anbieter auswählen.';return}
+        if(-not $adapterBox.SelectedItem -or -not $providerBox.SelectedItem){$status.Text='Bitte Adapter und Anbieter auswaehlen.';return}
         $a=$adapterBox.SelectedItem;$p=$providerBox.SelectedItem
         $message="DNS auf '$($a.Name)' auf $($p.Name) setzen?`nIPv4: $($p.IPv4 -join ', ')`nIPv6: $($p.IPv6 -join ', ')"
         if($a.VPN){$message+="`n`nWARNUNG: Das ist wahrscheinlich ein VPN-/Tunneladapter.`n`nDieser Vorgang erfordert Admin-Rechte. Weiter mit Administrator-Rechten?"}
-        if([System.Windows.MessageBox]::Show($message,'DNS ändern','YesNo','Warning') -eq 'Yes'){
+        if([System.Windows.MessageBox]::Show($message,'DNS aendern','YesNo','Warning') -eq 'Yes'){
             if($a.VPN){ Restart-SysPilotElevated }
             $ok=Set-SysPilotDnsProvider -Adapter $a -Provider $p -Confirmed
-            $status.Text=if($ok){'DNS erfolgreich übernommen. Backup wurde erstellt.'}else{'DNS konnte nicht übernommen werden.'}
+            $status.Text=if($ok){'DNS erfolgreich uebernommen. Backup wurde erstellt.'}else{'DNS konnte nicht uebernommen werden.'}
         }
     })
+    Add-SysPilotAssistantToWindow -Win $window -Context 'Show-SysPilotDnsWindow'
     $close.Add_Click({$window.Close()}); $window.Content=$grid; & $load; $window.ShowDialog()|Out-Null
 }
 

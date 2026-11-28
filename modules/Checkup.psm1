@@ -717,7 +717,7 @@ function Show-SysPilotCheckupScheduleMenu {
                 }
             }
             'time' {
-                $t = Read-SysPilotChoice 'Uhrzeit (HH:MM, z.B. 03:00 oder 18:30)'
+                $t = Read-SysPilotInput 'Uhrzeit (HH:MM, z.B. 03:00 oder 18:30)'
                 if ($t -match '^([01]?\d|2[0-3]):[0-5]\d$') {
                     $tNorm = [DateTime]::ParseExact($t, 'H:mm', $null).ToString('HH:mm')
                     Save-SysPilotCheckupSchedule -Enabled $s.Enabled -Frequency $s.Frequency -Weekday $s.Weekday -Time $tNorm -AutoFix $s.AutoFix
@@ -851,9 +851,11 @@ function Show-SysPilotCheckupWindow {
     $results = Invoke-SysPilotCheckupScan
 
     $window = New-Object System.Windows.Window
+    if (Test-SysPilotWindowAlreadyOpen -Key 'syspilot-checkup' -Win $window) { return }
     $window.Title = 'SysPilot - Automatic Checkup'
     $window.Width = 900; $window.Height = 700
     $window.WindowStartupLocation = 'CenterScreen'
+    if (Get-Command Set-SysPilotWpfDarkTheme -ErrorAction SilentlyContinue) { Set-SysPilotWpfDarkTheme -Win $window }
 
     $grid = New-Object System.Windows.Controls.Grid
     $grid.Margin = '14'
@@ -949,9 +951,9 @@ function Show-SysPilotCheckupWindow {
     $btnPanel = New-Object System.Windows.Controls.StackPanel
     $btnPanel.Orientation = 'Horizontal'; $btnPanel.HorizontalAlignment = 'Center'
     $btnFix = New-Object System.Windows.Controls.Button
-    $btnFix.Content = 'Ausgewählte beheben'; $btnFix.Margin = '4'; $btnFix.Width = 140
+    $btnFix.Content = 'Ausgewaehlte beheben'; $btnFix.Margin = '4'; $btnFix.Width = 140
     $btnClose = New-Object System.Windows.Controls.Button
-    $btnClose.Content = 'Schließen'; $btnClose.Margin = '4'; $btnClose.Width = 100
+    $btnClose.Content = 'Schliessen'; $btnClose.Margin = '4'; $btnClose.Width = 100
     $btnPanel.Children.Add($btnFix)|Out-Null; $btnPanel.Children.Add($btnClose)|Out-Null
     [System.Windows.Controls.Grid]::SetRow($btnPanel,3); $grid.Children.Add($btnPanel)|Out-Null
 
@@ -978,6 +980,7 @@ function Show-SysPilotCheckupWindow {
     $btnClose.Add_Click({ $window.Close() })
 
     $window.Content = $grid
+    Add-SysPilotAssistantToWindow -Win $window -Context 'Show-SysPilotCheckupWindow'
     $window.ShowDialog() | Out-Null
 }
 

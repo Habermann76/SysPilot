@@ -1,6 +1,22 @@
 # SysPilot — Roadmap
 
-## Version 0.9.4.9 (NEU)
+## Version 0.9.5.0 (NEU)
+
+- ✅ **Download-Portale & Web-Kataloge**: 17 Portale (DE+EN) als
+  `[Portal]`-Apps + Update-Center-Liste; Ninite vollautomatisierbar
+  (160 Apps, stiller Installer); `Get-SysPilotWebSourceVersions` mit
+  automatisierten Versionen (Ninite/MajorGeeks/Uptodown/FOSSHub) +
+  13 manuellen Portalen, letzte Update-Ketten-Stufe
+- ✅ **KI-Suche & KI-Version**: `Start-SysPilotAiSearch` Engine-Menü
+  (Perplexity/Duck.ai/Gemini/Copilot), `Get-SysPilotAiPortalHint`
+  headless pollinations.ai (kostenlos, kein Key) — „KI-Angabe"-Label
+- ✅ **KI-Apps-Kategorie**: 57 Tools im Katalog (lokale LLMs,
+  Desktop-Clients, Agenten/CLI, Exoten: PocketAI Hub, Layla,
+  FreeLLMAPI, OmniRoute, freelm, MCP); `DetectPaths`/`DetectCmds`-
+  Erkennung + `NpmPkg`/`PipPkg`-Install-Aktionen
+- ✅ `version.txt` = 0.9.5.0
+
+## Version 0.9.4.9
 
 - ✅ **CleanSweep / UninstallManager.psm1**: Deinstallations-Center nach
   REA-Funktionsanalyse von IObit Uninstaller (Delphi/VCL — unabhängig

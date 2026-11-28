@@ -1,3 +1,615 @@
+# SysPilot 0.9.5.0 beta
+
+- **KRITISCHER FIX - roter Fehlertext beim Start**: 15 Dateien
+  (`HealthMonitor`, `SmartHealthCheck`, `UninstallManager`, `AISearch`,
+  `DnsManager` u.a.) enthielten Umlaute/€/°/Blockzeichen als UTF-8
+  **ohne BOM**. Windows PowerShell 5.1 liest solche Dateien als ANSI
+  → Mojibake, Syntaxfehler, `Import-Module` schlug fehl und jeder
+  SysPilot.ps1-Start (z.B. Update-Center) druckte eine rote
+  Parse-Fehlerflut. Alle Dateien jetzt ASCII-sicher transliteriert
+  (ae/oe/ue/ss, „Grad C", EUR, `=`-Banner, `!`/`v`-Symbole,
+  Mojibake-Sequenzen `fÃ¼r`→`fuer` repariert). Audit-Regel in
+  AGENTS.md geschaerft: vor Commit auf `[^\x00-\x7F]` pruefen.
+  **Folgemaßnahmen**: `setup-automation.ps1` (Installer, headless)
+  loggt Modul-Import-Fehler jetzt ebenfalls nach %LOCALAPPDATA%
+  (vorher lautlos), und `check-syntax.ps1` prueft jetzt ALLE
+  .ps1/.psm1 (vorher nur 4 Dateien) inkl. Encoding-Risiko-Warnung
+  „nicht-ASCII ohne BOM" - genau die Luecke, die den Bug möglich
+  machte.
+- **Task-Manager (NEU, `ProcessManager.psm1`, Key `procs`)**: eigener
+  Prozess-Manager mit Prozessliste (Top 40/60, RAM-/CPU-/Namens-Sort,
+  Filter), Prozess beenden **inkl. Kindprozessen** (PID oder Name,
+  Auswahlliste bei Treffern), Programm starten (.exe-Dialog oder
+  Name/Pfad), tiefe Prozess-Analyse (`Show-SysPilotProcessDetails`:
+  Signatur-Status, Parent/Kinder, Kommandozeile, Netzwerk-Verbindungen,
+  Threads/Handles) und **Process Explorer** (offizielles Sysinternals-
+  tool, portabel von live.sysinternals.com nachladbar in
+  PortableApps\ProcessExplorer, `/e <pid>`-Vorauswahl). In allen drei
+  Oberflaechen: Vollmenue, GUI-Button „Prozesse", Toolbox.
+- **Pilot Herbert (Flug 667) — Branding + Programm-Start-Hinweise
+  (NEU)**: der KI-Assistent heisst jetzt „Pilot Herbert, Flug 667"
+  (GUI-Header + Konsolen-Chat). **Prozess-Watcher**: der GUI-Timer
+  erkennt neue interaktive Programme (MainWindowTitle, gleiche
+  Session, Ausschlussliste) und meldet sie - Chat-Nachricht bei
+  offenem Panel, sonst Balloon-Tip + Tooltip am KI-Button; die letzten
+  6 Programme fliessen in den System-Prompt ein („Zuletzt geoeffnet").
+  **Stumm schaltbar**: Checkbox „Hinweise" am Chat-Panel
+  (`ChkKiHints` -> `Set-SysPilotAiProcessHintsEnabled`, persistiert).
+  **Bord-Ansagen (NEU)**: `Get-SysPilotHerbertAnnouncements` haelt
+  37 eigene Durchsagen in 9 Kategorien (welcome/wetter/sicherheit/
+  nacht/song/flieger/hotshots/turbulenz/landung) - **Fliegerlied**
+  (F.P.1 antwortet nicht, 1932: „Flieger, gruess mir die Sonne...",
+  „Vom Nordpol zum Suedpol ist nur ein Katzensprung") und
+  **Hot-Shots-Zitate** (1991, echte IMDb-verifizierte Sprueche als
+  Uebersetzung: Admiral Bensons „nie gelandet", Topper Harleys
+  „kein Zeit fuer die Liebe"/„nasse Hose") plus eigene Texte im
+  Geist der Ansagen-Kultur (inkl. Krupps-Vibes: Pervitin, Tempo,
+  „gruen wie ein Pfannkuchen"). Trigger: Welcome beim ersten Panel-Open,
+  vereinzelt ~alle 5 Min (25% Chance, nur wetter/sicherheit/nacht/
+  song), Turbulenz-Ansage bei Log-Fehlern, Landung-Ansage nach
+  Aktion/MCP-Erfolg (je 50%). Anzeige: Chat-Nachricht bei offenem
+  Panel, sonst Balloon-Tip (max 1/4 Min) + Button-Tooltip.
+  `Show-SysPilotHerbertAnnouncement` respektiert ChkKiHints.
+- **MCP-Client (NEU, `McpClient.psm1`, Key `mcp`)**: SysPilot spricht
+  Model Context Protocol - Server-Definitionen werden automatisch aus
+  den vorhandenen Configs importiert (`~/.codeium/windsurf/
+  mcp_config.json`, `~/.cline/data/settings/cline_mcp_settings.json`;
+  Secrets bleiben in den Quelldateien). **Standard-Server**:
+  desktop-commander (stdio/npx), powershell (stdio), github
+  (streamableHttp + PAT-Header), browseros-neo (HTTP localhost:9010).
+  Transports: stdio (newline-JSON-RPC, Server pro Aufruf gespawnt,
+  PS5.1-kompatibel via `Arguments`-String) + streamableHttp
+  (initialize -> session-id -> Request, JSON + SSE). `tools/list`
+  mit 10-Min-Speicher (Datei-Cache in %TEMP%, geteilt zwischen
+  Runspaces). MCP-Menue: Status, Test, aktivieren/deaktivieren
+  (`%LOCALAPPDATA%\SysPilot\mcp.json`). Live getestet: powershell 12 +
+  github 49 + desktop-commander 25 Tools.
+- **MCP-Tool-Calls im Herbert-Chat (NEU)**: `Invoke-SysPilotAiChat`
+  nimmt `-McpToolDefs` entgegen und sendet OpenAI-`tools` mit
+  (`tool_choice=auto`, Fallback ohne Tools bei Provider-Fehler).
+  Antwortet die KI mit `tool_calls`, rendert die GUI Buttons
+  „MCP: server/tool" - Klick oeffnet Bestaetigungs-Dialog (NO RISK NO
+  FUN, Argumente sichtbar), dann async-Ausfuehrung im eigenen
+  Runspace und automatisches Follow-up an Herbert zur Zusammenfassung
+  des Ergebnisses. Tool-Namen werden `mcp_<server>_<tool>` sanitisiert
+  und via `Find-SysPilotMcpToolDef` zurueckgemappt.
+- **Fixes unterwegs**: `ProcessStartInfo.ArgumentList` existiert in
+  .NET Framework (PS 5.1) nicht -> `Arguments`-String mit Quoting;
+  NULL-Guards in McpClient (`Env`, `errTxt`, `Description`/`Parameters`
+  im OpenAI-Tool-Schema); `Write-SysPilotLog`-Fallback wenn Common
+  nicht geladen; fehlende `}` im kiPoll-Tick (Parse-Fehler).
+- **Task-Manager als WPF-Fenster (NEU)**: „Prozesse" in der GUI oeffnet
+  jetzt ein eigenes fenster (`Show-SysPilotProcessWindow`): ListView
+  mit Spalten Name/PID/CPU/RAM/**Prioritaet**/Fenstertitel/Pfad,
+  Live-Filter (Name, PID, Fenstertitel), Sortierung (RAM/CPU/Name/
+  Prioritaet), Auto-Refresh alle 3s (abschaltbar), Detail-Box pro
+  Auswahl (Pfad, Parent, Kinder, Threads, Handles, Fenstertitel) und
+  Buttons statt Tastatureingabe: **Prioritaet setzen** (Idle bis
+  Realtime, High/Realtime mit Warn-Dialog; `Set-SysPilotProcessPriority`
+  in ProcessManager), **Beenden** (inkl. Kindprozesse, Bestaetigung),
+  **Process Explorer** (mit `/e <pid>`-Vorauswahl des markierten
+  Prozesses), **Programm starten** (Dateidialog), Schliessen.
+- **Maus-Eingaben ueberall (NEU, `Read-SysPilotInput` in Common.psm1)**:
+  alle freien Texteingaben (frueher Read-Host) oeffnen jetzt einen
+  WPF-Dialog - Rechtsklick = Einfuegen, Enter = OK, Esc = Abbrechen,
+  optionaler „..."-Durchsuchen-Button fuer Dateien (`-BrowseFile`) und
+  Ordner (`-BrowseFolder`). Faellt automatisch auf Read-Host zurueck
+  wenn WPF nicht verfuegbar (MTA/headless). Umgestellt: DNS-Server
+  (Domain/IP/Custom-Listen), AdvancedDnsManager (IPv4/IPv6), Hosts-
+  Editor (IP/Hostname/Filter), Treiber (Hardware-ID/Hersteller),
+  HealthMonitor (Stadt/PLZ), Prozess-Manager (Programm-Pfad mit
+  Datei-Dialog, Filter, PID/Name), Paket-Suche, Update-Center-Suche,
+  Deinstallations-Manager (Suchbegriff/Name/Ordner-Pfad), Skriptname,
+  Checkup-Uhrzeit, SysPilot.ps1 (Prozessname, Backup-Name,
+  KI-Suche). **Bonus-Fix**: Defaults wie `Read-SysPilotChoice 'x' '7zip'`
+  wurden bisher still ignoriert - `Read-SysPilotInput` hat einen
+  echten `-Default`-Parameter, die Werte greifen jetzt.
+- **KI-Provider-Fenster -> Modul (`AiAssist.psm1`)**: die drei
+  Provider-WPF-Fenster (Liste/Details, Edit-Dialog, Vorschlaege)
+  plus `Save-SysPilotAiProviderEntry` liegen jetzt im Modul statt in
+  SysPilot-GUI.ps1 - dadurch auch im Konsolen-Menue nutzbar
+  (`'providers'`/`'suggest'`/`'add'` routen auf die Fenster mit
+  Fallback auf die Text-Menus). `-Owner`-Parameter fuer Modalitaet;
+  ohne Owner = CenterScreen. `Add-Type` fuer WPF-Assemblys eingebaut.
+- **KI-Provider-Verwaltung als WPF-Fenster (NEU)**: statt Text-Menue
+  jetzt ein proper GUI-Dialog (`Show-SysPilotAiProvidersWindow`,
+  Einstieg: „Provider"-Button im Herbert-Chat-Header). Provider-Liste
+  mit Art ([lokal]/[cloud]/[free]), Key-Status und Aktiv-Flag;
+  Detail-Ansicht mit Endpoint/Modell/Key-Status, Live-„Testen"
+  (/models), Bearbeiten, An/Aus, Entfernen (nur konfigurierte).
+  **Edit-Dialog** (`Show-SysPilotAiProviderEditDialog`): Name,
+  Base-URL, Modell, API-Key (Rechtsklick = einfuegen), Art,
+  aktiviert - Key bleibt DPAPI-verschluesselt; leeres Key-Feld beim
+  Bearbeiten behaelt den alten Key. **Vorschlaege-Fenster**
+  (`Show-SysPilotAiSuggestionsWindow`): kostenlose Cloud-Tiers
+  (Gemini, Groq, OpenRouter, GitHub Models, Mistral, Cerebras) mit
+  Signup-Button (Browser), Provider-anlegen, URL/Modell kopieren
+  (Clipboard). **Keys sichern**-Button exportiert nach
+  Dokumente\api keys\ (`Save-SysPilotAiKeyBackup`).
+  `Protect-/Unprotect-SysPilotSecret` jetzt exportiert.
+- **Fix: Process-Explorer-Download korrupt**: `Save-SysPilotUrlToFile`
+  (Common.psm1) nutzt nicht mehr `WebClient.DownloadFileAsync` - der
+  brach bei manchen Hosts (live.sysinternals.com) stillschweigend ab
+  und lieferte eine halbe EXE, die als Erfolg galt („keine gueltige
+  Anwendung"). Neu: `HttpWebRequest` + Stream-Kopie mit
+echtem Byte-Fortschritt, Laengerkennung, Timeout, Abort und
+Vollstaendigkeitspruefung (empfangene vs. Content-Length-Bytes).
+`Get-SysPilotProcessExplorer` prueft zusaetzlich per HEAD-Request die
+erwartete Remote-Groesse und laedt beschaedigte Dateien einmal neu
+(2 Versuche). Live getestet: 2.537.288 Bytes komplett, procexp64.exe
+startet.
+
+- **Download-Portale & Web-Kataloge (NEU)**: 17 kuratierte Download-
+  Portale (DE: ComputerBild, CHIP, Heise, GIGAZONE, Softonic, WinFuture,
+  ComputerBase, Deskmodder; EN: FileHippo, MajorGeeks, Uptodown,
+  FOSSHub, Softpedia, AlternativeTo, Ghacks, PortableApps.com, Ninite)
+  appear als eigener `[Portal]`-Block in „Apps & Store-Clients"
+  (portableapps.com damit auch dort, nicht nur im Update-Center) und
+  als Liste im Update-Center -> „Web-Kataloge / Download-Portale".
+  **Ninite ist vollautomatisierbar**: Katalog-Parser (160 Apps mit
+  Versionen aus `label-title`), App-Auswahl per Mehrfachmenue, dann
+  POST an ninite.com (`_xsrf`+`apps`-Felder) -> `/slug/ninite.exe` ->
+  Download + Start - der Installer laeuft still im Hintergrund und
+  ueberspringt aktuelle Apps. **Versions-Check automationsfaehig**:
+  `Get-SysPilotWebSourceVersions` fragt Ninite, MajorGeeks
+  (`softwareVersion`-Meta), Uptodown (`version">X`) und FOSSHub
+  (`softwareVersion` JSON-LD) per Slug-Raten + Titel-Verifikation ab
+  und listet 13 weitere Portale als manuelle Suchlinks - sortiert mit
+  „NEUESTE"-Markierung. Update-Kette damit komplett: winget ->
+  Chocolatey/Scoop (installierte Manager) -> choco/scoop-Remote ->
+  Web-Quellen. Eingebunden in Alt-Manager-Menue (automatisch wenn
+  keine PM-Treffer) und als Aktion „Web-Quellen/Versionen suchen" in
+  Fehlgeschlagene Updates.
+- **KI-Apps-Kategorie (NEU)**: 57 kuratierte KI-Tools als eigene
+  Katalog-Kategorie „KI-Apps" im Programm-Katalog - lokale LLMs
+  (Ollama, LM Studio, llama.cpp, GPT4All, Jan, KoboldCpp,
+  text-generation-webui, LocalAI, ExLlamaV2, llama-swap),
+  Desktop-Clients (Cherry Studio, Chatbox, Msty, AnythingLLM,
+  NextChat, LobeChat, Open WebUI, LibreChat, Witsy, Khoj,
+  Perplexica, Onyx, Kotaemon, SillyTavern, Dify, Flowise, Langflow),
+  Agenten/CLI (Aider, Open Interpreter, Goose, opencode, Gemini CLI,
+  Codex CLI, Cline, Continue, Tabby, Void, Zed, Trae, Melty, Pieces,
+  Supermaven), Exoten (PocketAI Hub, Layla/Desktop, FreeLLMAPI,
+  OmniRoute, freelm, MCP Inspector, MCPDeskClient, Windows ODR
+  `odr.exe mcp list`). **Installations-Erkennung erweitert**:
+  `DetectPaths`/`DetectCmds` erkennen portabel/npm/manuell
+  installierte Tools (live: llama.cpp, opencode, Cline),
+  **npm-/pip-Install-Aktionen** (`NpmPkg`/`PipPkg`) für
+  JS/Python-Pakete, `Note`-Feld für Hinweise, **`Desc`-Kurz-
+  beschreibung** aller 59 KI-Apps (in Liste + Detail sichtbar),
+  **Perplexity + Comet Browser** ergänzt; **`WingetSource`-Feld**:
+  msstore-Apps (Perplexity = nur MSIX, läuft nie elevated) zeigen
+  Warnhinweis + Bestätigung vor Install + Aktion „KI-Suche:
+  offizielle Win32-Version/Fork suchen" (`aisearch`-Tag).
+- **KI-Aktions-Buttons „Uebernehmen" (NEU)**: der Assistent kann
+  jetzt strukturierte Aktionen vorschlagen (`<<<AKTION:id>>>`-Marker,
+  Protokoll automatisch im System-Prompt). Die GUI parst Marker,
+  blendet sie aus dem Text aus und rendert Buttons
+  „Uebernehmen: <Aktion>". **10 registrierte Aktionen**
+  (`Get-SysPilotKiActions` in AiAssist.psm1): DNS-Cache leeren,
+  RAM freigeben, Explorer neu starten (low = 1 Klick), IP erneuern,
+  Temp/Cache bereinigen, Druck-Spooler/Proxy/Firewall/Performance-
+  Counter reparieren (medium = Bestaetigungs-Dialog), Papierkorb
+  leeren (high = Warnung). Dialog enthaelt „NO RISK NO FUN"-Hinweis
+  + ausfuehrliche Beschreibung - der Klick gilt als bewusste
+  Entscheidung, SysPilot uebernimmt keine Verantwortung.
+  Ausfuehrung async in eigenem Runspace (alle Module geladen,
+  `Invoke-SysPilotKiAction` mit Auto-Import-Fallback), Ergebnis
+  erscheint als Chat-Nachricht. Live getestet: KI schlaegt
+  flushdns fuer DNS-Problem vor.
+- **Schwebender KI-Assistent in der GUI (NEU)**: verschiebbarer
+  „KI"-Button (Drag&Drop, Startposition unten rechts) klappt ein
+  Chat-Panel auf/zu - `Invoke-SysPilotAiChat` laeuft async in
+  eigenem Runspace (kein UI-Freezing), Multi-Turn-History (24
+  Eintraege), System-Prompt mit Kontext (Admin-Status, letzte
+  12 Log-Zeilen). **Proaktiv**: Watcher-Timer prueft ~alle 60s
+  das Log auf ERROR/FEHLER -> Panel offen = Chat-Nachricht,
+  geschlossen = Button zeigt „!"-Badge. **Spiele-Schutz**:
+  `Test-SysPilotGamingActive` blendet Button+Panel komplett aus.
+  Fix: `Invoke-SysPilotAiChat -History` war `[string[]]` ->
+  Hashtables wurden zu „System.Collections.Hashtable"
+  konvertiert (Multi-Turn kaputt) -> jetzt `[object[]]`.
+- **KI-Suche & KI-Version (NEU)**: `Start-SysPilotAiSearch` oeffnet
+  jetzt eine Auswahl freier Web-KIs mit vorgefertigter Anfrage
+  (Perplexity mit Websuche, Duck.ai, Gemini, Copilot) statt nur
+  DuckDuckGo. zusaetzlich `Get-SysPilotAiPortalHint`: headless-Abfrage
+  an pollinations.ai (kostenlos, kein Key) nach Version + URL -
+  im Web-Quellen-Menue als „KI-Version + Download-Link abfragen"
+  waehlbar; Ergebnis ehrlich als „KI-Angabe - bitte pruefen"
+  gelabelt, da das freie Modell keinen Web-Zugriff hat und
+  Antworten veraltet sein koennen (live beobachtet: 7-Zip 22.01
+  statt 26.06). Fallback-URL: duck.ai-Chat mit der Anfrage.
+  **Link-Verifikation**: `Test-SysPilotUrlReachable` prueft die
+  KI-gelieferte URL (HEAD→GET) und markiert „erreichbar/nicht
+  erreichbar" in der Ergebnisliste.
+- **KI-Fork-/Alternativen-Suche (NEU)**: `Get-SysPilotAiAlternatives`
+  + `Show-SysPilotAiAlternativesMenu` fragen pollinations.ai
+  strukturiert nach Forks/Alternativen (Prompt erzwingt
+  `NAME | Beschreibung | URL`-Zeilen) und listen Treffer mit
+  Mini-Beschreibung + Link-Typ (github/gitlab/fosshub/web) -
+  live getestet (Kodi -> Jellyfin, Plex, MediaPortal, TinyMedia-
+  Manager, VLC, Emby). Als `aisearch`-Aktion jetzt fuer JEDEN
+  Katalog-Eintrag verfuegbar (nicht nur msstore); zusaetzlich
+  immer die Browser-KI-Engine-Auswahl als ausfuehrlichere
+  Alternative.
+- **Media-Center-Kategorie (NEU)**: 13 Eintraege - Kodi
+  (XBMCFoundation.Kodi, von kodi.tv), Plex, Plex Media Server,
+  Plex HTPC, Plexamp, Jellyfin Server + Media Player, Emby
+  (msstore - nutzt den neuen WingetSource-Mechanismus), Stremio,
+  Moonfin, Navidrome, Madsonic (Subsonic-Fork), Universal Media
+  Server. Alle mit `Desc`-Kurzbeschreibung.
+- **KI-Assistenz-Modul (NEU, `AiAssist.psm1`)**:-generelle KI-Hilfe
+  in SysPilot über OpenAI-kompatible Provider mit automatischer
+  Fallback-Kette (`Invoke-SysPilotAiChat`):
+  - **Lokale Router (auto-erkannt, kein Key)**: Ollama
+    (localhost:11434/v1), LM Studio (1234), FreeLLMAPI (3001),
+    OmniRoute (20128) — Port-Probe mit 30s-Cache.
+  - **Pollinations (free, eingebaut)**: `text.pollinations.ai/openai`
+    ist OpenAI-kompatibel, kein Key nötig — funktioniert sofort
+    (live getestet). Rate-Limit beachten.
+  - **Kostenlose Cloud-Tiers (eigener Key)**: Google Gemini
+    (AI Studio — grosszügiges Freikontingent), Groq, OpenRouter
+    (`:free`-Modelle), GitHub Models (GPT-Modelle mit GitHub-PAT),
+    Mistral, Cerebras — Vorschlagsliste mit Signup-Links im Menü,
+    Key wird **DPAPI-verschlüsselt** in
+    `%LOCALAPPDATA%\SysPilot\ai-assist.json` abgelegt.
+  - **UI**: Hauptmenü „KI-ASSISTENZ", GUI-Button „KI", Toolbox-
+    Eintrag, Multi-Turn-Chat (/clear, /quit), Schnellfrage,
+    Provider-Verwaltung (Test `/models`, an/aus, entfernen).
+  - **Ersteinrichtung (`Show-SysPilotAiOnboarding`)**: beim ersten
+    SysPilot-Start erscheint ein prominenter Menü-Eintrag „KI-
+    ASSISTENZ einrichten" solange `Onboarded` nicht gesetzt ist.
+    Der Assistent erkennt laufende lokale Provider und bietet
+    Install-Hilfe: **Ollama** via winget, **OmniRoute** via
+    `npm i -g omniroute`, **freelm** via `pip install freelm`,
+    **FreeLLMAPI** (Docker-Hinweis + Repo-Link) — alle Langläufer
+    mit Fortschrittsanzeige. Alternativ **Quick-Key-Setup**:
+    Anbieter wählen → Key einfügen → Sofort-Test → DPAPI-Speicherung.
+  - **Key-Backup (`Save-SysPilotAiKeyBackup`)**: exportiert alle
+    konfigurierten Provider (Name, Base-URL, Modell, API-Key) als
+    .txt nach `Dokumente\api keys\` — zur Wiederverwendung in
+    anderen Tools. Hinweis: plaintext, nur vertrauenswürdig.
+  - **Kontext-Integration**: Fehlgeschlagene Updates haben neue
+    Aktion „KI fragen: Fehler analysieren" (sendet App, ID,
+    Fehlertext, Art an den Assistenten).
+- **Fortschritt + Haengererkennung bei Download/Install (NEU)**:
+  `Invoke-SysPilotMonitoredProcess` (Common.psm1) zeigt bei
+  Processes Spinner, Laufzeit und letzte Output-Zeile; Output
+  laeuft in Temp-Datei, „Haengen" wird an fehlender Output- UND
+  CPU-Aktivitaet erkannt -> Warnung + `[Q] Abbrechen /
+  [Enter] weiter`. `Save-SysPilotUrlToFile` zeigt jetzt
+  Prozent + MB/s + ETA und dieselbe Stall-Erkennung mit Abbruch.
+  Eingebunden in: ALLE winget-Aufrufe (`Invoke-SysPilotWingetRaw`:
+  install/upgrade/source), Chocolatey install/upgrade (Admin +
+  elevated-Pfad mit_elapsed_-Spinner), Scoop install/update,
+  npm/pip-Katalog-Installationen, Ninite-Installer-Download,
+  GitHub-Release-Downloads (`Save-SysPilotDownload` delegiert),
+  SysPilot-Selbstupdate, LibreHardwareMonitor-Download.
+- **Update-Manager: weniger Fehl-/Warn-Lärm (FIX)**: die
+  Scoop-Bucket-Autoreparatur (`Update-SysPilotScoopBuckets`) hat bisher
+  die komplette `scoop update`-Ausgabe inkl. Git-Fetch-Rauschen
+  (refs, %, 'Already up to date') ins Konsolenfenster gestreamt - sah
+  aus wie eine Fehlerflut, obwohl die Reparatur erfolgreich war.
+  Jetzt werden nur WARN/ERROR/Ergebniszeilen gezeigt (max. 30).
+  **Fehlgeschlagene-Updates-Liste**: neuer Bulk-Eintrag
+  „Nicht-anwendbare als erledigt markieren (N)" entfernt mit einem
+  Klick alle `Kind=not-applicable`/`publisher`-Eintraege (winget kann
+  diese Apps prinzipiell nicht aktualisieren - z.B. FACEIT, MEGAsync,
+  OnionShare, TeraBox, SteamArtManager, Chocolatey via winget).
+  **WPF-Variante** (`Show-SysPilotFailedUpdatesWindow`): die
+  Fehlgeschlagenen-Liste ist jetzt ein Fenster - GridView-Spalten
+  (Programm/Quelle/Fehler/Art/Letzter Versuch/Fehlertext), Filterfeld,
+  Detail-Panel mit Fehlertext + Art-Hinweisen, Buttons „Silent
+  erneut"/„Admin" (Retry laeuft im Hintergrund-Runspace, UI bleibt
+  bedienbar), „Entfernen", „Nicht-anwendbare entfernen", MessageBox-
+  Bestaetigungen, Rechtsklick-Kopieren. Fallback auf das
+  Konsolen-Pfeilmenue bei nicht-STA/headless.
+  **Erweitert (Live-Aktivitaet + Suche)**: Fortschrittsbalken +
+  Live-Protokoll-Pane (Consolas, gruen, autoscroll, rechtsklick-
+  kopieren) - zeigt die Ausgabe des jeweils laufenden
+  Paketmanagers in Echtzeit (Tail des `syspilot-proc-*.log` aus
+  Invoke-SysPilotMonitoredProcess) plus Stage-Marker aus dem
+  Hintergrund-Runspace (ConcurrentQueue). Buttons: **„Manuell"**
+  (öffnet Terminal mit fertigen Befehlen via
+  Open-SysPilotManualUpdateTerminal), **„Suchen"** (async: choco-
+  und scoop-Kandidaten via `Find-SysPilot*RemoteCandidates`,
+  Web-Kataloge via `Get-SysPilotWebSourceVersions` - Ninite/
+  MajorGeeks/Uptodown/FOSSHub mit Version + Direkt-URL, plus
+  **Herbert-KI** via `Invoke-SysPilotAiChat` die nach
+  Download-Links/Anleitungen sucht und URLs extrahiert). Treffer
+  landen in einer Ergebnis-Liste - Klick oeffnet den Link im
+  Browser, Herbert-Text im Protokoll.
+  **KI-Pseudo-Paketmanager**: die Suche laeuft jetzt in zwei
+  parallelen Phasen statt sequenziell - Phase 1 startet
+  Paketmanager-Kandidaten (choco/scoop) und Web-Recherche
+  (Slug-Heuristik `Get-SysPilotWebSourceVersions` + echte
+  Katalog-Sucheiten `Find-SysPilotCatalogSearch`: Uptodown
+  `/windows/search?query=` als `<slug>.de.uptodown.com`,
+  FileHorse `/search/?q=` als `/download-<slug>-windows-10/`)
+  gleichzeitig in eigenen Runspaces; Phase 2 laesst Herbert die
+  gesammelten Funde bewerten und fehlende Links ergraenzen
+  (Prompt enthaelt die Kandidatenliste). Ergebnis-Liste enthaelt
+  zusaetzlich 4 sofort verfuegbare kostenlose Web-KI-Links
+  (Perplexity, Duck.ai, Gemini, Copilot) mit vorgefuellter Anfrage.
+  **SmartDownload-Modul (NEU, `modules/SmartDownload.psm1`)** - der
+  KI-Pseudo-Paketmanager als eigenstaendiges Werkzeug:
+  `Find-SysPilotDownload` orchestriert bis zu 4 parallele
+  Kind-Runspaces (Paketmanager-Kandidaten, Web-Kataloge inkl.
+  `Find-SysPilotCatalogSearch`, Suchmaschinen, Herbert-Bewertung
+  mit allen Funden im Prompt). `Find-SysPilotWebResults` scrapt
+  DuckDuckGo-HTML (`uddg=`-Redirects) und Bing (`u=`-Base64-Param)
+  headless; `Get-SysPilotSmartDlScore` bewertet Treffer heuristisch
+  (offizielle Domain per Name-Token, Download-Pfade, Katalog-Bonus,
+  Junk-Domain-Abzug). `Show-SysPilotDownloadFinder` ist das
+  WPF-Fenster (Name/ID/Fehler-Felder, Live-Protokoll,
+  Fortschrittsbalken, Ergebnis-Liste mit Direktlinks +
+  Web-KI-Sofortlinks). Erreichbar ueber Menü „DOWNLOAD-SUCHE",
+  GUI-Button „DL-Suche" und Toolbox. Die Suche im
+  Fehlgeschlagenen-Fenster nutzt die Suchmaschinen-Anbindung
+  ebenfalls (`web:ddg`/`web:bing`-Treffer mit Score).
+  **SmartDrivers (NEU, `modules/SmartDrivers.psm1`)** - der
+  eigene KI-Pseudo-Paketmanager fuer Treiber:
+  `Find-SysPilotDriver` orchestriert parallele Phase-1-Quellen
+  (Windows-Update-Treiber via `Get-SysPilotWUDriverUpdates`,
+  MS-Update-Catalog per Hardware-ID via
+  `Find-SysPilotCatalogDrivers`, Treiber-Kataloge
+  TechPowerUp/Guru3D/Station-Drivers, Suchmaschinen via
+  `Find-SysPilotWebResults`) und Phase-2: Herbert bewertet alle
+  Funde (WHQL, Version, Signatur, Hersteller-Url) und liefert
+  `AiUrl`/`AiText`. Zusaetzlich
+  `Resolve-SysPilotDriverSite` (offizielle Hersteller-Download-
+  Seite pro Hersteller: nvidia.com, realtek.com u.a.) und
+  `Show-SysPilotDriverFinder` als WPF-Fenster mit Herbert-
+  Antwortbox. Erreichbar in allen drei Oberflaechen:
+  Treiber-Werkstatt-Menue, GUI-Button "SmartDrv" (neben
+  "DL-Suche"), Toolbox-Eintrag "SmartDrivers (KI-Treibersuche)"
+  unter Sicherheit & Reparatur und Direkt-Key `smartdrv` in
+  `SysPilot.ps1 -Tool smartdrv`.
+  **SmartDownload als universeller Download-Fallback (NEU)**:
+  `Save-SysPilotSmartDownload` (SmartDownload.psm1) ist ein
+  Drop-in-Wrapper um `Save-SysPilotUrlToFile` - zuerst der
+  bekannte Direktlink, bei Fehlschlag automatisch
+  `Find-SysPilotDownload` (PM + Kataloge + Suchmaschinen +
+  Herbert) und der Nutzer waehlt den Ersatz-Link aus einer
+  Uebersicht. `Import-SysPilotModule` (Common.psm1) importiert
+  Geschwister-Module lazy und idempotent (-Global, vorher
+  landeten verschachtelte Importe unsichtbar). Eingebaut in:
+  Runtimes (`Save-SysPilotRuntimeInstaller` + AppName an allen
+  3 Aufrufstellen), PortableTools (Installer-Apps, Script-Typ,
+  ZIP-Downloads) und SoftwareUpdateCenter (GitHub-Asset-
+  Downloads). D.h. jeder Download-Pfad in SysPilot hat jetzt
+  implizit den KI-Pseudo-Paketmanager als Fallback.
+  **Herbert-Einstellungen (NEU, `modules/HerbertSettings.psm1`)**:
+  KI-Einstellungs-Assistent - `Get-SysPilotSettingCandidates`
+  sammelt alle noch inaktiven Tweaks aus SystemTuning +
+  PrivacyFix (41 Definitionen, Status live geprueft),
+  `Get-SysPilotSystemFacts` liefert Kontext (Admin, RAM, CPU,
+  Akku, Gaming-Modus), `Invoke-SysPilotSettingsAdvisor` laesst
+  Herbert die Top-Empfehlungen priorisieren (deterministisches
+  Fallback nach Kategorie ohne Provider). WPF-Fenster zeigt
+  Karten-Liste (Kategorie-Badge, Admin-Markierung), Herbert-
+  Begruendung als klickbarer Text, pro Eintrag "Anwenden" und
+  "Rueckgaengig" (Session-Toggle, `Set-SysPilotPrivacyItem`
+  hat dafuer -NoConfirm bekommen). Erreichbar ueber Menue
+  „HERBERT-EINSTELLUNGEN", Toolbox „Herbert-Einstellungen
+  (KI-Assistent)" und Key `herbertset`.
+  **Einheitliche WPF-Palette** (`Get-SysPilotWpfPalette`,
+  Common.psm1): kanonische Farben fuer alle SysPilot-WPF-
+  Fenster, abgeleitet aus dem bestehenden Design
+  (Bg #FF1E1E2E, Panel #FF14141E, Accent #FF4FC3F7, HerbBox-
+  Gruen #FF9CCC65). Toolbox-Fenster in der GUI nutzt die
+  Palette jetzt statt eigener Hex-Werte.
+  **Dark-Theme fuer code-gebaute Fenster** (`Set-SysPilotWpfDarkTheme`,
+  Common.psm1): ein Helper zieht komplette Dark-Styles auf
+  jedes WPF-Fenster (Bg/Fg/Font + Button, TextBox, ComboBox
+  inkl. dunklem Dropdown-Template, ListBox, CheckBox,
+  RadioButton, ProgressBar, ToolTip). Audit-Befund: die drei
+  code-gebaeuten Fenster DNS-Manager, Automatic Checkup und
+  Smart Health Monitor hatten KEIN dunkles Styling (Default-
+  WPF = hellgrau, teils mit hellem Text = unlesbar).
+  Alle drei nutzen jetzt den Helper; kuenftige Fenster
+  bekommen das Theme mit einer Zeile.
+  **WPF-Download-Fortschrittsdialog (NEU,
+  `Show-SysPilotDownloadDialog` + `Invoke-SysPilotFileDownload`,
+  Common.psm1)**: jeder Download in SysPilot zeigt jetzt ein
+  modales dunkles WPF-Fenster - Dateiname, Live-Fortschritts-
+  balken (MB, MB/s, laufende Zeit), Abbrechen-Button und nach
+  Abschluss „Ordner oeffnen"/„Schliessen". Der Download laeuft
+  in einem Kind-Runspace (`Save-SysPilotUrlToFile` mit neuem
+  `-ProgressQueue`-Parameter fuer strukturierte Fortschritts-
+  objekte), die UI wird per DispatcherTimer aktualisiert.
+  `Invoke-SysPilotFileDownload` ist der einheitliche Einstieg:
+  STA -> Dialog, MTA -> klassischer Konsolen-Fortschritt.
+  Eingebaut an ALLEN Download-Pfaden: UpdateCenter
+  (`Save-SysPilotDownload`), SmartDownload (direkt + Retry),
+  Runtimes, PortableTools (Installer/Script/ZIP/Ninite),
+  WizTree, RootCertificates, SDI-Archiv, Process Explorer,
+  LibreHardwareMonitor und das SysPilot-Selbstupdate.
+  Fix: im Dialog-Runspace zeigte `$modDir` faelschlich auf das
+  Repo-Wurzelverzeichnis statt modules\ - Import-Module
+  schlug fehl und `Save-SysPilotUrlToFile` war "nicht gefunden".
+  **Befehlskarte** (`Show-SysPilotRunCommand`, Common.psm1):
+  klickbare PowerShell-Befehlsanzeige in Monospace mit
+  Kopieren-Button, „Als Administrator ausfuehren" (UAC via
+  -EncodedCommand) und Statusanzeige - keine Copy-Paste-Orgie
+  mehr. Erste Nutzung: Chocolatey-Selbst-Update - statt still
+  fehlzuschlagen oeffnet sich jetzt die Karte mit dem fertigen
+  `choco upgrade chocolatey`-Befehl wenn SysPilot nicht
+  elevated ist.
+  **Dynamische Fenstergroesse** (`Set-SysPilotWindowAutoSize`,
+  Common.psm1): WPF-Fenster messen ihren Inhalt und wachsen
+  automatisch bis ~92% der Bildschirm-Arbeitsflaeche (nie
+  kleiner als XAML-Defaults). Aktiviert in Download-Suche,
+  Fehlgeschlagene Updates, Task-Manager, Checkup, Toolbox,
+  KI-Provider (Liste/Edit/Vorschlaege).
+  **Herbert-Antwort klickbar** (`Set-SysPilotRichText`,
+  Common.psm1 + HerbBox in beiden Fenstern): `URL:`-Zeilen und
+  Bare-Links in Herberts Antwort werden zu klickbaren
+  Sky-Blue-Hyperlinks im eigenen RichTextBox - Klick oeffnet
+  den Browser-Link direkt. Befuellt in Download-Suche und
+  Fehlgeschlagene-Updates (Katalog-/Web-/KI-Phase).
+  **Auto-Check Fehlgeschlagene Updates**
+  (`Sync-SysPilotFailedUpdates`): prueft alle Eintraege gegen
+  die aktuellen Pending-Listen von winget/choco/scoop - wer
+  nicht mehr als Update ansteht (z.B. App manuell im Store
+  aktualisiert) oder nicht mehr installiert ist, wird
+  automatisch entfernt. Laeuft automatisch beim Oeffnen des
+  Fensters (Hintergrund) und des Konsolen-Menues; der
+  „Aktualisieren"-Button loest denselben Check aus.
+  Abfrage-Fehler fuehren NIE zum Loeschen (Ok-Flags in
+  Get-SysPilotWingetUpgrades/-ChocoOutdated + Scoop-Probe).
+  **Update-Center komplett WPF** (`Show-SysPilotUpdateCenterWindow`,
+  SoftwareUpdateCenter.psm1): `SysPilot.ps1 -Tool updates` oeffnet
+  jetzt ein echtes WPF-Fenster statt des Konsolen-Pfeilmenues -
+  zwei Tabs: „Verfuegbare Updates" (Scan winget+choco+scoop/pm,
+  Multi-Select per Strg/Klick, „Auswahl aktualisieren" silent im
+  Hintergrund-Runspace mit Live-Log + Proc-Log-Tail, Status pro
+  Zeile, Fehlschlaege landen automatisch in der Failed-Liste) und
+  „Programm-Katalog" (Kategorie-Filter, Installationsstatus live,
+  winget-silent, GitHub-Release-Asset mit
+  `Show-SysPilotDownloadDialog`-Fortschrittsbalken + optionalem
+  Installer-Start, KI-Suche, offizielle Seite). Zusaetzlich:
+  Auto-Update-Aufgabe an/aus, Fehlgeschlagene-Updates-Fenster
+  direkt, SmartDownload-Suche mit Herbert-Antwort (klickbare
+  Links) und Ergebnis-Links. „Konsolen-Menue"-Button oeffnet das
+  alte Text-Menue als Experten-Fallback (eigener Tool-Key
+  `updatesc` -> `Show-SysPilotUpdateCenter`). Alle Hintergrund-Jobs
+  laufen in Runspaces mit ConcurrentQueue -> UI bleibt frei.
+  **Web-Quellen-Tab (NEU)**: alle 17 Download-Portale aus
+  `Get-SysPilotDownloadPortals` (Ninite zuerst, Auto/manuell-
+  Markierung, Beschreibung) + „Versionen suchen"/„Alle Quellen"
+  fuehrt `Get-SysPilotWebSourceVersions` im Hintergrund-Runspace
+  aus - Treffer mit Version landen in der klickbaren Ergebnisliste.
+  **Programm-Suche (NEU, `Show-SysPilotAppSearchWindow`,
+  SmartDownload.psm1, Key `appsearch`)**: sucht Programme/Apps
+  nicht nur nach Updates - in ALLEN installierten Paketmanagern
+  (winget, choco, scoop, npm, pip, dotnet, PSGallery) ueber
+  `Get-SysPilotPmSearchResults` (jetzt mit -OnProgress pro
+  Manager) UND parallel ueber SmartDownload (Web-Kataloge,
+  DuckDuckGo/Bing, Herbert-KI). PM-Treffer sind per Klick ueber
+  den neuen `Install-SysPilotPmPackage` installierbar (winget/
+  choco/scoop/npm/pip/dotnet/PSGallery), Web-Treffer klickbar,
+  Herbert-Antwort mit klickbaren Links. Kategorie-ComboBox wie
+  im DL-Manager (wirkt auf den SmartDownload-Teil). In allen drei
+  Oberflaechen: Vollmenue, GUI-Button „App-Suche", Toolbox +
+  Update-Center-Button „App-Suche". `Find-SysPilotDownload` hat
+  dafuer einen neuen `-Category`-Parameter (kuratierter
+  Update-Katalog-Filter + Herbert-Kontext).
+  **Fortschrittsanzeige Alt-Manager-Suche**: `choco search`/
+  `scoop search` liefen stumm und blockierten 1-2 Minuten - jetzt
+  Statuszeile pro Suchbegriff mit Laufzeit (`choco search 'x'
+  (2/4) ... -> 12,3s`), dazu Hinweiszeile im Alt-Manager-Menue.
+  **App-Store / Megastore (NEU, `modules/AppStore.psm1`, Key
+  `appstore`)**: lokaler App-Index als "Inhaltsverzeichnis" aller
+  Quellen - Paketmanager (winget-Liste, kompletter choco-Katalog,
+  scoop-Haupt-Sources), kuratierter Update-Katalog, Ninite,
+  Web-Download-Portale UND Code-Hosts **GitHub + GitLab** (Repo-
+  Suche per API, stars-sortiert). `Build-SysPilotAppIndex` baut
+  `appindex.json` (Category/Name/ID/Desc/URL/PM/Icon/Source/
+  Installiert), `Update-SysPilotAppIndex` laeuft headless fuer
+  die geplante Aufgabe **„SysPilot AppIndex"** (woechentlich
+  So 04:00, `-IndexUpdate`, `StartWhenAvailable` = auch nach
+  laengerem Aus) - Install/Remove-Buttons im Store-Fenster.
+  `Show-SysPilotAppStoreWindow`: WPF-Megastore mit Kategorie-
+  Leiste, Suchfeld, **Kachel-Grid** (Icon-Buchstaben-Kachel,
+  Name, Beschreibung, Quelle-Badge, Install-Button der den
+  passenden Paketmanager nutzt, Link-Button) - gleiche dunkle
+  Palette. In allen drei Oberflaechen: Vollmenue, GUI-Button
+  „Store", Toolbox + Update-Center-Button „Store".
+  **GitHub/GitLab in SmartDownload**: `Find-SysPilotCodeRepoHits`
+  (GitHub `search/repositories` + GitLab `projects?search`,
+  stars-sortiert, Beschreibungs-Snippet) laeuft als eigener
+  paralleler Such-Job in `Find-SysPilotDownload` - Code-Repos
+  tauchen jetzt in JEDEM SmartDownload-Ergebnis auf (PM,
+  Kataloge, Web, GitHub, GitLab, Herbert).
+  **Install-Assistent (NEU, SmartDownload.psm1)**:
+  `Invoke-SysPilotInstallAssist` fragt Herbert nach dem besten
+  Installationsweg - er antwortet strukturiert (PM|manager|id,
+  CMD|befehl, LINK|url) mit Paketmanager-IDs, Konsolenbefehlen
+  (Silent-Flags) oder direkten Downloads; ehrlich auch
+  „gibt es nicht als Paket". `Show-SysPilotInstallAssistWindow`
+  (WPF): Felder App/ID/Seite/Kontext, Herbert-Antwort links,
+  Vorschlagsliste rechts mit Buttons „PM installieren"
+  (Install-SysPilotPmPackage), „Befehl ausfuehren" (nur
+  White-List: winget/choco/scoop/npm/pip/dotnet/msiexec/curl…),
+  „Befehl kopieren", „Link oeffnen" - alles im Hintergrund-
+  Runspace mit Live-Log. Eingebunden: Button „Install-Hilfe" im
+  DL-Manager und „KI-Hilfe" im AppStore-Info-Dialog.
+  **Herbert Auto-Fix (selbsttaetige Installation)**:
+  `Invoke-SysPilotAutoInstallFix` - bei fehlgeschlagenem
+  Paketmanager-Install fragt Herbert automatisch nach dem
+  Loesungsweg und WENDET den besten Vorschlag direkt an:
+  zuerst PM-IDs (auch Alternativen zum gescheiterten Manager),
+  dann Konsolebefehle - aber NUR aus der White-List
+  (`Test-SysPilotSafeInstallCmd`: winget/choco/scoop/npm/pip/
+  python/dotnet/msiexec/7z/tar/git, kein Shell-Metacharakter,
+  Blocklist fuer rm/del/reg/bcdedit/cipher u.a.). Scheitert
+  alles, bleiben Herbert-Links manuell. Automatisch aktiv bei
+  Install-Fehlern im **AppStore** und in der **Programm-Suche**
+  (AppSearch) - Log zeigt „Herbert Auto-Fix" Schritt fuer
+  Schritt. Manueller Einstieg: Button „Auto-Fix" im
+  Install-Assistenten (mit Bestaetigungsdialog).
+  **SmartDriver STUDIO (NEU, `Show-SysPilotDriverStudioWindow`,
+  SmartDrivers.psm1, Key `drvstudio`)**: komplette Treiber-
+  Werkstatt als WPF-Fenster. **Hardware-Analyse**:
+  `Get-SysPilotDriverDevices` (Problemgeraete + Inventar +
+  veraltete Treiber + HW-IDs, Status problem/outdated/ok,
+  Admin-Hinweis, **Bestimmt-Fortschritt** `PROGRESS|<0-100>`
+  mit Phasen-Log -> Prozent-Balken im Fenster). **Multi-Select**: Geraete-Checkbox-Liste
+  (Strg+Klick, max 4), Kandidaten-Liste (Extended-Auswahl).
+  **Eigenener Treiber-Webkatalog**: `Get-SysPilotDriverWebCatalog`
+  (36 kuratierte Portale in 13 Kategorien, Auto/Manuell-Badge,
+  eigener Katalog-Dialog). **Selbsttaetige Installation**:
+  MS-Catalog-GUID -> `.cab`-Link (`Get-SysPilotCatalogCabUrl`
+  via DownloadDialog-POST), `Install-SysPilotDriverAuto`
+  (Download -> stiller Store-Backup -> cab/zip/7z: expand+pnputil,
+  msi/exe: Silent-Flags dann GUI), `Install-SysPilotWUDriverQuiet`
+  (WU ohne Konsolenbestaetigung, elevated bei Bedarf),
+  `Invoke-SysPilotElevated` (UAC-Helper mit Output-Capture).
+  **Backup**: `Backup-SysPilotDeviceDriver` (OEM-INF-Export pro
+  Geraet) + `Restore-SysPilotDriverBackup` (pnputil /add-driver
+  /subdirs /install), Auto-Store-Backup vor jeder Installation.
+  **Herbert Auto-Install**: waehlt priorisiert cab > WU >
+  Direktlink > Portal und installiert selbsttaetig. In allen drei
+  Oberflaechen: Vollmenue (Treiber-Werkstatt), GUI-Button
+  „DrvStudio", Toolbox (NeedsAdmin).
+- **Bekannte Grenzen**: FileHippo (412 Bot-Schutz), Softpedia,
+  Ghacks, AlternativeTo (403), Softonic (412), CHIP/WinFuture
+  (Verbindungsabbrueche), Deskmodder/PortableApps-Suche (JS-gerendert)
+  sind headless nicht scrape-bar -> bleiben manuelle Portale;
+  Perplexity/Duck.ai-Gemmaetc. im Browser sind der zuverlaessige Weg.
+- **Miniflux / RSS-OEkosystem (NEU, `AiAssist.psm1`)**: kompletter
+  Self-Host-RSS-Stack aus SysPilot heraus: `Show-SysPilotMinifluxSetup`
+  (Docker-Compose miniflux+postgres, Port-Fallback 8081, Tailscale-
+  Funnel/Cloudflare-Tunnel fuer feste oeffentliche URL, Oracle-Free-
+  Tier-Guide), `Show-SysPilotRssClientSetup` + `Get-SysPilotRssMobileClients`
+  (14 kuratierte Reader: Capy/FluxNews/Fleuron/FeedMe/ReadYou/Miniflutt,
+  NetNewsWire/Unread/Reeder, Fluent Reader/RSS Guard), QR-Code-Setup
+  (`Show-SysPilotQrCode`), ADB-Play-Store-Assist, OPML-Export
+  (`Export-SysPilotRssOpml`). **Live verifiziert**: Miniflux 2.3.5,
+  ~21 Feeds in 4 Kategorien, Media-Proxy (`MEDIA_PROXY_MODE=all` +
+  `BASE_URL` gegen localhost-Falle), 365-Tage-Archiv statt 60/180,
+  Clients FluxNews + Miniflutt (Android), Fluent Reader + Panda Reader
+  (Windows), Fever/Google-Reader-Integrationen. **Miniflutt-ADB-
+  Automation**: Flutter-Semantik via TalkBack, realmeUI-Secure-
+  Settings-Block dokumentiert. KiActions: `miniflux-setup`,
+  `rss-clients`, `rss-opml`, `ts-funnel`.
+- **Security-Lab (NEU, `Show-SysPilotSecLabSetup`, KiAction `seclab`)**:
+  gefuehrtes Security-Lab-Setup — Kali Linux in WSL
+  (`wsl --install kali-linux`, Start via Windows-Terminal), unzensierte
+  Modelle (abliterated/heretic/uncensored/dolphin) via
+  `Show-SysPilotAiModelFinder` (HF-GGUF-Suche mit Quant-/Groessen-
+  filtern, Download in Ollama/LM-Studio/PocketAI), 5-Schritte-Einfuehrung
+  + Rechtshinweise (nur eigene Systeme, §202a/b, §303a/b, NIS2).
+- **Herbert-Wissen erweitert**: neue Wissensbloecke Skills/MCP
+  (Herbert-Manager, MCP-Katalog), Vibe-Coding-Crashkurs-Paedagogik
+  (schrittweise, code-erklaerend, ADHS-gerecht) und Security-Lab
+  (Grenzen, Modellkunde abliterated/heretic/dolphin).
+- **Herbert-KI-Pin**: Provider-Modell-Pinning per Config
+  (`ai-assist.json` → `Model`) — Resolve-SysPilotAiModel respektiert
+  den Pin vor Auto-Wahl (verhindert Reasoning-Modelle mit leerer
+  Antwort in der Fallback-Kette).
+
 # SysPilot 0.9.4.9 beta
 
 - **CleanSweep — Deinstallations-Center (NEU)**: `modules/UninstallManager.psm1`

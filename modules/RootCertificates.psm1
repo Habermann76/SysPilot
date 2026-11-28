@@ -54,7 +54,7 @@ function Install-SysPilotRootCertTool {
     New-Item -ItemType Directory -Force -Path $destDir | Out-Null
     $dest = Join-Path $destDir 'UpdateRootCertificates.exe'
 
-    if (-not (Save-SysPilotUrlToFile -Uri $rel.Url -OutFile $dest -TimeoutSec 120 -Label 'UpdateRootCertificates')) { return $null }
+    if (-not (Invoke-SysPilotFileDownload -Url $rel.Url -OutFile $dest -Label 'UpdateRootCertificates' -TimeoutSec 120 -Title 'UpdateRootCertificates')) { return $null }
     if (-not (Test-Path $dest) -or (Get-Item $dest).Length -lt 500KB) {
         Write-Host '  [!] Download unvollstaendig.' -ForegroundColor Red
         Remove-Item $dest -Force -ErrorAction SilentlyContinue

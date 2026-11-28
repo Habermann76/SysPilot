@@ -8,6 +8,7 @@ param(
     [switch]$SmartBoost,    # RAM automatisch freigeben, wenn er knapp wird
     [switch]$RunAsAdmin,    # SysPilot immer als Administrator starten (Config + Verknuepfungen)
     [switch]$Guardian,      # Guardian: ueberwacht SysPilot (Tray) und startet es neu, falls es nicht laeuft
+    [switch]$HerbertFullscreen, # Pilot Herbert immer im Vollbildmodus starten
     [switch]$RestoreUserSettings,  # (Update) eigene Einstellungen aus config.user-backup.json uebernehmen
     [switch]$Undo           # alles wieder entfernen
 )
@@ -15,7 +16,21 @@ param(
 $script:Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $script:Root) { $script:Root = $PSScriptRoot }
 Get-ChildItem (Join-Path $script:Root 'modules') -Filter '*.psm1' | ForEach-Object {
-    Import-Module $_.FullName -Force -Global -WarningAction SilentlyContinue
+    try {
+        Import-Module $_.FullName -Force -Global -WarningAction SilentlyContinue
+        $m = Get-Module $_.BaseName
+        if (-not $m -or $m.Path -ne $_.FullName) { throw "Modul nicht geladen" }
+    } catch {
+        # Headless-Kontext: keine UI, aber Log-Eintrag ist Pflicht
+        $msg = "MODUL-IMPORT FEHLER (Setup): $($_.BaseName) - $($_.Exception.Message)"
+        try { Write-SysPilotLog $msg } catch {
+            try {
+                $ld = Join-Path $env:LOCALAPPDATA 'SysPilot\logs'
+                if (-not (Test-Path $ld)) { New-Item -ItemType Directory -Path $ld -Force | Out-Null }
+                Add-Content (Join-Path $ld ("syspilot-" + (Get-Date -Format 'yyyy-MM-dd') + ".log")) "$(Get-Date -Format 'HH:mm:ss.fff') [ERROR] $msg"
+            } catch { }
+        }
+    }
 }
 
 if ($Undo) {
@@ -37,6 +52,10 @@ if ($RunAsAdmin) {
     Set-SysPilotConfigValue -Section 'Start' -Key 'AlwaysAdmin' -Value $true
     Set-SysPilotShortcutRunAs -RunAs $true | Out-Null
     Write-SysPilotLog 'Setup: Immer als Administrator aktiviert'
+}
+if ($HerbertFullscreen) {
+    Set-SysPilotConfigValue -Section 'Herbert' -Key 'Fullscreen' -Value $true
+    Write-SysPilotLog 'Setup: Herbert-Vollbildmodus aktiviert'
 }
 
 if ($RestoreUserSettings) {
@@ -78,4 +97,15 @@ if ($Guardian) {
     Save-SysPilotGuardianConfig -Enabled $true -StartMode $mode
     Install-SysPilotGuardian | Out-Null
     Write-SysPilotLog "Setup: Guardian aktiviert (Modus: $mode)"
+}
+
+# Download-Engine (aria2/yt-dlp/ffmpeg), llama.cpp-Backend und Paketmanager
+# sicherstellen - idempotent, Fehler werden nur geloggt.
+try {
+    Write-SysPilotLog 'Setup: Ensure-SysPilotPrereqs startet (Download-Tools, llama.cpp, Paketmanager)'
+    $pr = Ensure-SysPilotPrereqs -Quiet
+    Write-SysPilotLog ("Setup: Prereqs fertig - installiert: {0} | uebersprungen: {1} | fehlgeschlagen: {2}" -f
+        (@($pr.Installed) -join ', '), (@($pr.Skipped) -join ', '), (@($pr.Failed) -join ', '))
+} catch {
+    Write-SysPilotLog "Setup: Ensure-SysPilotPrereqs Fehler: $($_.Exception.Message)"
 }

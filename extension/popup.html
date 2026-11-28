@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="hdr">
+    <span class="dot" id="statusDot"></span>
+    <strong>Herbert</strong>
+    <span class="sub">SysPilot</span>
+    <a href="#" id="btnOptions" title="Einstellungen">&#9881;</a>
+  </div>
+
+  <textarea id="askInput" rows="2" placeholder="Frage an Herbert ... (Enter = senden, Shift+Enter = Zeile)"></textarea>
+
+  <div class="row">
+    <label class="chk"><input type="checkbox" id="withPage" checked> mit Seite</label>
+    <select id="langSel" title="Uebersetzungsziel">
+      <option value="Deutsch">DE</option>
+      <option value="English">EN</option>
+      <option value="Fran&ccedil;ais">FR</option>
+      <option value="Espa&ntilde;ol">ES</option>
+    </select>
+  </div>
+
+  <div class="btns">
+    <button data-task="ask" class="primary">Fragen</button>
+    <button data-task="summarize">Summe</button>
+    <button data-task="translate">Uebersetzen</button>
+    <button data-task="assist">Assist.</button>
+    <button data-task="transcript">Transkript</button>
+  </div>
+
+  <div id="result" class="result hidden"></div>
+  <div id="err" class="err hidden"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -38,11 +38,11 @@ function Backup-SysPilotHostsFile {
 }
 
 function Set-SysPilotHostsEntry {
-    <# Fügt einen HOSTS-Eintrag hinzu oder entfernt Zeilen.
+    <# Fuegt einen HOSTS-Eintrag hinzu oder entfernt Zeilen.
        -Action Add:    -IP + -Host erforderlich
        -Action Remove: -Match (Hostname-Substring) entfernt passende Zeilen
        -Action Clear:  entfernt ALLE aktiven Eintraege (Kommentare bleiben)
-       Erstellt vorher ein Backup. Benötigt Admin. #>
+       Erstellt vorher ein Backup. Benoetigt Admin. #>
     param(
         [Parameter(Mandatory)][ValidateSet('Add','Remove','Clear')][string]$Action,
         [string]$IP,
@@ -98,7 +98,7 @@ function Set-SysPilotHostsEntry {
 }
 
 function Set-SysPilotHostsLock {
-    <# Sperrt (schreibgeschützt) oder entsperrt die HOSTS-Datei.
+    <# Sperrt (schreibgeschuetzt) oder entsperrt die HOSTS-Datei.
        + Gesperrt = -ReadOnly. #>
     param([Parameter(Mandatory)][bool]$Lock)
     if (-not (Assert-SysPilotAdmin)) { return }
@@ -150,9 +150,9 @@ function Show-SysPilotHostsEditor {
 
         switch ($sel) {
             'add' {
-                $ip = Read-SysPilotChoice 'IP-Adresse (z.B. 127.0.0.1), leer = abbrechen'
+                $ip = Read-SysPilotInput 'IP-Adresse (z.B. 127.0.0.1), leer = abbrechen'
                 if (-not $ip) { continue }
-                $hn = Read-SysPilotChoice 'Hostname/Domaene (z.B. example.com)'
+                $hn = Read-SysPilotInput 'Hostname/Domaene (z.B. example.com)'
                 if (-not $hn) { continue }
                 if (Confirm-SysPilot "Eintrag hinzufuegen?`n  $ip`t$hn") {
                     Set-SysPilotHostsEntry -Action Add -IP $ip -Host $hn
@@ -160,7 +160,7 @@ function Show-SysPilotHostsEditor {
                 }
             }
             'remove' {
-                $m = Read-SysPilotChoice 'Hostname-Teilstring zum Entfernen (z.B. tracker), leer = abbrechen'
+                $m = Read-SysPilotInput 'Hostname-Teilstring zum Entfernen (z.B. tracker), leer = abbrechen'
                 if (-not $m) { continue }
                 if (Confirm-SysPilot "Alle Eintraege mit '$m' entfernen?") {
                     Set-SysPilotHostsEntry -Action Remove -Match $m

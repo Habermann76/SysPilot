@@ -208,7 +208,7 @@ function Split-SysPilotUninstallString {
 }
 
 function Get-SysPilotSilentArgs {
-    <# Errät silent-taugliche Schalter anhand des Installers (Heuristik).
+    <# Erraet silent-taugliche Schalter anhand des Installers (Heuristik).
        Liefert $null, wenn kein zuverlaessiger Silent-Modus bekannt ist -
        dann laeuft der Installer normal (interaktiv). #>
     param([Parameter(Mandatory)][string]$Exe, [string]$Args = '')
@@ -253,7 +253,7 @@ function Invoke-SysPilotProgramUninstall {
     # Bevorzugt QuietUninstallString, dann UninstallString
     $raw = if ($App.QuietUninstallString) { $App.QuietUninstallString } else { $App.UninstallString }
     if (-not $raw) {
-        Write-Host "  [!] Kein Deinstallationsbefehl für '$name' - evtl. unter 'Defekte Eintraege' pruefen." -ForegroundColor Yellow
+        Write-Host "  [!] Kein Deinstallationsbefehl fuer '$name' - evtl. unter 'Defekte Eintraege' pruefen." -ForegroundColor Yellow
         return [PSCustomObject]@{ Name = $name; Success = $false; Reason = 'Kein UninstallString' }
     }
 
@@ -296,7 +296,7 @@ function Invoke-SysPilotProgramUninstall {
             $cmdline = "$exe $argLine"
         }
 
-        # Warten mit Abbruch-Möglichkeit (Taste = weiter warten beenden?) - einfach Wait
+        # Warten mit Abbruch-Moeglichkeit (Taste = weiter warten beenden?) - einfach Wait
         $proc.WaitForExit()
         $exit = $proc.ExitCode
         $reboot = ($exit -in 3010, 1641)
@@ -366,7 +366,7 @@ function Find-SysPilotProgramLeftovers {
             }
         }
     }
-    # Übliche Reste-Orte: Ordner die exakt einem Token oder Publisher entsprechen
+    # Uebliche Reste-Orte: Ordner die exakt einem Token oder Publisher entsprechen
     $bases = @(
         'C:\Program Files', 'C:\Program Files (x86)',
         "$env:LOCALAPPDATA", "$env:APPDATA", 'C:\ProgramData',
@@ -641,7 +641,7 @@ function Show-SysPilotLeftoverFlow {
     <# Wird nach erfolgreicher Deinstallation aufgerufen:
        scannt Reste, zeigt Liste, Multi-Select-Entfernung.
        Standard: ALLE Reste vorab abgehakt (abwaehlbar), Buttons
-       „Markierte entfernen"/„Abbrechen". Optional per config.json
+       "Markierte entfernen"/"Abbrechen". Optional per config.json
        CleanSweep.AutoLeftoverClean=$true: alle Reste automatisch
        entfernen (reversibel: Dateien->Papierkorb, Registry->Backup). #>
     param([Parameter(Mandatory)]$App, [switch]$ForceShow)
@@ -877,14 +877,14 @@ function Remove-SysPilotBrowserExtension {
 # =======================================================================
 function Test-SysPilotAiBrowser {
     <# KI-Browser (Perplexity Comet, BrowserOS): in der Extension-
-       Entfernung nur EINZELN waehlbar - nie in „Alle Browser" oder
+       Entfernung nur EINZELN waehlbar - nie in "Alle Browser" oder
        Cross-Browser-Matching einbezogen. #>
     param([Parameter(Mandatory)][string]$Name)
     return ($Name -in @('Perplexity Comet', 'BrowserOS'))
 }
 
 function Get-SysPilotBrowserProcesses {
-    <# Laufende Prozesse eines Browsers. Pfad-gestützt, weil BrowserOS
+    <# Laufende Prozesse eines Browsers. Pfad-gestuetzt, weil BrowserOS
        als chrome.exe laeuft und Firefox/Tor beide firefox.exe nutzen -
        eine reine Namenspruefung wuerde falsche Browser treffen. #>
     param([Parameter(Mandatory)][string]$Browser)
@@ -1072,13 +1072,154 @@ function Remove-SysPilotExtensionPolicyBlock {
     return $removed
 }
 
+function Get-SysPilotBrowserExtensionPolicy {
+    <# Liest den ExtensionSettings-Wert der HKCU-Policy eines
+       Chromium-Browsers. Liefert $null wenn keine Policy existiert.
+       Unterscheidet SysPilot-Blocks (aus extension-policy-blocks.json)
+       von fremden Policy-Eintraegen. #>
+    param([Parameter(Mandatory)][string]$Browser)
+    $key = Get-SysPilotBrowserPolicyPath $Browser
+    if (-not $key -or -not (Test-Path $key)) { return $null }
+    $cur = (Get-ItemProperty -Path $key -Name 'ExtensionSettings' -ErrorAction SilentlyContinue).ExtensionSettings
+    if (-not $cur) { return $null }
+    $ids = @()
+    try {
+        $parsed = $cur | ConvertFrom-Json -ErrorAction Stop
+        $ids = @($parsed.PSObject.Properties | ForEach-Object { $_.Name })
+    } catch { }
+    $spIds = @()
+    $recFile = Get-SysPilotExtensionBlockFile
+    if (Test-Path $recFile) {
+        try {
+            $rec = Get-Content $recFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+            if ($rec -and $rec.PSObject.Properties[$Browser]) { $spIds = @($rec.$Browser) }
+        } catch { }
+    }
+    return [pscustomobject]@{
+        Browser     = $Browser
+        Key         = $key
+        Ids         = $ids
+        SysPilotIds = @($ids | Where-Object { $spIds -contains $_ })
+        ForeignIds  = @($ids | Where-Object { $spIds -notcontains $_ })
+        Raw         = $cur
+    }
+}
+
+function Show-SysPilotExtensionPolicyManager {
+    <# Verwaltet ExtensionSettings-Policy-Bloecke (Sync-Schutz).
+       WICHTIG: JEDE Policy unter ...\Policies macht den Browser als
+       'von der Organisation verwaltet' -> Einstellungen (DNS,
+       Cookies, Tracking-Schutz) werden gesperrt. Hier kann der User
+       Bloecke aufheben, ohne die Registry von Hand zu editieren. #>
+    $browsers = @('Chrome', 'Edge', 'Brave', 'Vivaldi', 'Chromium')
+    while ($true) {
+        Write-SysPilotHeader "Extension-Policy-Bloecke (Sync-Schutz)"
+        Write-Host "  ExtensionSettings-Policies blockieren Extensions dauerhaft," -ForegroundColor DarkGray
+        Write-Host "  machen den Browser aber als 'organisationsverwaltet' -" -ForegroundColor DarkGray
+        Write-Host "  dann sind dessen Einstellungen (DNS, Cookies, Schutz) gesperrt." -ForegroundColor DarkGray
+        Write-Host ""
+        if (-not (Test-SysPilotAdmin)) {
+            Write-Host "  [i] Policy-Keys koennen Admin-Rechte brauchen -" -ForegroundColor DarkYellow
+            Write-Host "      bei Schreibfehlern SysPilot elevated neu starten." -ForegroundColor DarkYellow
+        }
+        $pols = @()
+        foreach ($b in $browsers) {
+            $p = Get-SysPilotBrowserExtensionPolicy -Browser $b
+            if ($p) { $pols += $p }
+        }
+        if ($pols.Count -eq 0) {
+            Write-Host "  Keine aktiven ExtensionSettings-Policies gefunden." -ForegroundColor Green
+            Write-Host "  (Kein Browser ist 'organisationsverwaltet'.)" -ForegroundColor DarkGray
+            Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+            return
+        }
+        $items = @()
+        foreach ($p in ($pols | Sort-Object Browser)) {
+            $tag = "$($p.Browser): $($p.Ids.Count) blockiert"
+            if ($p.ForeignIds.Count -gt 0) { $tag += " ($($p.ForeignIds.Count) nicht von SysPilot)" }
+            $items += @{ Label = $tag; Color = 'Yellow'; Tag = $p.Browser }
+        }
+        $items += @{ Label = 'Zurueck'; Color = 'DarkGray'; Tag = 'back' }
+        $sel = Show-SysPilotArrowMenu -Items $items -Title 'Policy-Bloecke - Browser auswaehlen' -Footer 'Pfeiltasten, Enter = auswaehlen, Esc = zurueck'
+        if ($null -eq $sel -or $sel -eq 'back') { return }
+        $p = @($pols | Where-Object Browser -eq $sel) | Select-Object -First 1
+        if (-not $p) { continue }
+
+        while ($true) {
+            Write-Host ""
+            Write-SysPilotHeader "$($p.Browser) - ExtensionSettings-Policy"
+            Write-Host "  Key: $($p.Key)" -ForegroundColor DarkGray
+            Write-Host "  Blockiert: $($p.Ids.Count) Extension-ID(s)" -ForegroundColor White
+            Write-Host "    davon SysPilot: $($p.SysPilotIds.Count) | fremde Eintraege: $($p.ForeignIds.Count)" -ForegroundColor DarkGray
+            Write-Host ""
+            $sub = @(
+                @{ Label = "Nur SysPilot-Blocks aufheben ($($p.SysPilotIds.Count))"; Color = 'Cyan';  Tag = 'sp' }
+                @{ Label = "GESAMTE Policy entfernen ($($p.Ids.Count) Eintraege)"; Color = 'Red';   Tag = 'all' }
+                @{ Label = 'Blockierte IDs auflisten';                                        Color = 'DarkGray'; Tag = 'ids' }
+                @{ Label = 'Zurueck';                                                          Color = 'DarkGray'; Tag = 'back' }
+            )
+            $s2 = Show-SysPilotArrowMenu -Items $sub -Title "$($p.Browser) - Aktion" -Footer 'Pfeiltasten, Enter = auswaehlen, Esc = zurueck'
+            if ($null -eq $s2 -or $s2 -eq 'back') { break }
+            switch ($s2) {
+                'ids' {
+                    Write-Host ""
+                    foreach ($id in $p.Ids) {
+                        $mark = if ($p.SysPilotIds -contains $id) { '[SysPilot]' } else { '[fremd]  ' }
+                        Write-Host "  $mark $id" -ForegroundColor DarkGray
+                    }
+                    Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+                }
+                'sp' {
+                    if ($p.SysPilotIds.Count -eq 0) {
+                        Write-Host "  Keine SysPilot-Blocks in dieser Policy." -ForegroundColor DarkYellow
+                        Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+                        break
+                    }
+                    $msg = "$($p.Browser): $($p.SysPilotIds.Count) SysPilot-Block(s) aufheben?`n`nACHTUNG: Angemeldeter Sync kann entfernte Extensions erneut installieren.`nDer Browser bleibt 'verwaltet', solange fremde Eintraege existieren."
+                    if (Confirm-SysPilot $msg) {
+                        $n = Remove-SysPilotExtensionPolicyBlock -Browser $p.Browser -ExtIds $p.SysPilotIds
+                        Write-Host "  $n Block(s) aufgehoben." -ForegroundColor Green
+                        Write-Host "  Browser neu starten, damit die Policy neu gelesen wird." -ForegroundColor DarkGray
+                        Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+                    }
+                }
+                'all' {
+                    $msg = "$($p.Browser): GESAMTE ExtensionSettings-Policy entfernen?`n`n$($p.Ids.Count) Eintraege gehen verloren (auch fremde).`nDanach ist der Browser nicht mehr 'organisationsverwaltet' - alle Einstellungen wieder frei.`n`nACHTUNG: blockierte Extensions koennen sich per Sync erneut installieren."
+                    if (Confirm-SysPilot $msg) {
+                        try {
+                            Remove-ItemProperty -Path $p.Key -Name 'ExtensionSettings' -ErrorAction Stop
+                            $recFile = Get-SysPilotExtensionBlockFile
+                            if (Test-Path $recFile) {
+                                $rec = Get-Content $recFile -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction SilentlyContinue
+                                if ($rec -and $rec.PSObject.Properties[$p.Browser]) {
+                                    $rec.PSObject.Properties.Remove($p.Browser)
+                                    if (@($rec.PSObject.Properties).Count -eq 0) { Remove-Item $recFile -Force -ErrorAction SilentlyContinue }
+                                    else { $rec | ConvertTo-Json -Depth 6 | Set-Content $recFile -Encoding UTF8 }
+                                }
+                            }
+                            Write-Host "  Policy entfernt - $($p.Browser) ist nicht mehr 'verwaltet'." -ForegroundColor Green
+                        } catch {
+                            Write-Host "  [!] Schreibfehler: $($_.Exception.Message)" -ForegroundColor Red
+                            Write-Host "      Policy-Keys koennen Admin-Rechte brauchen - SysPilot elevated neu starten." -ForegroundColor Yellow
+                        }
+                        Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+                    }
+                }
+            }
+            $p2 = Get-SysPilotBrowserExtensionPolicy -Browser $p.Browser
+            if (-not $p2) { break }
+            $p = $p2
+        }
+    }
+}
+
 function Show-SysPilotExtensionRemoval {
     <# Browser-Erweiterungen entfernen - komplett mausfuehrbar:
-       1. Browser-Liste zum Anklicken (alle gefundenen Browser + „Alle")
-       2. Multiselect-Liste: Klick = Haken, Buttons „Markierte entfernen"
-          und „Abbrechen" direkt unter der Liste (oder Ziffern 1/2)
+       1. Browser-Liste zum Anklicken (alle gefundenen Browser + "Alle")
+       2. Multiselect-Liste: Klick = Haken, Buttons "Markierte entfernen"
+          und "Abbrechen" direkt unter der Liste (oder Ziffern 1/2)
        3. Frage: gleiche Extension auch in anderen Browsern entfernen?
-       Nach jeder Entfernung zurück zur Browser-Liste (Schleife). #>
+       Nach jeder Entfernung zurueck zur Browser-Liste (Schleife). #>
     while ($true) {
         $exts = @(Get-SysPilotBrowserExtensionInventory)
         Write-SysPilotDebug "Extension-Flow: Inventar = $($exts.Count) Eintraege"
@@ -1093,7 +1234,7 @@ function Show-SysPilotExtensionRemoval {
         foreach ($g in $groups) {
             $navItems += @{ Label = ("{0}  ({1} Erweiterungen)" -f $g.Name, $g.Count); Color = 'White'; Tag = $g.Name }
         }
-        # „Alle Browser" schliesst KI-Browser aus - sie sind nur einzeln
+        # "Alle Browser" schliesst KI-Browser aus - sie sind nur einzeln
         # waehlbar (User-Wunsch: keine unbeabsichtigte Massen-Entfernung)
         $nonAiCount = @($exts | Where-Object { -not (Test-SysPilotAiBrowser $_.Browser) }).Count
         $navItems += @{ Label = ("Alle Browser  ({0} Erweiterungen)" -f $nonAiCount); Color = 'Cyan'; Tag = '__all' }
@@ -1196,16 +1337,16 @@ function Show-SysPilotExtensionRemoval {
             Write-SysPilotDebug "$rb Lauf-Frage: Entscheidung=$dec"
             if ($dec -eq 'kill') {
                 Write-Host "  Beende $rb ($($procs.Count) Prozess(e)) ..." -ForegroundColor Yellow
-                # nur die Prozesse DIESes Browsers beenden (BrowserOS läuft
+                # nur die Prozesse DIESes Browsers beenden (BrowserOS laeuft
                 # z.B. als chrome.exe - Stop-Process -Name wuerde Chrome treffen)
                 $procs | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
                 Start-Sleep -Seconds 2
-                Write-SysPilotLog "$rb für Extension-Entfernung beendet"
+                Write-SysPilotLog "$rb fuer Extension-Entfernung beendet"
             } elseif ($dec -eq 'skip' -or $null -eq $dec) {
                 $chosen = @($chosen | Where-Object { $_.Browser -ne $rb })
                 Write-SysPilotLog "$rb-Eintraege uebersprungen (Browser lief)"
             }
-            # 'force' = 그대로 계속 (Datei-Edit, wird evtl. reverted)
+            # 'force' = unveraendert (Datei-Edit, wird evtl. reverted)
         }
         if ($chosen.Count -eq 0) { Write-SysPilotDebug 'Nach Lauf-Filter: nichts zu tun'; continue }
 
@@ -1231,7 +1372,7 @@ function Show-SysPilotExtensionRemoval {
         Write-Host "  [$ok/$($chosen.Count)] Erweiterungen entfernt. Browser ggf. neu starten." -ForegroundColor Green
         Write-SysPilotLog "Extension-Bereinigung: $ok von $($chosen.Count)"
 
-        # Sync-Schutz: Bei angemeldeten (sync-fähigen) Profilen kann der
+        # Sync-Schutz: Bei angemeldeten (sync-faehigen) Profilen kann der
         # Server die Extension erneut installieren -> per ExtensionSettings-
         # Policy blockieren (HKCU, merge-basiert, per Remove-SysPilot
         # ExtensionPolicyBlock wieder aufhebbar).
@@ -1507,7 +1648,7 @@ function Show-SysPilotUninstallProgramsMenu {
         $act = Show-SysPilotArrowMenu -Items $nav -Title "CleanSweep - Programme" -Footer 'Pfeiltasten/Klick, Enter = auswaehlen, Esc = zurueck'
         if ($null -eq $act -or $act -eq 'back') { return }
         if ($act -eq 'filter') {
-            $filter = Read-SysPilotChoice "Suchbegriff (leer = alle)"
+            $filter = Read-SysPilotInput "Suchbegriff (leer = alle)"
             continue
         }
         $menuItems = @()
@@ -1582,7 +1723,7 @@ function Show-SysPilotAppxManager {
         $act = Show-SysPilotArrowMenu -Items $nav -Title "CleanSweep - Windows-Apps" -Footer 'Pfeiltasten/Klick, Enter = auswaehlen, Esc = zurueck'
         if ($null -eq $act -or $act -eq 'back') { return }
         if ($act -eq 'filter') {
-            $filter = Read-SysPilotChoice "Suchbegriff (leer = alle)"
+            $filter = Read-SysPilotInput "Suchbegriff (leer = alle)"
             continue
         }
         if ($act -eq 'prov') {
@@ -1630,7 +1771,7 @@ function Show-SysPilotAppxManager {
         if ($chosen.Count -eq 0) { continue }
         $sysCount = @($chosen | Where-Object { $_.NonRemovable }).Count
         if ($sysCount -gt 0) {
-            Write-Host "  ACHTUNG: $sysCount der ausgewählten Apps sind als NonRemovable markiert (System-komponenten)." -ForegroundColor Red
+            Write-Host "  ACHTUNG: $sysCount der ausgewaehlten Apps sind als NonRemovable markiert (System-komponenten)." -ForegroundColor Red
             if (-not (Confirm-SysPilot "Trotzdem fortfahren?")) { continue }
         }
         $ok = 0
@@ -1650,9 +1791,9 @@ function Show-SysPilotLeftoverManager {
     Write-SysPilotHeader "CleanSweep: Reste-Scanner"
     Write-Host "  Scannt nach Dateien, Registry-Eintraegen, Autostarts, Diensten," -ForegroundColor DarkGray
     Write-Host "  Aufgaben und Verknuepfungen - bewertet nach Sicherheit (Score)." -ForegroundColor DarkGray
-    $name = Read-SysPilotChoice "Name des (bereits deinstallierten) Programms"
+    $name = Read-SysPilotInput "Name des (bereits deinstallierten) Programms"
     if (-not $name) { return }
-    # Versuche passenden Eintrag in Inventory (für InstallLocation etc.)
+    # Versuche passenden Eintrag in Inventory (fuer InstallLocation etc.)
     $app = $apps | Where-Object { $_.Name -like "*$name*" } | Select-Object -First 1
     if (-not $app) {
         $app = [PSCustomObject]@{ Name=$name; Publisher=''; InstallLocation=$null; UninstallKey=$null }
@@ -1786,6 +1927,7 @@ function Show-SysPilotUninstallMenu {
             @{ Label = 'Programme deinstallieren (Desktop, silent/normal, Batch)'; Color = 'White';  Tag = 'prog' }
             @{ Label = 'Windows-Apps (Store/UWP/AppX) entfernen';                 Color = 'Cyan';   Tag = 'appx' }
             @{ Label = 'Browser-Erweiterungen entfernen (Chrome/Edge/Brave/Firefox/Opera)'; Color = 'Yellow'; Tag = 'ext' }
+            @{ Label = 'Extension-Policy-Bloecke verwalten (Browser "verwaltet"?)'; Color = 'Yellow'; Tag = 'extpol' }
             @{ Label = 'Reste-Scanner (beliebiges Programm nach Ueberresten suchen)'; Color = 'Magenta'; Tag = 'left' }
             @{ Label = "Reste Auto-Clean: $((if ((Get-SysPilotConfig).CleanSweep.AutoLeftoverClean -eq $true) { 'AN' } else { 'aus' })) - nach Deinstallation alle Reste automatisch loeschen"; Color = 'Magenta'; Tag = 'autol' }
             @{ Label = 'Verwaiste Programme finden (Ordner ohne Uninstall-Eintrag)'; Color = 'Yellow'; Tag = 'orph' }
@@ -1801,6 +1943,7 @@ function Show-SysPilotUninstallMenu {
             'prog'    { Show-SysPilotUninstallProgramsMenu }
             'appx'    { Show-SysPilotAppxManager }
             'ext'     { Show-SysPilotExtensionRemoval }
+            'extpol'  { Show-SysPilotExtensionPolicyManager }
             'left'    { Show-SysPilotLeftoverManager }
             'autol'   {
                 $cur = ((Get-SysPilotConfig).CleanSweep.AutoLeftoverClean -eq $true)
@@ -1820,7 +1963,7 @@ function Show-SysPilotUninstallMenu {
             'orph'    { Show-SysPilotOrphanManager }
             'broken'  { Show-SysPilotBrokenEntriesManager }
             'force'   {
-                $p = Read-SysPilotChoice "Pfad zum Programm/Ordner (z.B. C:\Program Files\X)"
+                $p = Read-SysPilotInput "Pfad zum Programm/Ordner (z.B. C:\Program Files\X)" -BrowseFolder
                 if ($p) { Invoke-SysPilotForceUninstall -Path $p }
             }
             'wupdate' { Show-SysPilotWindowsUpdateManager }
@@ -1841,6 +1984,7 @@ Export-ModuleMember -Function `
     Remove-SysPilotBrowserExtension, Show-SysPilotExtensionRemoval, `
     Get-SysPilotBrowserPolicyPath, Test-SysPilotBrowserProfileSignedIn, `
     Set-SysPilotExtensionPolicyBlock, Remove-SysPilotExtensionPolicyBlock, `
+    Get-SysPilotBrowserExtensionPolicy, Show-SysPilotExtensionPolicyManager, `
     Test-SysPilotAiBrowser, Get-SysPilotBrowserProcesses, `
     Get-SysPilotOrphanPrograms, Get-SysPilotBrokenUninstallEntries, `
     Invoke-SysPilotForceUninstall, `

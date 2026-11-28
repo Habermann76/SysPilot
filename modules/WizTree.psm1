@@ -77,7 +77,7 @@ function Install-SysPilotWizTree {
     New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
     $installerPath = Join-Path $tempDir 'wiztree-setup.exe'
 
-    if (-not (Save-SysPilotUrlToFile -Uri $url -OutFile $installerPath -TimeoutSec 120 -Label 'WizTree')) {
+    if (-not (Invoke-SysPilotFileDownload -Url $url -OutFile $installerPath -Label 'WizTree' -TimeoutSec 120 -Title 'WizTree')) {
         Write-Host '  [FEHLER] Download fehlgeschlagen.' -ForegroundColor Red
         Write-Host '  Bitte WizTree manuell von https://diskanalyzer.com/download installieren.' -ForegroundColor Yellow
         Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
