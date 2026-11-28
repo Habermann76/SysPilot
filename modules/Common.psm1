@@ -1,4 +1,4 @@
-﻿# SysPilot - Common: Admin-Check, Logging, Config, Backup/Restore
+# SysPilot - Common: Admin-Check, Logging, Config, Backup/Restore
 #Requires -Version 5.1
 
 $script:SysPilotRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
@@ -1341,7 +1341,7 @@ function Read-SysPilotChoice {
 function Read-SysPilotYesNo {
     <# Kompakter Ja/Nein-Dialog MIT MausUnterstuetzung: Klick auf [Ja]/[Nein],
        Mausrad = umschalten, j/y = Ja, n = Nein, Pfeile+Enter, Esc = Nein.
-       Zeichnet INLINE (kein Clear-Host) - der vorherige Kontext bleibt sichtbar.
+       Zeichnet per Clear-Host+Neuzeichnen (wie die uebrigen Konsolen-Menus).
        Gibt $true (Ja) oder $false (Nein/Abbruch) zurueck. #>
     param([Parameter(Mandatory)][string]$Question)
     $hadApi = $script:ConsoleInputReady
@@ -1351,42 +1351,32 @@ function Read-SysPilotYesNo {
     }
     Clear-SysPilotConsoleInputBuffer
     $sel = 1   # default: Nein (sicher)
-    $optRow = -1; $restRow = -1; $firstDraw = $true
-    $drawOpts = {
-        Write-Host -NoNewline '   '
-        if ($sel -eq 0) { Write-Host -NoNewline '[ Ja ]' -ForegroundColor Black -BackgroundColor Yellow }
-        else { Write-Host -NoNewline '[ Ja ]' -ForegroundColor DarkGray }
-        Write-Host -NoNewline '   '
-        if ($sel -eq 1) { Write-Host -NoNewline '[ Nein ]' -ForegroundColor Black -BackgroundColor Yellow }
-        else { Write-Host -NoNewline '[ Nein ]' -ForegroundColor DarkGray }
-        Write-Host ""
-    }
+    $optRow = -1; $firstDraw = $true
     try {
     $needDraw = $true
     while ($true) {
         if ($needDraw) {
-            if ($firstDraw) {
-                Write-Host ""
-                Write-Host "  $Question" -ForegroundColor Yellow
-                Write-Host ""
-                $optRow = $Host.UI.RawUI.CursorPosition.Y
-                & $drawOpts
-                $restRow = $Host.UI.RawUI.CursorPosition.Y
-                Write-Host "  (Klick, j/n, Pfeile+Enter, Esc = Nein)" -ForegroundColor DarkGray
-                $firstDraw = $false
-            } else {
-                # nur die Optionszeile aktualisieren (kein Clear-Host).
-                # Cursor-Set MUSS verifiziert werden: Schlaegt es fehl
-                # (z.B. ConPTY/Windows Terminal), wuerde drawOpts eine
-                # neue Zeile anhängen - endloser Optionszeilen-Spam und
-                # Klicks ins Leere. Dann lieber gar nicht neu zeichnen.
-                if (Set-SysPilotConsoleCursor -X 0 -Y $optRow) {
-                    & $drawOpts
-                    [void](Set-SysPilotConsoleCursor -X 0 -Y $restRow)
-                } else {
-                    $needDraw = $false
-                }
-            }
+            # Jeder Redraw zeichnet den kompletten Dialog neu (Clear-Host),
+            # wie Show-SysPilotArrowMenu/MultiSelect es ohnehin tun.
+            # NIEMALS Cursor-Positionierung zum Ueberschreiben nutzen:
+            # unter ConPTY/Windows Terminal kann der RawUI-Setter UND
+            # SetConsoleCursorPosition die Position falsch melden oder
+            # nicht anwenden - Write-Host haenge dann jedes Mal eine neue
+            # Optionszeile an (Spam, Klicks ins Leere, "Endlosschleife").
+            if (-not $firstDraw) { Clear-Host }
+            Write-Host ""
+            Write-Host "  $Question" -ForegroundColor Yellow
+            Write-Host ""
+            $optRow = $Host.UI.RawUI.CursorPosition.Y
+            Write-Host -NoNewline '   '
+            if ($sel -eq 0) { Write-Host -NoNewline '[ Ja ]' -ForegroundColor Black -BackgroundColor Yellow }
+            else { Write-Host -NoNewline '[ Ja ]' -ForegroundColor DarkGray }
+            Write-Host -NoNewline '   '
+            if ($sel -eq 1) { Write-Host -NoNewline '[ Nein ]' -ForegroundColor Black -BackgroundColor Yellow }
+            else { Write-Host -NoNewline '[ Nein ]' -ForegroundColor DarkGray }
+            Write-Host ""
+            Write-Host "  (Klick, j/n, Pfeile+Enter, Esc = Nein)" -ForegroundColor DarkGray
+            $firstDraw = $false
         }
         $needDraw = $true
         $ev = Read-SysPilotMenuEvent
@@ -1554,12 +1544,14 @@ function Restore-SysPilotConsoleInput {
 function Set-SysPilotConsoleCursor {
     <# Setzt die Konsolen-Cursorposition DIREKT ueber kernel32
        (SetConsoleCursorPosition) und verifiziert per
-       GetConsoleScreenBufferInfo, dass die Position wirklich angelaufen ist.
-       Hintergrund: Unter Windows
-       Terminal/ConPTY kann der RawUI-CursorPosition-Setter "erfolgreich"
-       laufen, ohne die Position anzuwenden - die Folge war, dass Inline-
-       Redraws (z.B. Ja/Nein-Dialog) jedes Mal eine NEUE Zeile schrieben
-       (Optionszeilen-Duplikate, Klicks ins Leere, Tooltip-Spam).
+       GetConsoleScreenBufferInfo. HINWEIS: Unter ConPTY/Windows
+       Terminal kann die PowerShell ConsoleHost ihren eigenen
+       Cursor-Cache haben - Write-Host folgt einer extern gesetzten
+       Position dann NICHT zuverlaessig. Fuer Redraws therefore
+       Clear-Host + Neuzeichnen (wie ArrowMenu/MultiSelect) nutzen,
+       nicht diese Funktion + Write-Host. GetConsoleCursorPosition
+       liefert unter ConPTY ebenfalls falsche Werte (z.B. 0,0) -
+       Verifikation laeuft ueber GetConsoleScreenBufferInfo.
        Rueckgabe: $true nur bei verifizierter Position. #>
     param([Parameter(Mandatory)][int]$X, [Parameter(Mandatory)][int]$Y)
     if (-not ('SysPilotConsoleInput' -as [type])) { return $false }

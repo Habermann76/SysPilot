@@ -34,13 +34,14 @@ using System.Runtime.InteropServices;
 public static class WE {
     public delegate bool EnumProc(IntPtr h, IntPtr l);
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
-    [DllImport("user32.dll", public: true)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+    [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
     public struct RECT { public int Left, Top, Right, Bottom; }
 }
 "@
+    $script:_winList = New-Object System.Collections.ArrayList
     $cb = [WE+EnumProc]{ param($h,$l)
         $sb = New-Object System.Text.StringBuilder 256
         [void][WE]::GetWindowText($h, $sb, 256)
@@ -48,11 +49,12 @@ public static class WE {
         if ($t -and [WE]::IsWindowVisible($h)) {
             $r = New-Object WE+RECT; [void][WE]::GetWindowRect($h,[ref]$r)
             $min = if ([WE]::IsIconic($h)) { 'MIN' } else { '   ' }
-            "{0} HWND={1} '{2}' RECT={3},{4} {5}x{6}" -f $min, $h, $t, $r.Left, $r.Top, ($r.Right-$r.Left), ($r.Bottom-$r.Top)
+            [void]$script:_winList.Add(("{0} HWND={1} '{2}' RECT={3},{4} {5}x{6}" -f $min, $h, $t, $r.Left, $r.Top, ($r.Right-$r.Left), ($r.Bottom-$r.Top)))
         }
         return $true
     }
     [void][WE]::EnumWindows($cb, [IntPtr]::Zero)
+    $script:_winList | Where-Object { $_ -match 'PowerShell|SysPilot|pwsh|Terminal' }
     return
 }
 

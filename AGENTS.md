@@ -481,11 +481,13 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
   `Read-SysPilotYesNo` (Common.psm1) — `[ Ja ]`/`[ Nein ]` per Klick
   (Zones: col 3-10 = Ja, 11-18 = Nein auf der Optionszeile `$optRow`),
   Mausrad = umschalten, j/y/n-Tasten, Pfeile+Enter, Esc = Nein.
-  Default = Nein (sicher). **INLINE ohne Clear-Host** — Kontext (z.B.
-  Liste der zu löschenden Dateien) bleibt sichtbar; Optionszeile wird
-  per `CursorPosition = Coordinates(0, $optRow)` partiell neu gezeichnet.
-  `$optRow`/`$restRow` werden LIVE via `CursorPosition.Y` erfasst
-  (Questions mit Newlines/Wrap sind damit abgedeckt). Ohne Console-API
+  Default = Nein (sicher). **Clear-Host + komplettes Neuzeichnen pro
+  Redraw** (0.9.5.0-geaendert): frueher wurde die Optionszeile per
+  `CursorPosition = Coordinates(0, $optRow)` partiell ueberschrieben -
+  unter ConPTY/Windows Terminal schlug das fehl und jede Bewegung haenge
+  eine neue `[ Ja ] [ Nein ]`-Zeile an (Klicks ins Leere, "Endlosschleife").
+  `$optRow` wird jetzt nach JEDEM Draw frisch via `CursorPosition.Y`
+  gelesen (Fragen mit Newlines/Wrap sind abgedeckt). Ohne Console-API
   Fallback auf altes `Read-Host`-j/n.
 - **„Weiter mit Enter" pausieren (0.9.4.8)**: `Read-SysPilotChoice`
   erkennt Prompts mit `^weiter` und wartet dann mausfaehig auf
@@ -1085,16 +1087,25 @@ Wenn GitHub MCP nicht funktioniert, nicht abbrechen: `scripts\github-fallback.ps
 ## Konsolen-UI-Fehlersuche & bekannte Baustellen (Stand 0.9.5.0, verbindlich)
 
 ### Windows-Terminal/ConPTY-Fallen (verbindlich)
-- **`$Host.UI.RawUI.CursorPosition`-Setter ist UNZUVERLAESSIG**: Unter
-  Windows Terminal/ConPTY kann das Setzen "erfolgreich" wirken, ohne die
-  Position anzuwenden -> Inline-Redraws haengen Zeilen an (Duplikat-Spam,
-  Klicks ins Leere). IMMER `Set-SysPilotConsoleCursor` (Common.psm1,
-  kernel32 `SetConsoleCursorPosition` + Verify ueber
-  `GetConsoleScreenBufferInfo`) verwenden - NICHT den RawUI-Setter.
+- **Cursor-Positionierung zum Ueberschreiben ist UNZUVERLAESSIG**: Unter
+  Windows Terminal/ConPTY kann der RawUI-Setter "erfolgreich" laufen, ohne
+  die Position anzuwenden; selbst kernel32 `SetConsoleCursorPosition` wird
+  von der PowerShell ConsoleHost beim naechsten Write-Host ueberschrieben
+  (ConsoleHost cached den Cursor intern). Write-Host landet dann am alten
+  Ort -> Inline-Redraws haengen Zeilen an (Duplikat-Spam, Klicks ins
+  Leere). **Loesung: NIEMALS Cursor-Setzen + Write-Host fuer Redraws** -
+  stattdessen `Clear-Host` + komplettes Neuzeichnen (Muster:
+  Show-SysPilotArrowMenu/MultiSelect/Read-SysPilotYesNo); `$optRow` wird
+  nach jedem Draw frisch gelesen.
+- **`WriteConsoleOutput` (CHAR_INFO/Attribute) liefert unter ConPTY
+  ERROR_INVALID_PARAMETER (87)** - nicht nutzbar. `WriteConsoleOutput-
+  Character` (reiner Text) funktioniert, kann aber keine Attribute setzen.
 - **`GetConsoleCursorPosition` (kernel32) liefert unter ConPTY FALSCH**
   (z.B. 0,0) - zur Verifikation nur `GetConsoleScreenBufferInfo`
   (`dwCursorPosition`) benutzen; der ist korrekt (externer Beweis:
   ReadConsoleOutputCharacter auf fremde Konsolen per AttachConsole+CONOUT$).
+  Achtung: CSBI kann die GESETZTE Position melden, ohne dass Write-Host
+  ihr folgt - als Verify ebenfalls nicht narrensicher.
 - **`WriteConsoleInput`-Injection erreicht ConPTY-Apps oft NICHT**:
   synthetische Records werden von Windows Terminal nicht an die App
   durchgereicht. Fuer Live-Tests echte Maus/Tastatur benutzen

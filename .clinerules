@@ -135,8 +135,8 @@ function Start-SysPilotToolFromGui {
 *Erstellt: 09.11.2026 – aktualisiert: 24.11.2026 (0.9.5.0: Task-Manager/ProcessManager+Process-Explorer, Pilot Herbert/Flug 667 + Programm-Start-Hinweise, MCP-Client/McpClient+Chat-Tool-Calls, KI-Apps-Kategorie, Download-Portale+Ninite+WebSourceVersions, KI-Suche Engine-Auswahl + pollinations.ai-Hint + Alternativen-Suche + Link-Check, Media-Center-Kategorie, Fortschritt/Hänger-Erkennung für alle Downloads/Installationen; 0.9.4.9: CleanSweep/UninstallManager, PackageManagers/WSL/Companions, Update-Fallback-Kette, Alt-Manager-Installation, Auto-Fix-Framework; 0.9.4.8: Maussteuerung, PortableTools/Runtimes/PrivacyFix/RootCertificates, Win11-Kontextmenü-Reparatur, Restart-SysPilot, QuickEdit/Event-Queue-Fixes)*
 
 ## Konsolen-UI & ConPTY (0.9.5.0, verbindlich)
-- Cursor setzen NUR via `Set-SysPilotConsoleCursor` (Common.psm1) - nie `$Host.UI.RawUI.CursorPosition`-Setter (unter Windows Terminal/ConPTY unzuverlaessig).
-- Cursor-Verifikation nur ueber `GetConsoleScreenBufferInfo`, nie `GetConsoleCursorPosition` (ConPTY liefert falsch).
+- Cursor-Setzen + Write-Host fuer Redraws ist unter ConPTY/Windows Terminal UNZUVERLAESSIG (RawUI-Setter UND kernel32 SetConsoleCursorPosition) - stattdessen `Clear-Host` + komplettes Neuzeichnen wie ArrowMenu/MultiSelect/YesNo.
+- `WriteConsoleOutput` (Attribute) scheitert unter ConPTY mit err=87; `WriteConsoleOutputCharacter` funktioniert ohne Attribute. `GetConsoleCursorPosition` liefert falsch - `GetConsoleScreenBufferInfo` nutzen (aber auch nicht narrensicher gegen ConsoleHost-Cursor-Cache).
 - `WriteConsoleInput`-Injection erreicht ConPTY-Apps nicht zuverlaessig - Live-Tests mit echter Maus/Tastatur.
 - Buffer einer Konsole lesen: AttachConsole(pid)+CONOUT$+ReadConsoleOutputCharacter; Fensterbild: PrintWindow+OCR.
 - Bei Console-/UI-Bugs IMMER repo-weit nach demselben Muster suchen und analog mitfixen.
