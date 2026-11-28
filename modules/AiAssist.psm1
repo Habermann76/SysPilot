@@ -2005,7 +2005,7 @@ MINIFLUX / RSS:
         @'
 KI-PROVIDER / HERBERT:
 - Provider-Modus: auto (Cloud zuerst, lokal als Fallback - Standard), local (nur lokal), cloud (nur Cloud). Pin = bevorzugter Provider zuerst. Kostenklassen: kostenlos < freemium < guenstig < ... ; Freemium-Modelle bevorzugt bei knappen Budgets.
-- Router-Sync (OmniRoute, FreeLLMAPI, freelm, 9router): uebernimmt automatisch Modus + Pin + Budget-Reihenfolge der Provider.
+- Router-Sync (OmniRoute, FreeLLMAPI, freelm, 9router): uebernimmt automatisch Modus + Pin + Budget-Reihenfolge der Provider. Zusaetzlich schreibt jeder Sync das Artefakt %LOCALAPPDATA%\SysPilot\usable-providers.json mit geranktem Modell-Plan pro Provider (model = bestes Modell via Kostenklasse/Free-Varianten/Kontext, models = Fallback-Kette fuer Rate-Limit - Freikontingente gelten pro Modell). Custom-Provider in FreeLLMAPI bekommen dasselbe Ranking.
 - Kontext-Budget: History wird automatisch auf ~70% des Modell-Contexts gekuerzt - sehr lange Chats sind normal, aelteste Nachrichten fallen ggf. weg.
 - Bei instabilem Netz (Hotspot): SysPilot wartet kurz auf Wiederkehr statt sofort zu scheitern; Downloads sind resume-faehig (aria2/Segmente).
 '@
@@ -10835,6 +10835,48 @@ function Install-SysPilotContinueConfig {
     return @{ Ok=$true; Path=$path; Message="Continue-Config aktualisiert: $path`nModell 'Herbert (SysPilot)' -> $($st.Url)`n(VS Code ggf. neu laden.)" }
 }
 
+function Get-SysPilotProviderModelPlan {
+    <# Erstellt den Modell-Plan eines Providers: bestes Modell
+       (Resolve-SysPilotAiModel = gerankt) + Alternates fuer
+       Rate-Limit-Fallback. Wird von ALLEN Router-Syncs genutzt,
+       damit OmniRoute/FreeLLMAPI/freelm/9router dieselbe
+       Budget-aware Auswahl sehen wie Herbert. #>
+    param([Parameter(Mandatory)]$Provider, [int]$TimeoutSec = 8, [int]$Top = 5)
+    $best = if ($Provider.Model) { [string]$Provider.Model } else { Resolve-SysPilotAiModel -Provider $Provider -TimeoutSec $TimeoutSec }
+    # Alternates auch bei konfiguriertem Modell liefern - Router
+    # koennen sie als Fallback-Kette nutzen (Rate-Limit pro Modell)
+    $alts = @()
+    try {
+        $alts = @((Get-SysPilotAiRankedModels -Provider $Provider -TimeoutSec $TimeoutSec -Top ($Top + 1) |
+            Where-Object { $_.Id -ne $best } | ForEach-Object { $_.Id } | Select-Object -First ($Top - 1)))
+    } catch { $alts = @() }
+    return @{ Model=$best; Models=@($best) + $alts }
+}
+
+function Save-SysPilotUsableProvidersArtifact {
+    <# Schreibt %LOCALAPPDATA%\SysPilot\usable-providers.json - das
+       gemeinsame Artefakt fuer ALLE Router (OmniRoute, FreeLLMAPI,
+       freelm, 9router, eigene Skripte). Enthaelt pro Provider jetzt
+       zusaetzlich den gerankten Modell-Plan (model + models als
+       Rate-Limit-Fallback-Kette). #>
+    param([object[]]$Providers)
+    $file = Join-Path $env:LOCALAPPDATA 'SysPilot\usable-providers.json'
+    try {
+        $dir = Split-Path $file -Parent
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+        $list = foreach ($p in @($Providers)) {
+            $plan = Get-SysPilotProviderModelPlan -Provider $p -TimeoutSec 6 -Top 4
+            @{ name=$p.Name; baseUrl=$p.BaseUrl; model=$plan.Model; models=$plan.Models
+               kind=$p.Kind; apiKeyPresent=([bool]$p.ApiKey) }
+        }
+        @{
+            updated = (Get-Date).ToString('o')
+            providers = @($list)
+        } | ConvertTo-Json -Depth 6 | Set-Content $file -Encoding UTF8
+        return $file
+    } catch { return $null }
+}
+
 function Sync-SysPilotOmniRouteProviders {
     <# Synct die BRAUCHBAREN Herbert-Provider nach OmniRoute:
        - openai-compatible-syspilot-<slug>-Connections anlegen/aktualisieren
@@ -10936,15 +10978,9 @@ function Sync-SysPilotOmniRouteProviders {
             $upserted++
         } catch { $skipped++; $log += "upsert-fehler $($p.Name): $($_.Exception.Message)" }
     }
-    # 5) Brauchbare-Liste als Artefakt (fuer FreeLLMAPI u.a.)
-    $usableFile = Join-Path $env:LOCALAPPDATA 'SysPilot\usable-providers.json'
-    try {
-        $dir = Split-Path $usableFile -Parent; if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force $dir | Out-Null }
-        @{
-            updated = (Get-Date).ToString('o')
-            providers = @($usable | ForEach-Object { @{ name=$_.Name; baseUrl=$_.BaseUrl; model=$_.Model; kind=$_.Kind; apiKeyPresent=([bool]$_.ApiKey) } })
-        } | ConvertTo-Json -Depth 6 | Set-Content $usableFile -Encoding UTF8
-    } catch {}
+    # 5) Brauchbare-Liste als Artefakt (fuer FreeLLMAPI u.a.) -
+    #    mit geranktem Modell-Plan (model + models-Fallback-Kette)
+    $usableFile = Save-SysPilotUsableProvidersArtifact -Providers $usable
     $msg = "OmniRoute-Sync: $upserted upserted, $deleted entfernt, $skipped Fehler. Liste: $usableFile"
     return @{ Ok=($skipped -eq 0); Message=$msg; Log=$log }
 }
@@ -11060,13 +11096,16 @@ function Sync-SysPilotFreelmProviders {
         }
     }
     @{ Managed=$managed; Set=$set } | ConvertTo-Json -Depth 4 | Set-Content $statePath -Encoding UTF8
+    # Gemeinsames Router-Artefakt mit Modell-Plan auffrischen
+    try { [void](Save-SysPilotUsableProvidersArtifact -Providers $usable) } catch {}
     $n = $set.Count
     return @{ Ok=($n -gt 0); Message="freelm-Sync: $n Umgebungsvariablen gesetzt.`n$($log -join "`n")"; Log=$log }
 }
 
 function Resolve-SysPilotCustomModel {
     <# Loest ein Modell fuer einen OpenAI-kompatiblen Endpoint auf:
-       1) GET {base}/models mit Key -> erstes sinnvolles Modell
+       1) Gerankte /models-Liste (Get-SysPilotAiRankedModels -
+          dieselbe Budget-aware Auswahl wie Herbert)
        2) Fallback-Map bekannter Provider #>
     param([string]$BaseUrl, [string]$ApiKey, [string]$Name = '')
     $fallback = @{
@@ -11074,6 +11113,12 @@ function Resolve-SysPilotCustomModel {
         'moonshot'='kimi-k2-0905-preview'; 'ollama'='llama3.2'; 'llama.cpp'='local'
         'herbert'='herbert'; 'omniroute'='auto'; 'venice'='venice-uncensored'
     }
+    # Pseudo-Provider fuer das Ranking (BaseUrl + Key reichen fuer /models)
+    $pseudo = [pscustomobject]@{ Name=$Name; BaseUrl=$BaseUrl; ApiKey=$ApiKey; Kind='cloud'; Model='' }
+    try {
+        $ranked = @(Get-SysPilotAiRankedModels -Provider $pseudo -TimeoutSec 8 -Top 1)
+        if ($ranked.Count -gt 0 -and $ranked[0].Id) { return [string]$ranked[0].Id }
+    } catch {}
     try {
         $h = @{}; if ($ApiKey) { $h.Authorization = "Bearer $ApiKey" }
         $m = Invoke-RestMethod "$BaseUrl/models" -Headers $h -TimeoutSec 8
@@ -11210,6 +11255,8 @@ function Sync-SysPilotFreeLlmApiProviders {
             }
         }
     }
+    # Gemeinsames Router-Artefakt mit Modell-Plan auffrischen
+    try { [void](Save-SysPilotUsableProvidersArtifact -Providers $usable) } catch {}
     $msg = "FreeLLMAPI-Sync: $added hinzugefuegt, $disabled deaktiviert, $skipped uebersprungen/fehler."
     return @{ Ok=($skipped -eq 0); Message=$msg; Log=$log }
 }
@@ -11323,6 +11370,8 @@ function Sync-SysPilotNineRouterProviders {
             catch { $log += "remove-fehler $kn : $($_.Exception.Message)" }
         }
     }
+    # Gemeinsames Router-Artefakt mit Modell-Plan auffrischen
+    try { [void](Save-SysPilotUsableProvidersArtifact -Providers $usable) } catch {}
     $msg = "9router-Sync: $added hinzugefuegt, $updated aktualisiert, $removed entfernt, $skipped uebersprungen."
     if ($custom.Count -gt 0) { $msg += " Custom-Provider (eigene baseUrl, als provider-node noetig): $($custom -join ', ')" }
     return @{ Ok=($true); Message=$msg; Log=$log }
@@ -11804,7 +11853,8 @@ Export-ModuleMember -Function `
     Get-SysPilotHerbertApiSnippets, Install-SysPilotHerbertMcpConfig, `
     Get-SysPilotHerbertUsableProviders, Set-SysPilotHerbertApiAutoStart, `
     Get-SysPilotClaudeHerbertShortcut, Install-SysPilotContinueConfig, `
-    Sync-SysPilotOmniRouteProviders, `
+    Sync-SysPilotOmniRouteProviders, Get-SysPilotProviderModelPlan, `
+    Save-SysPilotUsableProvidersArtifact, `
     Get-SysPilotOmniRouteClientKey, New-SysPilotOmniRouteClientKey, `
     Install-SysPilotOmniRouteKeyConfig, `
     Sync-SysPilotFreelmProviders, Sync-SysPilotFreeLlmApiProviders, Get-SysPilotFreeLlmApiInfo, `
