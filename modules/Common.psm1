@@ -237,7 +237,7 @@ function Get-SysPilotProcessByName {
 
 function New-SysPilotBackup {
     param([string]$Label = "manual")
-    $dir = Join-Path $script:SysPilotRoot "backup"
+    $dir = Get-SysPilotBackupDir
     $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
     $target = Join-Path $dir "$stamp-$Label"
     New-Item -ItemType Directory -Force -Path $target | Out-Null
@@ -278,9 +278,26 @@ function New-SysPilotBackup {
 }
 
 function Get-SysPilotBackupDir {
+    <# Backup-Verzeichnis: bevorzugt unter SysPilotRoot (Program Files),
+       aber NICHT jeder Tool-Prozess laeuft elevated - dort ist das
+       Verzeichnis nicht beschreibbar (Extension-Backups schlugen mit
+       UnauthorizedAccessException fehl). Fallback: %LOCALAPPDATA%\SysPilot\backup,
+       das ist fuer User- UND Admin-Prozesse beschreibbar. #>
     $dir = Join-Path $script:SysPilotRoot "backup"
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
-    return $dir
+    try {
+        if (-not (Test-Path $dir)) {
+            New-Item -ItemType Directory -Force -Path $dir -ErrorAction Stop | Out-Null
+        }
+        # Schreibtest: Verzeichnis anlegen reicht nicht - Datei-Test macht's sicher
+        $probe = Join-Path $dir ".write-test"
+        [System.IO.File]::WriteAllText($probe, 'x')
+        Remove-Item $probe -Force -ErrorAction SilentlyContinue
+        return $dir
+    } catch {
+        $dir = Join-Path $env:LOCALAPPDATA "SysPilot\backup"
+        if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+        return $dir
+    }
 }
 
 function Import-SysPilotModule {

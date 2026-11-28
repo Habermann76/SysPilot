@@ -1220,7 +1220,12 @@ function Show-SysPilotExtensionRemoval {
           und "Abbrechen" direkt unter der Liste (oder Ziffern 1/2)
        3. Frage: gleiche Extension auch in anderen Browsern entfernen?
        Nach jeder Entfernung zurueck zur Browser-Liste (Schleife). #>
+    $firstPass = $true
     while ($true) {
+        # Inventar-Scan dauert bei vielen Browser-Profilen ~15-20 s -
+        # ohne Hinweis wirkt das wie ein Haenger (User-Beschwerde 0.9.5.0).
+        if (-not $firstPass) { Write-Host "  [..] Browser-Erweiterungen werden neu gescannt ..." -ForegroundColor DarkGray }
+        $firstPass = $false
         $exts = @(Get-SysPilotBrowserExtensionInventory)
         Write-SysPilotDebug "Extension-Flow: Inventar = $($exts.Count) Eintraege"
         if ($exts.Count -eq 0) {
