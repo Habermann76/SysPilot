@@ -967,21 +967,31 @@ function Open-SysPilotExtensionPages {
     param([Parameter(Mandatory)][array]$Exts)
     $opened = @{}
     $manual = @()
+    # Pro Browser ein Start mit allen Extension-URLs - Chrome oeffnet sie
+    # als Tabs in EINEM neuen Fenster (kein Fenster pro Extension).
+    $byBrowser = @{}
     foreach ($e in $Exts) {
         $base = "$($e.Settings)"
         if (-not $base) { $base = 'chrome://extensions/' }
         if ($e.Engine -eq 'chromium') { $url = "$($base.TrimEnd('/'))/?id=$($e.Id)" }
         else { $url = $base }   # Firefox: about:addons (kein Deep-Link pro Extension)
-        $exe = Get-SysPilotBrowserExePath -Browser $e.Browser
+        if (-not $byBrowser.ContainsKey($e.Browser)) { $byBrowser[$e.Browser] = @() }
+        $byBrowser[$e.Browser] += $url
+    }
+    foreach ($b in @($byBrowser.Keys | Sort-Object)) {
+        $exe = Get-SysPilotBrowserExePath -Browser $b
+        $urls = @($byBrowser[$b] | Select-Object -Unique)
         if ($exe) {
             try {
-                Start-Process -FilePath $exe -ArgumentList $url -ErrorAction Stop
-                $opened[$e.Browser] = $true
+                # --new-window: eigener Fenster-Fokus, sonst landet der Tab
+                # unsichtbar im Hintergrund (User sah nur TabMark-NTP)
+                Start-Process -FilePath $exe -ArgumentList (@('--new-window') + $urls) -ErrorAction Stop
+                $opened[$b] = $true
             } catch {
-                $manual += "  $($e.Browser): $url"
+                $urls | ForEach-Object { $manual += "  $b : $_" }
             }
         } else {
-            $manual += "  $($e.Browser): $url"
+            $urls | ForEach-Object { $manual += "  $b : $_" }
         }
     }
     Write-Host ""
