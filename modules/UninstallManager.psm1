@@ -957,6 +957,74 @@ function Get-SysPilotBrowserExePath {
     return $null
 }
 
+function Initialize-SysPilotExtWin32 {
+    <# Eigener Win32-Typ fuer den Extension-Page-Flow - unabhaengig von
+       SysPilotWin32 (das nur existiert, wenn die GUI-Chrome-Funktion
+       lief). Einmalig pro Session. #>
+    if ('SysPilotExtWin32' -as [type]) { return }
+    try {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class SysPilotExtWin32 {
+    public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr lp);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder sb, int max);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmd);
+    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+}
+'@ -ErrorAction Stop
+    } catch {}
+}
+
+function Get-SysPilotVisibleWindowHandles {
+    <# Alle sichtbaren Top-Level-Fenster als HashSet von HWNDs.
+       Dient als Vorher/Nachher-Schnappschuss beim Oeffnen von
+       Browser-Fenstern (neues Fenster = neue HWND). #>
+    Initialize-SysPilotExtWin32
+    $set = New-Object 'System.Collections.Generic.HashSet[long]'
+    $cb = [SysPilotExtWin32+EnumProc]{
+        param($h, $l)
+        try {
+            if ([SysPilotExtWin32]::IsWindowVisible($h)) { [void]$set.Add($h.ToInt64()) }
+        } catch {}
+        return $true
+    }
+    [void][SysPilotExtWin32]::EnumWindows($cb, [IntPtr]::Zero)
+    return $set
+}
+
+function Focus-SysPilotWindowHandle {
+    <# Bringt ein Fenster in den Vordergrund. SetForegroundWindow wird
+       vom Foreground-Lock des Windows-Generators geblockt, wenn das
+       aufrufende Fenster nicht aktiv ist - deshalb AttachThreadInput
+       auf den Foreground-Thread (Standard-Trick). #>
+    param([Parameter(Mandatory)][IntPtr]$Hwnd)
+    Initialize-SysPilotExtWin32
+    try {
+        if ([SysPilotExtWin32]::IsIconic($Hwnd)) { [void][SysPilotExtWin32]::ShowWindow($Hwnd, 9) }  # SW_RESTORE
+        $fg = [SysPilotExtWin32]::GetForegroundWindow()
+        $fgThread = [uint32]0; $tThread = [uint32]0
+        if ($fg -ne [IntPtr]::Zero) { [void][SysPilotExtWin32]::GetWindowThreadProcessId($fg, [ref]$fgThread) }
+        [void][SysPilotExtWin32]::GetWindowThreadProcessId($Hwnd, [ref]$tThread)
+        $myThread = [SysPilotExtWin32]::GetCurrentThreadId()
+        [void][SysPilotExtWin32]::AttachThreadInput($myThread, $fgThread, $true)
+        [void][SysPilotExtWin32]::AttachThreadInput($myThread, $tThread, $true)
+        [void][SysPilotExtWin32]::SetForegroundWindow($Hwnd)
+        [void][SysPilotExtWin32]::BringWindowToTop($Hwnd)
+        [void][SysPilotExtWin32]::AttachThreadInput($myThread, $fgThread, $false)
+        [void][SysPilotExtWin32]::AttachThreadInput($myThread, $tThread, $false)
+    } catch {}
+}
+
 function Open-SysPilotExtensionPages {
     <# Oeffnet fuer jede Extension die Detailseite im Browser
        (<scheme>://extensions/?id=<id>). Der User klickt dort auf
@@ -982,10 +1050,27 @@ function Open-SysPilotExtensionPages {
         $exe = Get-SysPilotBrowserExePath -Browser $b
         $urls = @($byBrowser[$b] | Select-Object -Unique)
         if ($exe) {
+            # HWND-Schnappschuss VOR dem Launch - das neue Browser-
+            # fenster bekommt eine neue HWND, daran erkennen wir es.
+            $before = Get-SysPilotVisibleWindowHandles
             try {
                 # --new-window: eigener Fenster-Fokus, sonst landet der Tab
                 # unsichtbar im Hintergrund (User sah nur TabMark-NTP)
                 Start-Process -FilePath $exe -ArgumentList (@('--new-window') + $urls) -ErrorAction Stop
+                # Kurz warten bis das Fenster existiert, dann fokussieren -
+                # so sieht der User die Extension-Seite sofort (wie der
+                # Zahnrad-Button in Easy Extension Manager via tabs.create)
+                $deadline = (Get-Date).AddSeconds(6)
+                while ((Get-Date) -lt $deadline) {
+                    $after = Get-SysPilotVisibleWindowHandles
+                    $newHwnds = @($after | Where-Object { -not $before.Contains($_) })
+                    if ($newHwnds.Count -gt 0) {
+                        $h = [IntPtr]([long]($newHwnds | Select-Object -First 1))
+                        Focus-SysPilotWindowHandle -Hwnd $h
+                        break
+                    }
+                    Start-Sleep -Milliseconds 300
+                }
                 $opened[$b] = $true
             } catch {
                 $urls | ForEach-Object { $manual += "  $b : $_" }
