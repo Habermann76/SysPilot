@@ -101,17 +101,23 @@ function openDetails(e) {
 }
 
 async function removeExt(e) {
-  if (!confirm('„' + (e.name || e.id) + '" wirklich entfernen?\n\nAchtung: Bei Sync-Accounts kann die Extension zurueckkommen - dann in einem anderen Browser erneut entfernen oder den Sync-Block in SysPilot setzen.')) return;
-  setStatus('Entferne: ' + e.name + ' ...');
+  // Chrome-eigener Bestaetigungsdialog (showConfirmDialog) - der kennt
+  // die "aus Sync entfernen?"-Option und ist trusted, im Gegensatz zu
+  // window.confirm() im Popup.
+  setStatus('Entferne: ' + (e.name || e.id) + ' ...');
   try {
-    await chrome.management.uninstall(e.id, false);
+    await chrome.management.uninstall(e.id, { showConfirmDialog: true });
     allExts = allExts.filter(x => x.id !== e.id);
     render();
     $('counts').textContent = allExts.length + ' gesamt, ' + allExts.filter(x => x.enabled).length + ' aktiv';
     setStatus('Entfernt: ' + (e.name || e.id));
-    setTimeout(() => setStatus(''), 3000);
+    setTimeout(() => setStatus(''), 4000);
   } catch (err) {
-    setStatus('Fehler: ' + (err.message || err));
+    const msg = (err && err.message) ? err.message : String(err);
+    setStatus('Fehler: ' + msg + ' - versuche Detailseite ...');
+    // Fallback: policy-installierte/geschuetzte Extensions kann
+    // chrome.management nicht entfernen - Detailseite oeffnen
+    setTimeout(() => { openDetails(e); setStatus(''); }, 1500);
   }
 }
 
