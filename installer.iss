@@ -61,7 +61,9 @@ Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "modules\*.psm1"; DestDir: "{app}\modules"; Flags: ignoreversion recursesubdirs
 Source: "scripts\*.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion recursesubdirs
 Source: "extension\*"; DestDir: "{app}\extension"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
+Source: "extension-manager\*"; DestDir: "{app}\extension-manager"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
 Source: "kaggle-tpu\*"; DestDir: "{app}\kaggle-tpu"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
+Source: "reggallery\*"; DestDir: "{app}\reggallery"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
 
 [Dirs]
 Name: "{app}\backup"

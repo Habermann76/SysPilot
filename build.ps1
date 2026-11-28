@@ -23,7 +23,7 @@ if ($LASTEXITCODE -ne 0) { throw "ISCC fehlgeschlagen (Exit $LASTEXITCODE)" }
 $stage = Join-Path $env:TEMP "SysPilot-portable-$Version"
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force "$stage\modules","$stage\scripts" | Out-Null
-foreach ($d in 'extension','kaggle-tpu') {
+foreach ($d in 'extension','extension-manager','kaggle-tpu','reggallery') {
   $sp = Join-Path $root $d
   if (Test-Path $sp) { Copy-Item $sp "$stage\$d" -Recurse }
 }
