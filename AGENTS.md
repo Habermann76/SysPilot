@@ -1081,3 +1081,56 @@ Wenn GitHub MCP nicht funktioniert, nicht abbrechen: `scripts\github-fallback.ps
 - `check-syntax.ps1` prueft automatisch auf veraltete Anzeigenamen in
   UI-Strings (`$retiredNames`-Liste dort pflegen). NAMEN-Befund =
   Check schlaegt fehl wie ein Syntaxfehler.
+
+## Konsolen-UI-Fehlersuche & bekannte Baustellen (Stand 0.9.5.0, verbindlich)
+
+### Windows-Terminal/ConPTY-Fallen (verbindlich)
+- **`$Host.UI.RawUI.CursorPosition`-Setter ist UNZUVERLAESSIG**: Unter
+  Windows Terminal/ConPTY kann das Setzen "erfolgreich" wirken, ohne die
+  Position anzuwenden -> Inline-Redraws haengen Zeilen an (Duplikat-Spam,
+  Klicks ins Leere). IMMER `Set-SysPilotConsoleCursor` (Common.psm1,
+  kernel32 `SetConsoleCursorPosition` + Verify ueber
+  `GetConsoleScreenBufferInfo`) verwenden - NICHT den RawUI-Setter.
+- **`GetConsoleCursorPosition` (kernel32) liefert unter ConPTY FALSCH**
+  (z.B. 0,0) - zur Verifikation nur `GetConsoleScreenBufferInfo`
+  (`dwCursorPosition`) benutzen; der ist korrekt (externer Beweis:
+  ReadConsoleOutputCharacter auf fremde Konsolen per AttachConsole+CONOUT$).
+- **`WriteConsoleInput`-Injection erreicht ConPTY-Apps oft NICHT**:
+  synthetische Records werden von Windows Terminal nicht an die App
+  durchgereicht. Fuer Live-Tests echte Maus/Tastatur benutzen
+  (SetCursorPos erzeugt echte MOUSE_MOVEs), nicht auf Injection vertrauen.
+- **Maus-Event-Koordinaten = Buffer-Koordinaten**: `$ev.Row/-Col` in
+  Read-SysPilotMenuEvent sind absolute Screen-Buffer-Zellen, identisch zu
+  CursorPosition.Y/X - nie Viewport-relative Werte annehmen.
+- **Sichtbare Fenster finden**: `EnumWindows`+`GetWindowText` zeigt
+  minimierte Fenster als RECT=-25600,-25600; `ShowWindow(hwnd,9)` +
+  `SetForegroundWindow` stellt sie wieder her. UIA (`wins3.ps1`-Stil)
+  liefert BoundingRectangle nur fuer sichtbare Fenster.
+
+### Konsole live auslesen (Debug-Werkzeuge, Muster in %TEMP%)
+- **Buffertext einer fremden Konsole**: `AttachConsole(pid)` +
+  `CreateFile('CONOUT$')` + `ReadConsoleOutputCharacter` - liest exakte
+  Buffer-Zeilen (Cursor-Position inklusive). Funktioniert auch wenn das
+  Fenster minimiert ist.
+- **Fensterinhalt visuell**: `PrintWindow(hwnd, hdc, 2)` -> PNG ->
+  Windows.Media.Ocr (WinRT, -STA noetig) -> Text. Unabhaengig vom
+  Buffer-Zustand, zeigt was der User wirklich sieht.
+- **Prozess-Startzeiten pruefen, bevor man Bugs einer Codeversion
+  zuordnet**: Module werden beim Prozessstart geladen - ein Langlaeufer
+  kann monatelang ALTEN Code im Speicher haben (Fix wirkt erst nach
+  Neustart des Tool-Prozesses, nicht nach Deploy).
+
+### Aehnliche-Fehler-regel (verbindlich)
+- Bei jedem Bug in einem Console-/UI-Mechanismus: **repo-weit nach demselben
+  Muster suchen** (`git grep` nach CursorPosition, ReadConsoleInput,
+  WaitForSingleObject, Write-Host-Redraws, GetNewClosure) und alle
+  betroffenen Stellen ANPASSUNGSGERECHT mitfixen - nicht nur die eine
+  gemeldete Stelle. Beispiel 0.9.5.0: `$((if`-Klammer-Bug und
+  Array-im-Array-Return waren Einzelpunkte; CursorPosition-Falle war
+  nur an einer Stelle, wurde aber als Systemic-Risk dokumentiert.
+- **Module-Import-Warnung** "nicht genehmigte Verben" ist KOSMETISCH
+  (PowerShell-Verbliste) - kein Handlungsbedarf, nicht mit Bugs verwechseln.
+- **Deploy nach `C:\Program Files\SysPilot`** braucht Admin:
+  `_sync_installed.ps1` oder einzelne `Copy-Item`; bei Devin-Sessions
+  ohne Admin Rechte ueber `Start-Process -Verb RunAs` eskalieren
+  (UAC-Prompt) - oder Devin selbst elevated starten.
