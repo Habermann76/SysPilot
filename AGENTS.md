@@ -96,7 +96,33 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 - Nicht verwenden: Simultanes $args +=-Füllen
 
 ## Aktuelle Version
-- **0.9.5.0** ist der aktuelle Stand (neu: **Task-Manager**
+- **0.9.5.1** ist der aktuelle Stand (neu: **KI-Provider-
+  Revolution** — Katalog 134 Einträge via OmniRoute-Registry-
+  Analyse (~60 Bezahl-Provider OpenAI-kompatibel + Free-Router +
+  Keyless Kilo/OVH); **`Get-SysPilotAiRankedModels`** = automatische
+  Best-Model-Selection (Kostenklasse/:free/Kontext) +
+  Rate-Limit-Modell-Fallback; **Modell-Cooldowns**
+  (`ai-model-cooldowns.json`, 15min, 429/Quota);
+  **Smart Budget** `Get/Set-SysPilotAiBudgetMode`
+  (smart/sparsam/qualitaet/aus) + `MonthlyTokenBudget` global +
+  `TokenCapMonthly` pro Provider, gespeist aus `ai-usage.json`
+  (Requests+Tokens/Monat); **Modell-Scope** `AllowedModels`
+  (Prefix-Match in RankedModels); **Masked-Key** `Key:…wxyz` +
+  Reveal-Aktion; **Voice** an/abschaltbar (`VoiceMode`
+  off/speak/chat, `VoiceTts` system/provider — ffmpeg-dshow Aufnahme
+  → `/audio/transcriptions` → Chat → `/audio/speech` oder
+  `System.Speech` offline-DE; `Get-SysPilotAiFfmpeg` hat eigenen
+  Fallback ohne Common-Import); **`/audio/speech`**-Endpoint;
+  **SysPilot Extension Manager** `extension-manager/` (MV3,
+  `chrome.management` — Liste/Suche/Enable-Disable/Remove,
+  HTML-Export/-Import, Pfad `%LOCALAPPDATA%\SysPilot\extension-
+  manager` wegen Chrome-Ordnerdialog-Falle OneDrive\Documents);
+  **Browser-URL-Protokolle** `Register-SysPilotBrowserUrlSchemes`
+  (HKCU, chrome://edge://brave://chromium://); **Router-Sync
+  Modell-Plan** `Get-SysPilotProviderModelPlan` +
+  `Save-SysPilotUsableProvidersArtifact` → `usable-providers.json`
+  mit model+models-Fallback-Kette in allen 4 Syncs;
+  **0.9.5.0**: **Task-Manager**
   `ProcessManager.psm1` Key `procs` + Process-Explorer portabel;
   **Pilot Herbert (Flug 667)** = KI-Branding + Programm-Start-
   Watcher (stumm schaltbar via `ChkKiHints`);

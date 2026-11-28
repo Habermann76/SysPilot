@@ -1,8 +1,38 @@
-# SysPilot 0.9.5.0 beta — Dein intelligenter PC-Autopilot
+# SysPilot 0.9.5.1 beta — Dein intelligenter PC-Autopilot
 
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
 Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
 alles bleibt auf deinem PC.
+
+## Version 0.9.5.1 beta
+
+### Was ist neu? (KI-Assistenz & Extension Manager)
+
+- **134 KI-Provider im Katalog** (vorher 28): OmniRoute-Registry-
+  Analyse — ~60 bezahlte OpenAI-kompatible Anbieter (OpenAI, xAI,
+  DeepInfra, Baseten, Hetzner, cheaperinference, Qwen Cloud, MiniMax,
+  Baidu Qianfan, Tencent Hunyuan …), ~25 weitere Free-Router und
+  2 Keyless-Provider (Kilo Gateway, OVH — kein Account nötig)
+- **Automatische Best-Model-Selection**: SysPilot bewertet die
+  /models-Liste jedes Providers live (Kostenklasse, Free-Varianten,
+  Kontext, Größe) und wechselt bei 429/Quota automatisch zum nächsten
+  Modell — Freikontingente gelten pro Modell, nicht pro Provider
+- **Modell-Cooldowns**: quotierte Modelle werden 15 min gemerkt und
+  im Ranking gesenkt (FreeLLMAPI-Prinzip, persistent)
+- **Smart Budget** (an/abschaltbar): `smart` = Bezahltes nur solange
+  Monats-Token-Budget reicht; `sparsam` = keine teuren/Abo-Provider;
+  `qualitaet` = Budget-Checks aus; pro-Provider Token-Caps +
+  globale Monats-Limits, gespeist aus echtem Verbrauch
+- **Voice (an/abschaltbar)**: Voice-Chat — Aufnahme → Whisper-STT →
+  Chat → vorgelesene Antwort; Sprachausgabe im Text-Chat togglebar;
+  TTS offline (deutsche System-Stimme) oder via Provider
+- **Masked Keys + Modell-Scope + Monats-Nutzung** im Provider-Detail
+- **SysPilot Extension Manager (NEU)**: eigene Browser-Extension mit
+  chrome.management — suchen, an/aus, entfernen, HTML-Export/-Import
+  als Sync zwischen Browsern; plus chrome://-URL-Protokolle für
+  Windows
+- **Router-Sync** (OmniRoute, FreeLLMAPI, freelm, 9router) bekommt
+  jetzt gerankte Modell-Pläne + Fallback-Ketten
 
 ## Version 0.9.5.0 beta
 

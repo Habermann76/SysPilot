@@ -1,6 +1,34 @@
 # SysPilot — Roadmap
 
-## Version 0.9.5.0 (NEU)
+## Version 0.9.5.1 (NEU)
+
+- ✅ **Provider-Katalog 134 Eintraege**: OmniRoute-Registry-Portierung
+  (~60 Bezahl-Provider OpenAI-kompatibel + Free-Router + Keyless:
+  Kilo Gateway, OVH)
+- ✅ **Best-Model-Selection** (`Get-SysPilotAiRankedModels`):
+  Live-Ranking der /models-Listen (Kostenklasse, :free-Varianten,
+  Kontext, Groesse) + Rate-Limit-Modell-Fallback vor Provider-Wechsel
+- ✅ **Modell-Cooldowns** (ai-model-cooldowns.json, 15min, 429/Quota)
+- ✅ **Smart Budget** (`Get/Set-SysPilotAiBudgetMode`, smart/sparsam/
+  qualitaet/aus) + globales Monats-Token-Budget + TokenCapMonthly pro
+  Provider; Nutzung aus ai-usage.json
+- ✅ **Modell-Scope** (AllowedModels, Prefix-Match) + Masked-Key-
+  Anzeige/Reveal + Monats-Nutzungsanzeige im Provider-Detail
+- ✅ **Voice** (an/ausschaltbar): Voice-Chat (ffmpeg-Aufnahme →
+  /audio/transcriptions → Chat → /audio/speech oder System.Speech),
+  Sprachausgabe-Toggle im Text-Chat, TTS-Engine-Wahl
+- ✅ **Non-Chat-Endpoints**: + /audio/speech; Key-Dateien-Filter
+  für TTS/Search-APIs
+- ✅ **SysPilot Extension Manager** (extension-manager/, MV3 +
+  chrome.management): Liste/Suche/Enable-Disable/Remove, HTML-
+  Export/Import, SysPilot-Button + CleanSweep-Eintrag + KiAction
+- ✅ **Browser-URL-Protokolle** (chrome://, edge://, brave://,
+  chromium://) als HKCU-Handler
+- ✅ **Router-Sync Modell-Plan**: usable-providers.json mit
+  model+models-Fallback-Kette in allen 4 Syncs
+- ✅ `version.txt` = 0.9.5.1
+
+## Version 0.9.5.0
 
 - ✅ **Download-Portale & Web-Kataloge**: 17 Portale (DE+EN) als
   `[Portal]`-Apps + Update-Center-Liste; Ninite vollautomatisierbar

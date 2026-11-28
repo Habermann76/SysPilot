@@ -1,3 +1,69 @@
+# SysPilot 0.9.5.1 beta
+
+## KI-Assistenz: Provider-Revolution (OmniRoute/FreeLLMAPI-Portierung)
+
+- **Provider-Katalog 28 → 134 Eintraege**: OmniRoute-Registry analysiert
+  (287 Provider, `baseUrl`+`authType` extrahiert) — ~60 BEZAHLTE
+  OpenAI-kompatible Provider (OpenAI, xAI, DeepInfra, Baseten, Nebius,
+  Hetzner, Scaleway, cheaperinference, AI/ML API, Qwen Cloud, MiniMax,
+  Baidu Qianfan, Tencent Hunyuan, GigaChat u.v.m.) + ~25 weitere
+  Free-Router + 2 KEYLESS-Provider (Kilo Gateway, OVH AI Endpoints —
+  kein Account noetig)
+- **Automatische Best-Model-Selection** (`Get-SysPilotAiRankedModels`):
+  bewertet /models-Listen live nach Kostenklasse, Free-Varianten,
+  Modellgroesse, Kontextlaenge — bei 429/Quota wechselt der Chat
+  automatisch zum naechsten Modell desselben Providers (Freikontingente
+  gelten pro Modell), erst dann zum naechsten Provider
+- **Modell-Cooldowns** (FreeLLMAPI-Prinzip): 429/Quota sperrt das Modell
+  15min (`ai-model-cooldowns.json`), Ranking demotiert es, Erfolg hebt
+  die Sperre auf
+- **Smart Budget** (an-/abschaltbar, Provider-Menue > [B]):
+  `smart` = Bezahl-Provider nur solange Monats-Token-Budget reicht;
+  `sparsam` = teure/Abo-Provider komplett raus (Pin ausgenommen);
+  `qualitaet` = Budget-Checks aus; `aus` = alte Sortierung.
+  Globales Monats-Budget + pro-Provider TokenCap, gespeist aus
+  `ai-usage.json` (Requests+Tokens pro Provider/Monat)
+- **Modell-Scope**: pro Provider per Haken-Liste einschoenkbar, welche
+  /models-Modelle ein Key nutzen darf (Prefix-Match)
+- **Masked Keys + Reveal**: Provider-Listen zeigen `Key:…wxyz`,
+  Detail-Ansicht hat „API-Key anzeigen"
+- **Voice (an/ausschaltbar)**: Endpunkte > [V] Voice — Voice-Chat
+  (Aufnahme via ffmpeg/dshow, Enter=Stopp → Whisper-STT → Chat →
+  TTS-Antwort), Sprachausgabe im Text-Chat an/aus, TTS-Engine
+  system (offline DE-Stimme) oder provider (/audio/speech)
+- **Non-Chat-Endpoints komplett**: /models, /embeddings,
+  /images/generations, /audio/transcriptions + NEU /audio/speech
+- **Router-Sync mit Modell-Plan**: OmniRoute/FreeLLMAPI/freelm/9router
+  bekommen `usable-providers.json` mit geranktem Modell + Fallback-
+  Kette pro Provider
+
+## SysPilot Extension Manager (NEU, `extension-manager/`)
+
+- **Eigene MV3-Extension** mit `chrome.management`: Extension-Liste +
+  Suche, Enable/Disable, echtes Entfernen (Chrome-Dialog mit
+  Sync-Option), Zahngear → `chrome://extensions/?id=` fokussiert
+  (HWND-Diff + SetForegroundWindow), HTML-Export/-Import als
+  browser-uebergreifender Sync
+- **3 Einstiegspunkte**: Button im Extension-Manager, CleanSweep >
+  Browser-Erweiterungen, KiAction `ext-manager`; Herbert-Wissen mit
+  ADHS-Anleitung inkl. Ordnerdialog-Falle (OneDrive\Documents-Falle
+  dokumentiert, LOCALAPPDATA-Pfad)
+- **Browser-URL-Protokolle**: `chrome://`, `edge://`, `brave://`,
+  `chromium://` als HKCU-URL-Handler — chrome://-Links oeffnen jetzt
+  von Windows/PowerShell/Chat aus
+
+## Fixes (CleanSweep/Browser-Erweiterungen)
+
+- Sync-Policy-Bloecke ohne Admin loeschbar (HKCU), Sync-Rueckhol-Falle
+  geschlossen; Browser-Kill mit Prozess-Wait + Re-Check; Extension-
+  Entfernung bleibt weg (harte Kill-Option, Local+Sync Settings);
+  WPF-Multiselect-Tag-Bug (verschachtelte Arrays), ConPTY-Ja/Nein-
+  Dialog, CleanSweep-Ende-Dialog (Tray/Beenden)
+- Backup-Verzeichnis-Fallback auf LOCALAPPDATA (UnauthorizedAccess
+  in Program Files), Statuszeilen bei langen Scans
+
+---
+
 # SysPilot 0.9.5.0 beta
 
 - **KRITISCHER FIX - roter Fehlertext beim Start**: 15 Dateien
