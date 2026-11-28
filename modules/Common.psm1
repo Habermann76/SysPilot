@@ -29,6 +29,8 @@ public static class SysPilotConsoleInput {
     [DllImport("kernel32.dll")] public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
     [DllImport("kernel32.dll", SetLastError=true)] public static extern bool ReadConsoleInput(IntPtr hConsoleInput, [Out] INPUT_RECORD[] lpBuffer, uint nLength, out uint lpNumberOfEventsRead);
     [DllImport("kernel32.dll", SetLastError=true)] public static extern bool GetConsoleScreenBufferInfo(IntPtr hConsoleOutput, out CONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo);
+    [DllImport("kernel32.dll", SetLastError=true)] public static extern bool SetConsoleCursorPosition(IntPtr hConsoleOutput, COORD dwCursorPosition);
+    [DllImport("kernel32.dll", SetLastError=true)] public static extern bool GetConsoleCursorPosition(IntPtr hConsoleOutput, out COORD lpCursorPosition);
 
     [StructLayout(LayoutKind.Sequential)] public struct COORD { public short X; public short Y; }
     [StructLayout(LayoutKind.Sequential)] public struct SMALL_RECT { public short Left; public short Top; public short Right; public short Bottom; }
@@ -1373,10 +1375,17 @@ function Read-SysPilotYesNo {
                 Write-Host "  (Klick, j/n, Pfeile+Enter, Esc = Nein)" -ForegroundColor DarkGray
                 $firstDraw = $false
             } else {
-                # nur die Optionszeile aktualisieren (kein Clear-Host)
-                $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates(0, $optRow)
-                & $drawOpts
-                $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates(0, $restRow)
+                # nur die Optionszeile aktualisieren (kein Clear-Host).
+                # Cursor-Set MUSS verifiziert werden: Schlaegt es fehl
+                # (z.B. ConPTY/Windows Terminal), wuerde drawOpts eine
+                # neue Zeile anhängen - endloser Optionszeilen-Spam und
+                # Klicks ins Leere. Dann lieber gar nicht neu zeichnen.
+                if (Set-SysPilotConsoleCursor -X 0 -Y $optRow) {
+                    & $drawOpts
+                    [void](Set-SysPilotConsoleCursor -X 0 -Y $restRow)
+                } else {
+                    $needDraw = $false
+                }
             }
         }
         $needDraw = $true
@@ -1540,6 +1549,32 @@ function Restore-SysPilotConsoleInput {
         $script:ConsoleInputHandle = [IntPtr]::Zero
         $script:ConsoleInputReady = $false
     }
+}
+
+function Set-SysPilotConsoleCursor {
+    <# Setzt die Konsolen-Cursorposition DIREKT ueber kernel32
+       (SetConsoleCursorPosition) und verifiziert per
+       GetConsoleScreenBufferInfo, dass die Position wirklich angelaufen ist.
+       Hintergrund: Unter Windows
+       Terminal/ConPTY kann der RawUI-CursorPosition-Setter "erfolgreich"
+       laufen, ohne die Position anzuwenden - die Folge war, dass Inline-
+       Redraws (z.B. Ja/Nein-Dialog) jedes Mal eine NEUE Zeile schrieben
+       (Optionszeilen-Duplikate, Klicks ins Leere, Tooltip-Spam).
+       Rueckgabe: $true nur bei verifizierter Position. #>
+    param([Parameter(Mandatory)][int]$X, [Parameter(Mandatory)][int]$Y)
+    if (-not ('SysPilotConsoleInput' -as [type])) { return $false }
+    try {
+        $hOut = [SysPilotConsoleInput]::GetStdHandle(-11)   # STD_OUTPUT_HANDLE
+        if ($hOut.ToInt64() -eq -1 -or $hOut -eq [IntPtr]::Zero) { return $false }
+        $c = New-Object SysPilotConsoleInput+COORD
+        $c.X = [int16]$X; $c.Y = [int16]$Y
+        if (-not [SysPilotConsoleInput]::SetConsoleCursorPosition($hOut, $c)) { return $false }
+        # Verifizieren ueber GetConsoleScreenBufferInfo: GetConsoleCursorPosition
+        # meldet unter ConPTY/Windows Terminal falsch (z.B. 0,0) - CSBI ist korrekt.
+        $info = New-Object SysPilotConsoleInput+CONSOLE_SCREEN_BUFFER_INFO
+        if (-not [SysPilotConsoleInput]::GetConsoleScreenBufferInfo($hOut, [ref]$info)) { return $false }
+        return ($info.dwCursorPosition.X -eq $X -and $info.dwCursorPosition.Y -eq $Y)
+    } catch { return $false }
 }
 
 function Clear-SysPilotConsoleInputBuffer {
@@ -4457,7 +4492,7 @@ Export-ModuleMember -Function ConvertTo-SysPilotArgString, Test-SysPilotAdmin, A
     Get-SysPilotProcessByName, New-SysPilotBackup, Get-SysPilotBackupDir, Get-SysPilotBackups, Restore-SysPilotServices,
     Write-SysPilotHeader, Read-SysPilotChoice, Read-SysPilotInput, Show-SysPilotWpfInput, Set-SysPilotWindowAutoSize, Set-SysPilotWindowForeground, Register-SysPilotWindowChrome, Find-SysPilotFreeWindowPosition, Get-SysPilotOccupiedWindowRects, Show-SysPilotRunCommand, Set-SysPilotRichText, Confirm-SysPilot, Show-SysPilotArrowMenu, Show-SysPilotMultiSelectMenu,
     Clear-SysPilotPendingKeys,
-    Initialize-SysPilotConsoleInput, Restore-SysPilotConsoleInput, Read-SysPilotMenuEvent, Clear-SysPilotConsoleInputBuffer, Read-SysPilotYesNo,
+    Initialize-SysPilotConsoleInput, Restore-SysPilotConsoleInput, Read-SysPilotMenuEvent, Clear-SysPilotConsoleInputBuffer, Read-SysPilotYesNo, Set-SysPilotConsoleCursor,
     Save-SysPilotUrlToFile, Test-SysPilotLaunchablePath, Invoke-SysPilotMonitoredProcess, Read-SysPilotFileTailLine,
     Get-SysPilotModuleLinks,
     Find-SysPilotJsonSection, Get-SysPilotJsonSectionText, Get-SysPilotChromiumExtensionSettings,
