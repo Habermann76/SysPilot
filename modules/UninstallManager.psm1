@@ -957,6 +957,39 @@ function Get-SysPilotBrowserExePath {
     return $null
 }
 
+function Register-SysPilotBrowserUrlSchemes {
+    <# Registriert chrome://, edge://, brave://, vivaldi://, opera:// als
+       Windows-URL-Protokolle (HKCU, kein Admin noetig). Danach koennen
+       interne Browser-Seiten (z.B. chrome://extensions/?id=...) per
+       'start chrome://...' oder Doppelklick aus jeder App geoeffnet
+       werden - Windows kennt sonst keinen Handler dafuer.
+       Ueberschreibt nur SysPilot-eigene Eintraege, fremde bleiben. #>
+    $map = @(
+        @{ Browser='Chrome';   Scheme='chrome'  },
+        @{ Browser='Edge';     Scheme='edge'    },
+        @{ Browser='Brave';    Scheme='brave'   },
+        @{ Browser='Vivaldi';  Scheme='vivaldi' },
+        @{ Browser='Opera';    Scheme='opera'   },
+        @{ Browser='Chromium'; Scheme='chromium'}
+    )
+    $done = @(); $skipped = @()
+    foreach ($e in $map) {
+        $exe = Get-SysPilotBrowserExePath -Browser $e.Browser
+        if (-not $exe) { $skipped += "$($e.Browser) (nicht installiert)"; continue }
+        $key = "HKCU:\Software\Classes\$($e.Scheme)"
+        try {
+            New-Item -Path $key -Force | Out-Null
+            Set-ItemProperty -Path $key -Name '(Default)' -Value "URL:$($e.Browser) Protocol" -ErrorAction SilentlyContinue
+            New-ItemProperty -Path $key -Name 'URL Protocol' -Value '' -PropertyType String -Force | Out-Null
+            $cmd = Join-Path $key 'shell\open\command'
+            New-Item -Path $cmd -Force | Out-Null
+            Set-ItemProperty -Path $cmd -Name '(Default)' -Value ('"{0}" "%1"' -f $exe)
+            $done += "$($e.Scheme):// -> $exe"
+        } catch { $skipped += "$($e.Browser) ($($_.Exception.Message))" }
+    }
+    return @{ Ok=($done.Count -gt 0); Registered=$done; Skipped=$skipped }
+}
+
 function Initialize-SysPilotExtWin32 {
     <# Eigener Win32-Typ fuer den Extension-Page-Flow - unabhaengig von
        SysPilotWin32 (das nur existiert, wenn die GUI-Chrome-Funktion
@@ -1429,6 +1462,7 @@ function Show-SysPilotExtensionRemoval {
         $nonAiCount = @($exts | Where-Object { -not (Test-SysPilotAiBrowser $_.Browser) }).Count
         $navItems += @{ Label = ("Alle Browser  ({0} Erweiterungen)" -f $nonAiCount); Color = 'Cyan'; Tag = '__all' }
         $navItems += @{ Label = '[SysPilot] Extension-Manager installieren (chrome.management: Suchen, Enable/Disable, Entfernen, HTML-Export/Import)'; Color = 'Green'; Tag = '__extmgr' }
+        $navItems += @{ Label = '[SysPilot] Browser-Protokolle registrieren (chrome://, edge:// ... von Windows aus oeffnen)'; Color = 'Green'; Tag = '__schemes' }
         $navItems += @{ Label = 'Fertig'; Color = 'DarkGray'; Tag = 'back' }
         $browser = Show-SysPilotArrowMenu -Items $navItems -Title "Browser-Erweiterungen - Browser waehlen" -Footer 'Klick/Pfeile+Enter = auswaehlen, Esc = fertig'
         Write-SysPilotDebug "Browser-Auswahl: $browser"
@@ -1440,6 +1474,17 @@ function Show-SysPilotExtensionRemoval {
                 Write-Host "  $($r.Message)" -ForegroundColor Green
             } else {
                 Write-Host "  [!] $($r.Message)" -ForegroundColor Red
+            }
+            Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+            continue
+        }
+        if ($browser -eq '__schemes') {
+            $r = Register-SysPilotBrowserUrlSchemes
+            Write-Host ""
+            foreach ($d in $r.Registered) { Write-Host "  registriert: $d" -ForegroundColor Green }
+            foreach ($s in $r.Skipped) { Write-Host "  uebersprungen: $s" -ForegroundColor DarkGray }
+            if ($r.Registered.Count -gt 0) {
+                Write-Host "`n  chrome://, edge://, brave:// ... funktionieren jetzt von ueberall`n  (z.B. 'start chrome://extensions' in PowerShell oder Doppelklick)." -ForegroundColor Cyan
             }
             Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
             continue
@@ -2230,6 +2275,7 @@ Export-ModuleMember -Function `
     Get-SysPilotBrowserExtensionPolicy, Show-SysPilotExtensionPolicyManager, `
     Test-SysPilotAiBrowser, Get-SysPilotBrowserProcesses, `
     Get-SysPilotBrowserExePath, Open-SysPilotExtensionPages, `
+    Register-SysPilotBrowserUrlSchemes, `
     Get-SysPilotOrphanPrograms, Get-SysPilotBrokenUninstallEntries, `
     Invoke-SysPilotForceUninstall, `
     Get-SysPilotWindowsUpdates, Remove-SysPilotWindowsUpdate, `
