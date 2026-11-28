@@ -895,41 +895,70 @@ function Test-SysPilotAiProvider {
     }
 }
 
+function Get-SysPilotAiRankedModels {
+    <# Bewertet die /models-Liste eines Providers und liefert die IDs
+       sortiert nach Eignung - 'best selection' automatisiert:
+       - Kostenklasse des Providers (kostenlos/lokal > freemium >
+         guenstig > teuer): bei kostenlosenProvidern werden Free-Varianten
+         (:free, -free, free) und kleine/effiziente Modelle bevorzugt,
+         bei teuren der groesste verfuegbare Kontext.
+       - Demotion: embedding/rerank/whisper/tts/image/moderation-Modelle
+         sind keine Chat-Modelle.
+       - Lokale Modelle: 3-9b-Klasse bevorzugt (CPU-Tempo), wie bisher.
+       Gibt @(@{Id;Score;Context}) sortiert absteigend zurueck. #>
+    param([Parameter(Mandatory)]$Provider, [int]$TimeoutSec = 12, [int]$Top = 8)
+    $ml = Get-SysPilotAiProviderModels -Provider $Provider -TimeoutSec $TimeoutSec
+    if (-not $ml.Ok -or @($ml.Models).Count -eq 0) { return @() }
+    $intel = Get-SysPilotAiProviderIntel -Name $Provider.Name -BaseUrl $Provider.BaseUrl
+    $cost = [string]$intel.Cost
+    $freeish = $cost -in @('lokal','kostenlos','freemium','gemischt','unbekannt')
+    $ranked = foreach ($m in @($ml.Models)) {
+        $id = [string]$m.Id
+        if (-not $id) { continue }
+        $score = 0
+        # --- Nicht-Chat-Modelle stark demoten ---
+        if ($id -match '(?i)embed|bge-|e5-|nomic|gte-|rerank|whisper|tts|speech|moderation|guard|content.?filter|stable.?diffusion|flux|sdxl|imagen|dall-e|midjourney|audio|music|upscale|segment|depth|clip$') { $score -= 100 }
+        # --- Free-Varianten (OpenRouter :free, *-free, free*) ---
+        if ($id -match '(?i)(:free$|-free$|(^|[/_-])free([:/_-]|$))') { $score += 60 }
+        elseif ($freeish -and $id -match '(?i)free|flash|mini|lite|small|nano|turbo|instant|haiku') { $score += 25 }
+        # --- Frontier/Coding-Staerken als Qualitaets-Signal ---
+        if ($id -match '(?i)gpt-5|gpt-4\.1|claude|gemini-2|pro|max|reason|o[134]-|deepseek-v?3|kimi|glm-4\.6|qwen3-(max|235|480)|llama-4|hermes|dolphin|abliterated|uncensored|dolphin|venice') { $score += 20 }
+        # --- Groessen-Klasse ---
+        $b = 0
+        if ($id -match '(\d+(?:\.\d+)?)\s*b') { $b = [double]$Matches[1] }
+        elseif ($id -match '(\d{2,3})') { $b = [double]$Matches[1] }  # z.B. llama-3.3-70b -> 70 via b-Regel; Fallback fuer 70b ohne 'b'
+        if ($Provider.Kind -eq 'local' -or $cost -eq 'lokal') {
+            if ($b -ge 3 -and $b -le 9) { $score += 30 }        # CPU-Sweet-Spot
+            elseif ($b -gt 0 -and $b -lt 3) { $score -= 10 }   # zu klein
+            elseif ($b -gt 13) { $score -= 15 }               # zu schwer fuer CPU
+        } else {
+            # Cloud: groessere Modelle = bessere Qualitaet, aber bei
+            # Free-Tiers sind 'flash/mini'-Klassen oft das Kontingent
+            if ($b -gt 0) { $score += [math]::Min(20, [math]::Round($b / 5)) }
+            if ($freeish -and $id -match '(?i)flash|mini|lite|small|nano|turbo|instant|haiku|8b|7b') { $score += 15 }
+        }
+        # --- Kontext-Budget: groesser = besser (log-Skala) ---
+        if ($m.Context -gt 0) { $score += [math]::Min(15, [math]::Round([math]::Log10($m.Context) * 3)) }
+        # --- SysPilot-Spezial: lokales 'herbert'-Modell hat Vorrang ---
+        if ($id -match '^(?i)herbert([: ]|$)') { $score += 50 }
+        [pscustomobject]@{ Id=$id; Score=$score; Context=[int64]$m.Context }
+    }
+    return @($ranked | Sort-Object Score -Descending | Select-Object -First $Top)
+}
+
 function Resolve-SysPilotAiModel {
-    <# Waehlt ein Modell: konfiguriertes, sonst erstes aus /models
-       (bevorzugt 'free'/kleine Namen). Einziger HTTP-Call ueber
-       Get-SysPilotAiProviderModels + Session-Cache (vorher: Test +
-       zweiter /models-Call pro Provider = ewig in der Fallback-Kette). #>
+    <# Waehlt ein Modell: konfiguriertes, sonst bestes aus der
+       bewerteten /models-Liste (Get-SysPilotAiRankedModels -
+       beruecksichtigt Kostenklasse, Free-Varianten, Groesse,
+       Kontext). Nur HTTP-Call ueber Get-SysPilotAiProviderModels
+       + Session-Cache. #>
     param([Parameter(Mandatory)]$Provider, [int]$TimeoutSec = 12)
     if ($Provider.Model) { return $Provider.Model }
     $ck = "$($Provider.BaseUrl.ToLower().TrimEnd('/'))|$([string]$Provider.ApiKey)"
     if ($script:AiModelResolveCache.ContainsKey($ck)) { return $script:AiModelResolveCache[$ck] }
     $pick = 'gpt-4o-mini'
-    $ml = Get-SysPilotAiProviderModels -Provider $Provider -TimeoutSec $TimeoutSec
-    if ($ml.Ok -and @($ml.Models).Count -gt 0) {
-        $ids = @($ml.Models | ForEach-Object { $_.Id } | Where-Object { $_ })
-        if ($ids.Count -gt 0) {
-            # SysPilot-eigenes Ollama-Modell ('herbert', groessere
-            # num_ctx) hat Vorrang, falls vorhanden
-            $pref = @($ids | Where-Object { $_ -match '^(?i)herbert([: ]|$)' } | Select-Object -First 1)
-            if (-not $pref) { $pref = @($ids | Where-Object { $_ -match '(?i)free|mini|flash|small|lite|nano|haiku|turbo|instant|8b|7b' } | Select-Object -First 1) }
-            if (-not $pref) {
-                # Keine Klartext-Praeferenz: aus den :Nb-Groessen das
-                # Modell in der 3-9b-Klasse bevorzugen (bestes
-                # Qualitaet/Tempo-Verhaeltnis auf CPU), sonst das
-                # kleinste (verhindert Cold-Load-Timeouts z.B. 12b).
-                $sized = @()
-                foreach ($id in $ids) {
-                    if ($id -match '(\d+(?:\.\d+)?)\s*b') { $sized += [pscustomobject]@{ Id=$id; B=[double]$Matches[1] } }
-                }
-                if ($sized.Count -gt 0) {
-                    $mid = @($sized | Where-Object { $_.B -ge 3 -and $_.B -le 9 } | Sort-Object B -Descending | Select-Object -First 1)
-                    if ($mid) { $pref = $mid.Id } else { $pref = ($sized | Sort-Object B | Select-Object -First 1).Id }
-                }
-            }
-            $pick = $(if ($pref) { $pref } else { $ids[0] })
-        }
-    }
+    $ranked = @(Get-SysPilotAiRankedModels -Provider $Provider -TimeoutSec $TimeoutSec -Top 1)
+    if ($ranked.Count -gt 0 -and $ranked[0].Id) { $pick = $ranked[0].Id }
     $script:AiModelResolveCache[$ck] = $pick
     if ($script:AiModelResolveCache.Count -gt 200) { $script:AiModelResolveCache.Clear() }
     return $pick
@@ -2115,6 +2144,17 @@ function Invoke-SysPilotAiChat {
             $script:AiProviderFailCache.Remove($pk)
         }
         $model = if ($Model) { $Model } else { Resolve-SysPilotAiModel -Provider $p -TimeoutSec 12 }
+        # Rate-Limit-Fallback: bei 429/Quota zuerst ALTERNATIVE Modelle
+        # desselben Providers probieren (Budget schonend - das
+        # Freikontingent ist pro Modell), ERST dann zum naechsten
+        # Provider wechseln. Gerankt via Get-SysPilotAiRankedModels.
+        $altModels = @()
+        if (-not $Model) {
+            try {
+                $altModels = @((Get-SysPilotAiRankedModels -Provider $p -TimeoutSec 8 -Top 4 |
+                    Where-Object { $_.Id -ne $model } | ForEach-Object { $_.Id }))
+            } catch { $altModels = @() }
+        }
         $providerErr = ''
         # Vision-Parts nur fuer faehige Modelle; sonst Text-Hinweis
         $reqMessages = @($messages)
@@ -2132,7 +2172,7 @@ function Invoke-SysPilotAiChat {
                 $reqMessages += @{ role='user'; content=("$Prompt$note") }
             }
         }
-        for ($attempt = 0; $attempt -lt 2; $attempt++) {
+        for ($attempt = 0; $attempt -lt 6; $attempt++) {
             $useTools = ($openAiTools.Count -gt 0 -and $attempt -eq 0)
             $bodyObj = @{
                 model = $model
@@ -2168,9 +2208,19 @@ function Invoke-SysPilotAiChat {
                 break
             } catch {
                 if ($useTools) { continue }   # Provider kann kein tools -> ohne Tools erneut
-                $providerErr = "$($p.Name): $($_.Exception.Message)"
+                $errMsg = "$($_.Exception.Message)"
+                # Rate-Limit/Quota: naechstes Modell desselben Providers
+                # versuchen (Freikontingent ist pro Modell) - spart den
+                # Sprung zum naechsten Provider und bleibt budget-schoen.
+                if ($altModels.Count -gt 0 -and $errMsg -match '(?i)429|rate.?limit|quota|budget|too many|insufficient|exceeded|capacity|overloaded') {
+                    $model = [string]$altModels[0]
+                    $altModels = @($altModels | Select-Object -Skip 1)
+                    Write-SysPilotLog "KI-Chat $($p.Name): Rate-Limit/Quota - Wechsel zu Modell '$model'"
+                    continue
+                }
+                $providerErr = "$($p.Name): $errMsg"
                 $script:AiProviderFailCache[$pk] = Get-Date
-                Write-SysPilotLog "KI-Chat $($p.Name) fehlgeschlagen: $($_.Exception.Message)"
+                Write-SysPilotLog "KI-Chat $($p.Name) fehlgeschlagen: $errMsg"
                 break
             }
         }
@@ -11675,7 +11725,7 @@ function Show-SysPilotHerbertApiMenu {
 
 Export-ModuleMember -Function `
     Get-SysPilotAiProviders, Test-SysPilotAiProvider, Test-SysPilotAiPortReachable, `
-    Resolve-SysPilotAiModel, Invoke-SysPilotAiChat, `
+    Resolve-SysPilotAiModel, Get-SysPilotAiRankedModels, Invoke-SysPilotAiChat, `
     Get-SysPilotAiLastSelection, Set-SysPilotAiLastSelection, `
     Show-SysPilotAiAssist, Show-SysPilotAiChat, Show-SysPilotAiQuickAsk, `
     Show-SysPilotAiProviderMenu, Add-SysPilotAiProviderInteractive, `
