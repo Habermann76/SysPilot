@@ -1424,16 +1424,10 @@ function Show-SysPilotExtensionRemoval {
             if (-not $syncGroups.ContainsKey($c.Browser)) { $syncGroups[$c.Browser] = @() }
             $syncGroups[$c.Browser] += $c.Id
         }
-        $hasAdmin = Test-SysPilotAdmin
+        # HKCU-Policy braucht KEIN Admin - die Blockierung wird also
+        # immer angeboten, auch wenn der Tool-Prozess nicht elevated ist.
         foreach ($bg in @($syncGroups.Keys | Sort-Object)) {
             $gids = @($syncGroups[$bg] | Select-Object -Unique)
-            if (-not $hasAdmin) {
-                Write-Host "" -ForegroundColor DarkGray
-                Write-Host "  [i] $bg ist angemeldet - Sync kann die Extension wiederherstellen." -ForegroundColor Cyan
-                Write-Host "      Policy-Blockierung moeglich, braucht aber Admin-Rechte" -ForegroundColor DarkGray
-                Write-Host "      (SysPilot als Administrator starten)." -ForegroundColor DarkGray
-                continue
-            }
             Write-Host ""
             Write-Host "  [i] $bg ist angemeldet - Sync kann entfernen wieder rueckgaengig" -ForegroundColor Cyan
             Write-Host "      machen. $($gids.Count) ID(s) per Richtlinie blockieren?" -ForegroundColor Cyan
