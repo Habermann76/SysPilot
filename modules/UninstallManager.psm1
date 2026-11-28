@@ -1428,10 +1428,22 @@ function Show-SysPilotExtensionRemoval {
         # waehlbar (User-Wunsch: keine unbeabsichtigte Massen-Entfernung)
         $nonAiCount = @($exts | Where-Object { -not (Test-SysPilotAiBrowser $_.Browser) }).Count
         $navItems += @{ Label = ("Alle Browser  ({0} Erweiterungen)" -f $nonAiCount); Color = 'Cyan'; Tag = '__all' }
+        $navItems += @{ Label = '[SysPilot] Extension-Manager installieren (chrome.management: Suchen, Enable/Disable, Entfernen, HTML-Export/Import)'; Color = 'Green'; Tag = '__extmgr' }
         $navItems += @{ Label = 'Fertig'; Color = 'DarkGray'; Tag = 'back' }
         $browser = Show-SysPilotArrowMenu -Items $navItems -Title "Browser-Erweiterungen - Browser waehlen" -Footer 'Klick/Pfeile+Enter = auswaehlen, Esc = fertig'
         Write-SysPilotDebug "Browser-Auswahl: $browser"
         if ($null -eq $browser -or $browser -eq 'back') { return }
+        if ($browser -eq '__extmgr') {
+            $r = Install-SysPilotExtManagerExtension
+            if ($r.Ok) {
+                Write-Host ""
+                Write-Host "  $($r.Message)" -ForegroundColor Green
+            } else {
+                Write-Host "  [!] $($r.Message)" -ForegroundColor Red
+            }
+            Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+            continue
+        }
 
         # 2. Extension-Liste des gewaehlten Browsers (oder alle)
         $list = @($exts | Where-Object {
