@@ -895,6 +895,65 @@ function Test-SysPilotAiProvider {
     }
 }
 
+# --- Modell-Cooldowns (FreeLLMAPI-Prinzip: pro Modell gemerkte
+#     Rate-Limit-Sperre, statt Provider komplett zu blockieren) ---
+function Get-SysPilotAiModelCooldownFile {
+    $f = Join-Path $env:LOCALAPPDATA 'SysPilot\ai-model-cooldowns.json'
+    return $f
+}
+function Get-SysPilotAiModelCooldowns {
+    <# Liefert Hashtable "baseUrl|model" -> [datetime] Cooldown-Ende.
+       Abgelaufene Eintraege werden beim Lesen entfernt. #>
+    $map = @{}
+    $f = Get-SysPilotAiModelCooldownFile
+    if (Test-Path $f) {
+        try {
+            $j = Get-Content $f -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($prop in $j.PSObject.Properties) {
+                $until = [datetime]::MinValue
+                if ([datetime]::TryParse([string]$prop.Value, [ref]$until) -and $until -gt (Get-Date)) {
+                    $map[$prop.Name] = $until
+                }
+            }
+        } catch {}
+    }
+    return $map
+}
+function Set-SysPilotAiModelCooldown {
+    <# Merkt sich: dieses Modell auf diesem Provider ist quotiert
+       (429/Rate-Limit). Default 15 min - geminated mit Retry-After
+       wo moeglich. Persistiert in ai-model-cooldowns.json. #>
+    param([Parameter(Mandatory)]$Provider, [Parameter(Mandatory)][string]$Model, [int]$Minutes = 15)
+    $key = "$($Provider.BaseUrl.ToLower().TrimEnd('/'))|$Model"
+    $map = Get-SysPilotAiModelCooldowns
+    $map[$key] = (Get-Date).AddMinutes($Minutes)
+    $f = Get-SysPilotAiModelCooldownFile
+    try {
+        $dir = Split-Path $f -Parent; if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+        $obj = [ordered]@{}; foreach ($k in $map.Keys) { $obj[$k] = $map[$k].ToString('o') }
+        ($obj | ConvertTo-Json -Depth 3) | Set-Content $f -Encoding UTF8
+    } catch {}
+}
+function Test-SysPilotAiModelCooledDown {
+    param([Parameter(Mandatory)]$Provider, [Parameter(Mandatory)][string]$Model)
+    $map = Get-SysPilotAiModelCooldowns
+    $key = "$($Provider.BaseUrl.ToLower().TrimEnd('/'))|$Model"
+    return $map.ContainsKey($key)
+}
+function Clear-SysPilotAiModelCooldown {
+    param([Parameter(Mandatory)]$Provider, [Parameter(Mandatory)][string]$Model)
+    $key = "$($Provider.BaseUrl.ToLower().TrimEnd('/'))|$Model"
+    $map = Get-SysPilotAiModelCooldowns
+    if ($map.ContainsKey($key)) {
+        $map.Remove($key)
+        $f = Get-SysPilotAiModelCooldownFile
+        try {
+            $obj = [ordered]@{}; foreach ($k in $map.Keys) { $obj[$k] = $map[$k].ToString('o') }
+            ($obj | ConvertTo-Json -Depth 3) | Set-Content $f -Encoding UTF8
+        } catch {}
+    }
+}
+
 function Get-SysPilotAiRankedModels {
     <# Bewertet die /models-Liste eines Providers und liefert die IDs
        sortiert nach Eignung - 'best selection' automatisiert:
@@ -912,10 +971,15 @@ function Get-SysPilotAiRankedModels {
     $intel = Get-SysPilotAiProviderIntel -Name $Provider.Name -BaseUrl $Provider.BaseUrl
     $cost = [string]$intel.Cost
     $freeish = $cost -in @('lokal','kostenlos','freemium','gemischt','unbekannt')
+    # Modell-Cooldowns (Rate-Limit-Merkzettel, FreeLLMAPI-Prinzip):
+    # quotierte Modelle ans Ende der Liste, nicht ausschliessen
+    $cooldowns = Get-SysPilotAiModelCooldowns
+    $ckBase = "$($Provider.BaseUrl.ToLower().TrimEnd('/'))|"
     $ranked = foreach ($m in @($ml.Models)) {
         $id = [string]$m.Id
         if (-not $id) { continue }
         $score = 0
+        if ($cooldowns.ContainsKey("$ckBase$id")) { $score -= 500 }
         # --- Nicht-Chat-Modelle stark demoten ---
         if ($id -match '(?i)embed|bge-|e5-|nomic|gte-|rerank|whisper|tts|speech|moderation|guard|content.?filter|stable.?diffusion|flux|sdxl|imagen|dall-e|midjourney|audio|music|upscale|segment|depth|clip$') { $score -= 100 }
         # --- Free-Varianten (OpenRouter :free, *-free, free*) ---
@@ -2202,6 +2266,8 @@ function Invoke-SysPilotAiChat {
                 $txt = $msg.content
                 if (-not $txt) { $txt = [string]$resp.choices[0].text }
                 if ($txt) {
+                    # Erfolg: Cooldown fuer dieses Modell aufheben
+                    if (-not $Model) { try { Clear-SysPilotAiModelCooldown -Provider $p -Model $model } catch {} }
                     return @{ Ok=$true; Text=($txt -join "`n").Trim(); Provider=$p.Name; Model=$model; Error=''; ToolCalls=@() }
                 }
                 $providerErr = 'leere Antwort'
@@ -2213,10 +2279,19 @@ function Invoke-SysPilotAiChat {
                 # versuchen (Freikontingent ist pro Modell) - spart den
                 # Sprung zum naechsten Provider und bleibt budget-schoen.
                 if ($altModels.Count -gt 0 -and $errMsg -match '(?i)429|rate.?limit|quota|budget|too many|insufficient|exceeded|capacity|overloaded') {
+                    # Cooldown merken (FreeLLMAPI-Prinzip): naechste
+                    # Chats sortieren dieses Modell ans Ende
+                    try { Set-SysPilotAiModelCooldown -Provider $p -Model $model -Minutes 15 } catch {}
                     $model = [string]$altModels[0]
                     $altModels = @($altModels | Select-Object -Skip 1)
-                    Write-SysPilotLog "KI-Chat $($p.Name): Rate-Limit/Quota - Wechsel zu Modell '$model'"
+                    Write-SysPilotLog "KI-Chat $($p.Name): Rate-Limit/Quota - Modell '$model' 15min gesperrt, Wechsel zu '$model'"
                     continue
+                }
+                # Auch das letzte Alternat-Modell cooldownen, wenn's
+                # am Kontingent lag (sonst wird's beim naechsten Chat
+                # wieder zuerst probiert)
+                if ($errMsg -match '(?i)429|rate.?limit|quota|budget|too many|insufficient|exceeded|capacity|overloaded') {
+                    try { Set-SysPilotAiModelCooldown -Provider $p -Model $model -Minutes 15 } catch {}
                 }
                 $providerErr = "$($p.Name): $errMsg"
                 $script:AiProviderFailCache[$pk] = Get-Date
@@ -11775,6 +11850,8 @@ function Show-SysPilotHerbertApiMenu {
 Export-ModuleMember -Function `
     Get-SysPilotAiProviders, Test-SysPilotAiProvider, Test-SysPilotAiPortReachable, `
     Resolve-SysPilotAiModel, Get-SysPilotAiRankedModels, Invoke-SysPilotAiChat, `
+    Get-SysPilotAiModelCooldowns, Set-SysPilotAiModelCooldown,
+    Test-SysPilotAiModelCooledDown, Clear-SysPilotAiModelCooldown, `
     Get-SysPilotAiLastSelection, Set-SysPilotAiLastSelection, `
     Show-SysPilotAiAssist, Show-SysPilotAiChat, Show-SysPilotAiQuickAsk, `
     Show-SysPilotAiProviderMenu, Add-SysPilotAiProviderInteractive, `
