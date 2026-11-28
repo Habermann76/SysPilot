@@ -196,6 +196,8 @@ $xaml = @"
       <TextBlock x:Name="WatchBadge" Text="  PC wird ueberwacht" FontSize="11" Foreground="#FF81C784" VerticalAlignment="Center" Margin="12,0,0,0"/>
       <Button x:Name="BtnUpdate" Content="Updates" FontSize="11" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center"
               ToolTip="Nach einer neuen SysPilot-Version suchen"/>
+      <Button x:Name="BtnDonate" Content="Spenden" FontSize="11" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center"
+              ToolTip="SysPilot unterstuetzen - Ko-fi (einmalig oder monatlich) oder Stripe"/>
       <Button x:Name="BtnAdmin" Content="Als Admin starten" FontSize="11" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center"
               ToolTip="Startet die GUI mit Administrator-Rechten neu (noetig fuer Plaene, Dienste, einige Fixes)"/>
     </StackPanel>
@@ -377,7 +379,7 @@ $ctrl = @{}
 foreach ($n in 'CpuText','CpuSpeed','CpuBar','RamText','RamDetail','RamBar','DiskText','DiskDetail','DiskBar',
                  'SysCpu','SysProcs','SysBattery','SysUptime','HogList','HogTip','AdminBadge','PlanBadge','WatchBadge','VersionBadge',
                  'TempBig','TempStatus','TempSource','TempUnitLabel',
-                 'BtnCheckup','BtnToolbox','BtnDns','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnHealth','BtnUpdates','BtnDlFind','BtnAppSearch','BtnDrvStudio','BtnAdmin','BtnUpdate','BtnKi','BtnProcs','BtnCf','BtnCare','BtnTweaks','BtnRegGal') {
+                 'BtnCheckup','BtnToolbox','BtnDns','BtnAuto','BtnCool','BtnPerf','BtnFreeRam','BtnPriorities','BtnGaming','BtnWork','BtnNight','BtnLHM','BtnMenu','BtnHealth','BtnUpdates','BtnDlFind','BtnAppSearch','BtnDrvStudio','BtnAdmin','BtnUpdate','BtnKi','BtnProcs','BtnCf','BtnCare','BtnTweaks','BtnRegGal','BtnDonate') {
     $ctrl[$n] = $win.FindName($n)
 }
 
@@ -1299,6 +1301,108 @@ function Set-PlanWithFeedback {
     }
 }
 
+# --- Spenden-Fenster (Ko-fi + Stripe, QR-Codes) ---
+function Show-SysPilotDonateWindow {
+    $kofiUrl  = 'https://ko-fi.com/Habermann76'
+    $stripeUrl = 'https://buy.stripe.com/00waEYchZ9wmcHl2Zv2Ji02'
+    $donateXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SysPilot - Spenden / Donate" Width="640" Height="560" MinWidth="560" MinHeight="480"
+        Background="#FF1E1E2E" Foreground="#FFE0E0E0"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip">
+  <Window.Resources>
+    <Style TargetType="Button">
+      <Setter Property="Background" Value="#FF2D2D44"/><Setter Property="Foreground" Value="#FFE0E0E0"/>
+      <Setter Property="BorderBrush" Value="#FF4A4A6A"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="12,7"/><Setter Property="Margin" Value="4"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+  </Window.Resources>
+  <Grid Margin="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <DockPanel Grid.Row="0">
+      <TextBlock Text="Spenden / Donate" FontSize="20" FontWeight="Bold" Foreground="#FFFFB74D"/>
+      <TextBlock Text="Hobby &amp; Donationware - spende, was du willst" FontSize="11" Foreground="#FF9E9E9E" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+    </DockPanel>
+    <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="12" Foreground="#FFB0B0C0" Margin="0,8,0,8"
+      Text="SysPilot ist kostenlos, Open Source und ohne Werbung. Wenn es dir gefaellt: ein Coffee, ein Pizza-Geld oder eine kleine monatliche Unterstuetzung - jede Hoehe ist willkommen. Kein Druck, das Tool bleibt so oder so kostenlos."/>
+    <Grid Grid.Row="2">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Border Grid.Column="0" Background="#FF252538" CornerRadius="8" Padding="12" Margin="0,0,8,0">
+        <StackPanel>
+          <TextBlock Text="Ko-fi" FontSize="15" FontWeight="Bold" Foreground="#FF4FC3F7"/>
+          <TextBlock Text="Einmalig ODER monatlich - Betrag frei waehlbar. Ko-fi behalt keine Gebuehr (Spender zahlt die)." FontSize="11" Foreground="#FF9E9E9E" TextWrapping="Wrap" Margin="0,4,0,8"/>
+          <Border Background="White" CornerRadius="6" Padding="8" HorizontalAlignment="Center">
+            <Image x:Name="QrKofi" Width="170" Height="170"/>
+          </Border>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+            <Button x:Name="BtnKofiTip" Content="Einmalig" Padding="12,4" Margin="2" ToolTip="Trinkgeld-Seite auf Ko-fi (Betrag frei waehlbar)"/>
+            <Button x:Name="BtnKofiMonthly" Content="Monatlich" Padding="12,4" Margin="2" ToolTip="Ko-fi-Mitgliedschaft - wiederkehrende Zahlung, Betrag frei waehlbar"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="1" Background="#FF252538" CornerRadius="8" Padding="12" Margin="8,0,0,0">
+        <StackPanel>
+          <TextBlock Text="Stripe" FontSize="15" FontWeight="Bold" Foreground="#FFBA68C8"/>
+          <TextBlock Text="Alternative: direkter Checkout, ohne Zwischenkonto. Betrag wird beim Bezahlen festgelegt." FontSize="11" Foreground="#FF9E9E9E" TextWrapping="Wrap" Margin="0,4,0,8"/>
+          <Border Background="White" CornerRadius="6" Padding="8" HorizontalAlignment="Center">
+            <Image x:Name="QrStripe" Width="170" Height="170"/>
+          </Border>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+            <Button x:Name="BtnStripe" Content="Spenden-Link oeffnen" Padding="12,4" Margin="2"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+      <Button x:Name="BtnDonateInfo" Content="Warum &amp; Wofuer?" Padding="12,5" Margin="4" ToolTip="DONATE.md im Browser oeffnen"/>
+      <Button x:Name="BtnClose" Content="Schliessen" Padding="16,5" Margin="4"/>
+    </StackPanel>
+  </Grid>
+</Window>
+"@
+    $dreader = New-Object System.Xml.XmlNodeReader ([xml]$donateXaml)
+    $dwin = [Windows.Markup.XamlReader]::Load($dreader)
+    $dwin.Owner = $win
+    foreach ($n in 'BtnKofiTip','BtnKofiMonthly','BtnStripe','BtnDonateInfo','BtnClose','QrKofi','QrStripe') {
+        if ($null -eq $script:_donateCtrl) { $script:_donateCtrl = @{} }
+        $script:_donateCtrl[$n] = $dwin.FindName($n)
+    }
+    $setQr = {
+        param($imgName, [string]$url)
+        try {
+            $enc = [uri]::EscapeDataString($url)
+            $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=1&data=$enc"
+            $png = Invoke-WebRequest -Uri $qrUrl -TimeoutSec 15 -UseBasicParsing -ErrorAction Stop
+            $ms = New-Object IO.MemoryStream (, $png.Content)
+            $bmp = New-Object Windows.Media.Imaging.BitmapImage
+            $bmp.BeginInit(); $bmp.StreamSource = $ms; $bmp.CacheOption = 'OnLoad'; $bmp.EndInit()
+            $dwin.FindName($imgName).Source = $bmp
+        } catch {}
+    }
+    & $setQr 'QrKofi' $kofiUrl
+    & $setQr 'QrStripe' $stripeUrl
+    $dwin.Add_ContentRendered({
+        param($s,$e)
+        # QR-Code nach dem Rendern nochmal laden (Fallback falls frueher zu schnell)
+    })
+    $script:_donateCtrl.BtnKofiTip.Add_Click({ Start-Process $kofiUrl })
+    $script:_donateCtrl.BtnKofiMonthly.Add_Click({ Start-Process $kofiUrl })
+    $script:_donateCtrl.BtnStripe.Add_Click({ Start-Process $stripeUrl })
+    $script:_donateCtrl.BtnDonateInfo.Add_Click({
+        $donateMd = Join-Path $script:GuiRoot 'DONATE.md'
+        if (Test-Path $donateMd) { Start-Process $donateMd } else { Start-Process 'https://github.com/Habermann76/SysPilot/blob/main/DONATE.md' }
+    })
+    $script:_donateCtrl.BtnClose.Add_Click({ $dwin.Close() })
+    $dwin.ShowDialog() | Out-Null
+}
+
 # --- Checkup-Fenster (nativ, Scan laeuft im Hintergrund-Runspace) ---
 function Show-SysPilotCheckupWindow {
     $cxaml = @"
@@ -1378,7 +1482,29 @@ function Show-SysPilotCheckupWindow {
     foreach ($n in 'ScanBar','StatusText','ResultList','DetailText','BtnScan','BtnFixSelected','BtnFixAll','BtnTool','BtnClose') {
         $cctrl[$n] = $cwin.FindName($n)
     }
-    $script:checkupItems = @()
+    $script:checkupItems = New-Object System.Collections.ObjectModel.ObservableCollection[object]
+    $cctrl.ResultList.ItemsSource = $script:checkupItems
+    $script:checkupScanTotal = 15
+    $script:checkupSeen = 0
+
+    $toUiItem = {
+        param($raw)
+        $icon = if ($raw.Skipped) { '?' } elseif (-not $raw.Found) { 'OK' } elseif ($raw.Critical) { '!!' } else { 'i' }
+        $color = if ($raw.Skipped) { '#FF607D8B' } elseif (-not $raw.Found) { '#FF43A047' } elseif ($raw.Critical) { '#FFE53935' } else { '#FFFB8C00' }
+        [PSCustomObject]@{
+            Selected   = ($raw.Found -and $raw.AutoFix)
+            Icon       = $icon
+            IconColor  = $color
+            Name       = $raw.Name
+            Summary    = $raw.Summary
+            Erklaerung = $raw.Erklaerung
+            Id         = $raw.Id
+            Found      = $raw.Found
+            AutoFix    = $raw.AutoFix
+            MenuAction = $raw.MenuAction
+            Details    = $raw.Details
+        }
+    }
 
     $scanTimer = New-Object System.Windows.Threading.DispatcherTimer
     $scanTimer.Interval = [TimeSpan]::FromMilliseconds(400)
@@ -1386,8 +1512,10 @@ function Show-SysPilotCheckupWindow {
     $startScan = {
         $cctrl.BtnScan.IsEnabled = $false
         $cctrl.ScanBar.IsIndeterminate = $true
+        $cctrl.ScanBar.Value = 0
         $cctrl.StatusText.Text = 'Scan laeuft ...'
-        $cctrl.ResultList.ItemsSource = $null
+        $script:checkupItems.Clear()
+        $script:checkupSeen = 0
         $rs = [runspacefactory]::CreateRunspace()
         $rs.ApartmentState = 'STA'; $rs.ThreadOptions = 'ReuseThread'
         $rs.Open()
@@ -1396,7 +1524,7 @@ function Show-SysPilotCheckupWindow {
         $ps.Runspace = $rs
         [void]$ps.AddScript({
             Get-ChildItem (Join-Path $Root 'modules') -Filter '*.psm1' | ForEach-Object { Import-Module $_.FullName -Force -Global -WarningAction SilentlyContinue }
-            Invoke-SysPilotCheckupScan -Quiet
+            Invoke-SysPilotCheckupScan -Quiet -Stream
         })
         $script:scanPs = $ps; $script:scanRs = $rs
         $script:scanHandle = $ps.BeginInvoke()
@@ -1404,6 +1532,22 @@ function Show-SysPilotCheckupWindow {
     }
 
     $scanTimer.Add_Tick({
+        # Live-Drain: neue Scan-Ergebnisse sofort in die Liste
+        if ($script:scanPs -and $script:scanPs.Output) {
+            $pending = $script:scanPs.Output
+            while ($script:checkupSeen -lt $pending.Count) {
+                $raw = $pending[$script:checkupSeen]
+                $script:checkupSeen++
+                if ($null -eq $raw -or $raw -is [string] -or -not $raw.PSObject.Properties['Id']) { continue }
+                $script:checkupItems.Add((& $toUiItem $raw))
+            }
+            if ($script:checkupSeen -gt 0) {
+                $cctrl.ScanBar.IsIndeterminate = $false
+                $cctrl.ScanBar.Maximum = $script:checkupScanTotal
+                $cctrl.ScanBar.Value = [Math]::Min($script:checkupSeen, $script:checkupScanTotal)
+                $cctrl.StatusText.Text = "Scan laeuft ... ($($script:checkupSeen)/$($script:checkupScanTotal) Bereiche)"
+            }
+        }
         if (-not $script:scanHandle.IsCompleted) { return }
         $scanTimer.Stop()
         $cctrl.ScanBar.IsIndeterminate = $false
@@ -1412,24 +1556,13 @@ function Show-SysPilotCheckupWindow {
         $out = $script:scanPs.EndInvoke($script:scanHandle)
         $script:scanPs.Dispose(); $script:scanRs.Close(); $script:scanRs.Dispose()
 
-        $script:checkupItems = @($out | ForEach-Object {
-            $icon = if ($_.Skipped) { '?' } elseif (-not $_.Found) { 'OK' } elseif ($_.Critical) { '!!' } else { 'i' }
-            $color = if ($_.Skipped) { '#FF607D8B' } elseif (-not $_.Found) { '#FF43A047' } elseif ($_.Critical) { '#FFE53935' } else { '#FFFB8C00' }
-            [PSCustomObject]@{
-                Selected   = ($_.Found -and $_.AutoFix)
-                Icon       = $icon
-                IconColor  = $color
-                Name       = $_.Name
-                Summary    = $_.Summary
-                Erklaerung = $_.Erklaerung
-                Id         = $_.Id
-                Found      = $_.Found
-                AutoFix    = $_.AutoFix
-                MenuAction = $_.MenuAction
-                Details    = $_.Details
+        # Rest nachziehen (falls Output-Drain etwas verpasst hat)
+        foreach ($raw in @($out)) {
+            if ($null -eq $raw -or $raw -is [string] -or -not $raw.PSObject.Properties['Id']) { continue }
+            if (@($script:checkupItems | Where-Object { $_.Id -eq $raw.Id }).Count -eq 0) {
+                $script:checkupItems.Add((& $toUiItem $raw))
             }
-        })
-        $cctrl.ResultList.ItemsSource = $script:checkupItems
+        }
         $foundCount = @($script:checkupItems | Where-Object { $_.Found }).Count
         $cctrl.StatusText.Text = if ($foundCount -eq 0) { 'Fertig: Alles sauber - dein PC ist in Topform!' } else { "Fertig: $foundCount Bereiche mit Befunden. Haken setzen und beheben." }
     })
@@ -1945,6 +2078,7 @@ $ctrl.BtnAdmin.Add_Click({
         $win.Close()
     }
 })
+$ctrl.BtnDonate.Add_Click({ Show-SysPilotDonateWindow })
 $ctrl.BtnCheckup.Add_Click({ Show-SysPilotCheckupWindow })
 $ctrl.BtnToolbox.Add_Click({ Show-SysPilotToolboxWindow })
 $ctrl.BtnDns.Add_Click({ Start-SysPilotToolFromGui -Tool 'dns' -FromGui })
@@ -2202,6 +2336,7 @@ $win.Add_KeyDown({
 $buttons = @($ctrl.BtnCheckup,$ctrl.BtnToolbox, $ctrl.BtnDns, $ctrl.BtnHealth, $ctrl.BtnAuto, $ctrl.BtnCool, $ctrl.BtnPerf, $ctrl.BtnFreeRam, $ctrl.BtnPriorities, $ctrl.BtnGaming, $ctrl.BtnWork, $ctrl.BtnNight, $ctrl.BtnLHM, $ctrl.BtnMenu, $ctrl.BtnUpdates, $ctrl.BtnDlFind, $ctrl.BtnAppSearch, $ctrl.BtnDrvStudio, $ctrl.BtnKi, $ctrl.BtnProcs, $ctrl.BtnCf, $ctrl.BtnCare, $ctrl.BtnTweaks, $ctrl.BtnRegGal)
         $buttons = @($ctrl.BtnUpdate) + $buttons
         if ($ctrl.BtnAdmin.Visibility -eq 'Visible') { $buttons = @($ctrl.BtnAdmin) + $buttons }
+        $buttons = @($ctrl.BtnDonate) + $buttons
         $focused = [System.Windows.Input.Keyboard]::FocusedElement
         $idx = [Array]::IndexOf($buttons, $focused)
         if ($idx -lt 0) { $idx = 0 }

@@ -5212,6 +5212,57 @@ function Show-SysPilotAiVoiceChat {
     }
 }
 
+function Show-SysPilotFirefliesTalk {
+    <# Fireflies Talk: uneingeschraenkte Diktat-Funktion der Fireflies-
+       Desktop-App (kostenloser Plan reicht). Ctrl+Win gedrueckt halten,
+       sprechen, loslassen - Text landet im fokussierten Textfeld,
+       auch im SysPilot/Herbert-Chat. #>
+    $ffUrl = 'https://fireflies.ai/desktop'
+    $dlUrl = 'https://m.fireflies.ai/desktop/releases/download?platform=windows'
+    # Installiert? (Uninstall-Registry + uebliche Electron-Pfade)
+    $installed = $false; $exe = $null
+    try {
+        $un = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+              Where-Object { $_.DisplayName -match '(?i)fireflies' } | Select-Object -First 1
+        if ($un -and $un.InstallLocation) {
+            $cand = Join-Path $un.InstallLocation 'Fireflies.exe'
+            if (Test-Path $cand) { $installed = $true; $exe = $cand }
+        }
+    } catch {}
+    if (-not $installed) {
+        foreach ($c in @("$env:LOCALAPPDATA\Programs\fireflies\Fireflies.exe", "$env:LOCALAPPDATA\Programs\Fireflies\Fireflies.exe", 'C:\Program Files\Fireflies\Fireflies.exe')) {
+            if (Test-Path $c) { $installed = $true; $exe = $c; break }
+        }
+    }
+    while ($true) {
+        Write-Host "`n  === FIREFLIES TALK (unbegrenztes Diktat) ===" -ForegroundColor Cyan
+        if ($installed) {
+            Write-Host "  Installiert: $exe" -ForegroundColor Green
+        } else {
+            Write-Host "  Nicht installiert - Download ist kostenlos, Fireflies-Konto noetig." -ForegroundColor Yellow
+        }
+        Write-Host "  So funktioniert's: Fireflies-App öffnen -> Dictation-Tab -> Mikrofon + Sprache wählen." -ForegroundColor DarkGray
+        Write-Host "  Dann in IRGENDEINEM Textfeld (auch hier im Chat) Ctrl+Win gedrueckt halten, sprechen, loslassen." -ForegroundColor DarkGray
+        Write-Host "  Doppelklick auf die Tasten-Kombi = freihändig-Modus. Unbegrenzt, auch im Free-Plan.`n" -ForegroundColor DarkGray
+        $items = @(
+            $(if ($installed) { @{ Label='Fireflies-App starten'; Color='Green'; Tag='start' } } else { @{ Label='Fireflies herunterladen & installieren'; Color='Green'; Tag='dl' } }),
+            @{ Label='Fireflies Talk im Browser oeffnen (Anleitung)'; Color='Cyan'; Tag='help' },
+            @{ Label='Zurueck'; Color='DarkGray'; Tag='back' }
+        )
+        $sel = Show-SysPilotArrowMenu -Items $items -Title 'Fireflies Talk' -Footer 'Enter = Aktion, Esc = zurueck'
+        if ($null -eq $sel -or $sel -eq 'back') { return }
+        if ($sel -eq 'start' -and $exe) { Start-Process $exe; return }
+        if ($sel -eq 'dl') {
+            Start-Process $dlUrl
+            Write-Host "  Download gestartet: $dlUrl" -ForegroundColor Green
+            Write-Host '  Nach der Installation: App oeffnen -> Dictation-Tab -> Setup folgen.' -ForegroundColor DarkGray
+            Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+            continue
+        }
+        if ($sel -eq 'help') { Start-Process 'https://fireflies.ai/talk'; return }
+    }
+}
+
 function Show-SysPilotAiEndpointsMenu {
     <# Non-Chat-API-Endpunkte (getrennt von /chat/completions, wie bei
        PocketAI & Co.): /models, /embeddings, /images/generations,
@@ -5235,6 +5286,7 @@ function Show-SysPilotAiEndpointsMenu {
                     @{ Label="Voice-Chat starten (STT+TTS aktiv, Modus: $vm)"; Color='Green'; Tag='vchat' },
                     @{ Label="Sprachausgabe im Text-Chat: $(if($vm -eq 'speak'){'AN'}else{'aus'})"; Color='Cyan'; Tag='speak' },
                     @{ Label="TTS-Engine: $(if($tts -eq 'provider'){'Provider (/audio/speech)'}else{'System (offline, DE)'})"; Color='Cyan'; Tag='ttseng' },
+                    @{ Label='[F] Fireflies Talk - unbegrenztes Diktat (Desktop-App, Free-Plan)'; Color='Green'; Tag='fireflies' },
                     @{ Label='Zurueck'; Color='DarkGray'; Tag='back' }
                 )
                 $v = Show-SysPilotArrowMenu -Items $vitems -Title 'Voice' -Footer 'Enter = Aktion, Esc = zurueck'
@@ -5250,6 +5302,7 @@ function Show-SysPilotAiEndpointsMenu {
                     Write-Host "  TTS-Engine: $(if($tts -eq 'provider'){'system (offline)'}else{'provider'})" -ForegroundColor Green
                     continue
                 }
+                if ($v -eq 'fireflies') { Show-SysPilotFirefliesTalk; continue }
             }
             continue
         }
@@ -12763,7 +12816,7 @@ Export-ModuleMember -Function `
     Get-SysPilotLlamaCppRelease, Get-SysPilotLlamaCppAssetName, Install-SysPilotLlamaCpp, `
     Get-SysPilotLlamaServerExe, Get-SysPilotLlamaServerStatus, Get-SysPilotLlamaGgufCandidates, `
     Start-SysPilotLlamaServer, Stop-SysPilotLlamaServer, Show-SysPilotLlamaCppMenu, `
-    Invoke-SysPilotAiEndpoint, Show-SysPilotAiEndpointsMenu, `
+    Invoke-SysPilotAiEndpoint, Show-SysPilotAiEndpointsMenu, Show-SysPilotFirefliesTalk, `
     Get-SysPilotKaggleStatus, Invoke-SysPilotKaggleKernelPush, Show-SysPilotKaggleMenu, `
     Get-SysPilotKaggleTpuInfo, Start-SysPilotKaggleTpuProxy, Start-SysPilotKaggleTpu, `
     Stop-SysPilotKaggleTpu, Show-SysPilotKaggleTpuMenu, Get-SysPilotKaggleSetupStatus, `

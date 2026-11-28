@@ -74,3 +74,19 @@ want. Every euro helps.
   <br>
   <sub>Scan QR code to donate</sub>
 </p>
+
+---
+
+## 💛 Ko-fi — einmalig ODER monatlich, Betrag frei waehlbar
+
+**🇩🇪** Bevorzugte Variante: [ko-fi.com/Habermann76](https://ko-fi.com/Habermann76)
+Du kannst dort **einmalig** Trinkgeld geben oder eine **monatliche
+Mitgliedschaft** abschliessen — der Betrag ist jedes Mal frei waehlbar.
+Ko-fi ist kostenlos, der Spender zahlt nur die Zahlungsgebuehr.
+In SysPilot: Hauptfenster → Button **„Spenden"** (QR-Code inklusive).
+
+**🇬🇧** Preferred option: [ko-fi.com/Habermann76](https://ko-fi.com/Habermann76)
+You can give a **one-time** tip or sign up for a **monthly membership** —
+the amount is your choice every time. Ko-fi is free for creators, the
+donor only pays the payment fee. In SysPilot: main window → **"Donate"**
+button (includes QR code).

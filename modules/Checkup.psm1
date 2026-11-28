@@ -529,8 +529,10 @@ function Get-SysPilotCheckupItems {
 
 function Invoke-SysPilotCheckupScan {
     <# Fuehrt alle Checks aus. Gibt Ergebnis-Objekte zurueck.
-       -Quiet: keine Konsolenausgabe (fuer GUI). #>
-    param([switch]$Quiet)
+       -Quiet: keine Konsolenausgabe (fuer GUI).
+       -Stream: gibt jedes Ergebnis SOFORT aus, sobald sein Scan
+       fertig ist (fuer Live-Anzeige in der GUI). #>
+    param([switch]$Quiet, [switch]$Stream)
     $items = Get-SysPilotCheckupItems
     $results = @()
     $i = 0
@@ -574,10 +576,10 @@ function Invoke-SysPilotCheckupScan {
                 $r.Summary = "Fehler beim Scan: $($_.Exception.Message)"
             }
         }
-        $results += $r
+        if ($Stream) { $r } else { $results += $r }
     }
     if (-not $Quiet) { Complete-SysPilotProgress }
-    return $results
+    if (-not $Stream) { return $results }
 }
 
 function Invoke-SysPilotCheckupFix {

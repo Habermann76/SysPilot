@@ -100,10 +100,10 @@ function Get-SysPilotIndexIcon {
     param([string]$Page = '', [string]$Github = '')
     if ($Github) {
         $owner = ($Github -split '/')[0]
-        if ($owner) { return "https://github.com/$owner.png?size=64" }
+        if ($owner) { return "https://github.com/$owner.png?size=128" }
     }
     if ($Page) {
-        try { $host_ = ([Uri]$Page).Host; if ($host_) { return "https://www.google.com/s2/favicons?domain=$host_&sz=64" } } catch {}
+        try { $host_ = ([Uri]$Page).Host; if ($host_) { return "https://www.google.com/s2/favicons?domain=$host_&sz=128" } } catch {}
     }
     return ''
 }
@@ -1202,7 +1202,7 @@ function Show-SysPilotAppStoreWindow {
             $shown++
             # Card-Rahmen
             $card = New-Object Windows.Controls.Border
-            $card.Width=200; $card.Height=150; $card.Margin='0,0,10,10'
+            $card.Width=215; $card.Height=165; $card.Margin='0,0,10,10'
             $card.Background=[Windows.Media.BrushConverter]::new().ConvertFrom('#FF252538')
             $card.BorderBrush=[Windows.Media.BrushConverter]::new().ConvertFrom('#FF3A3A55')
             $card.BorderThickness='1'; $card.CornerRadius='6'; $card.Padding='8'
@@ -1218,10 +1218,29 @@ function Show-SysPilotAppStoreWindow {
             $chk.Add_Checked({ param($s,$ev) $k=& $selKey $s.Tag; $fc._stSel[$k]=$s.Tag; & $updSelCount })
             $chk.Add_Unchecked({ param($s,$ev) $k=& $selKey $s.Tag; $fc._stSel.Remove($k)|Out-Null; & $updSelCount })
             [void]$head.Children.Add($chk)
-            $img = New-Object Windows.Controls.Image
-            $img.Width=26; $img.Height=26; $img.Margin='0,0,8,0'; $img.VerticalAlignment='Top'
-            if($e.Icon){ try{$img.Source=[Windows.Media.Imaging.BitmapImage]::new([Uri]$e.Icon)}catch{} }
-            [void]$head.Children.Add($img)
+            # Icon-Box 44x44: Bild obendrauf, Monogramm-Fallback darunter
+            $iconWrap = New-Object Windows.Controls.Grid
+            $iconWrap.Width=44; $iconWrap.Height=44; $iconWrap.Margin='0,0,8,0'; $iconWrap.VerticalAlignment='Top'
+            $fbB = New-Object Windows.Controls.Border
+            $fbB.Background=[Windows.Media.BrushConverter]::new().ConvertFrom('#FF34344E')
+            $fbB.CornerRadius='7'
+            $fbT = New-Object Windows.Controls.TextBlock
+            $nm2=[string]$e.Name; $ini=($nm2 -split '\s+' | Where-Object {$_} | Select-Object -First 2 | ForEach-Object {$_.Substring(0,1).ToUpper()}) -join ''
+            if(-not $ini){$ini='?'}
+            $fbT.Text=$ini; $fbT.FontSize='15'; $fbT.FontWeight='Bold'; $fbT.Foreground=[Windows.Media.BrushConverter]::new().ConvertFrom('#FF4FC3F7')
+            $fbT.HorizontalAlignment='Center'; $fbT.VerticalAlignment='Center'
+            $fbB.Child=$fbT
+            [void]$iconWrap.Children.Add($fbB)
+            if($e.Icon){
+                $img = New-Object Windows.Controls.Image
+                $img.Width=44; $img.Height=44
+                try{
+                    $img.Source=[Windows.Media.Imaging.BitmapImage]::new([Uri]$e.Icon)
+                    [void]$iconWrap.Children.Add($img)
+                    $img.Add_ImageFailed({ param($s,$ev) $s.Visibility='Collapsed' })
+                }catch{}
+            }
+            [void]$head.Children.Add($iconWrap)
             $tb = New-Object Windows.Controls.TextBlock
             $tb.Text=[string]$e.Name; $tb.FontWeight='SemiBold'; $tb.FontSize='12'
             $tb.TextTrimming='CharacterEllipsis'; $tb.ToolTip=[string]$e.Name

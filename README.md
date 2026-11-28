@@ -433,11 +433,15 @@ VS Code + Copilot. You don't have to donate — but if you want to make my day,
 I'd appreciate it. 💛
 
 <p align="center">
+  <a href="https://ko-fi.com/Habermann76">
+    <img src="https://img.shields.io/badge/💛_Spenden_/_Donate-Ko--fi-ff5e5b?style=for-the-badge&logo=kofi" alt="Spenden über Ko-fi">
+  </a>
+  &nbsp;
   <a href="https://buy.stripe.com/00waEYchZ9wmcHl2Zv2Ji02">
-    <img src="https://img.shields.io/badge/💛_Spenden_/_Donate-Stripe-blueviolet?style=for-the-badge&logo=stripe" alt="Spenden über Stripe">
+    <img src="https://img.shields.io/badge/_Stripe-blueviolet?style=for-the-badge&logo=stripe" alt="Spenden über Stripe">
   </a>
   <br>
-  <img src="assets/qr-code.png" alt="QR-Code zum Spenden" width="150">
+  <sub>Ko-fi: einmalig oder monatlich, Betrag frei waehlbar · Stripe: direkter Checkout · In SysPilot: Button „Spenden" im Hauptfenster (mit QR-Code)</sub>
 </p>
 
 <p align="center">

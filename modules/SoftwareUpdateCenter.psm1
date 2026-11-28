@@ -3566,6 +3566,7 @@ $jobs += Start-Job -Name 'scoop-pm'-ScriptBlock $mkPm     -ArgumentList $modDir
 
 $rows=@(); $deadline=(Get-Date).AddSeconds(480)
 $doneN=0; $totN=3
+$seen=@{}
 while ($jobs.Count -gt 0 -and (Get-Date) -lt $deadline) {
     $done = @($jobs | Where-Object { $_.State -in @('Completed','Failed','Stopped') })
     foreach ($d in $done) {
@@ -3575,7 +3576,13 @@ while ($jobs.Count -gt 0 -and (Get-Date) -lt $deadline) {
         foreach ($gl in @($got | Where-Object { $_ -is [string] -and $_ -like 'COVERAGE|*' })) {
             & $say ("[pm] " + ($gl -replace '^COVERAGE\|',''))
         }
-        $rows += @($got | Where-Object { -not ($_ -is [string] -and $_ -like 'COVERAGE|*') })
+        $newRows = @($got | Where-Object { -not ($_ -is [string] -and $_ -like 'COVERAGE|*') })
+        $rows += $newRows
+        # Progressive Anzeige: jede neue unique Row sofort an die UI
+        foreach ($r in $newRows) {
+            $k = [string]$r.Id
+            if (-not $seen.ContainsKey($k)) { $seen[$k]=1; $oq.Enqueue([pscustomobject]@{Type='row';Row=$r}) }
+        }
         $doneN++
         $oq.Enqueue([pscustomobject]@{Type='prog';Idx=$doneN;Total=$totN;Name=[string]$d.Name;Kind='Scan'})
         & $say ("[{0}] {1} Update(s) gefunden" -f $d.Name, @($got).Count)
@@ -3589,9 +3596,7 @@ foreach ($j in $jobs) {
     & $say ("[{0}] Timeout nach 480s - uebersprungen" -f $j.Name)
     Stop-Job $j -ErrorAction SilentlyContinue; Remove-Job $j -Force -ErrorAction SilentlyContinue
 }
-$seen=@{}; $uniq=@()
-foreach($r in $rows){ $k=[string]$r.Id; if(-not $seen.ContainsKey($k)){$seen[$k]=1;$uniq+=$r} }
-foreach($r in $uniq){ $oq.Enqueue([pscustomobject]@{Type='row';Row=$r}) }
+$uniq=@($seen.Keys | ForEach-Object { $rows | Where-Object { [string]$_.Id -eq $_ } | Select-Object -First 1 })
 & $say "Scan fertig: $($uniq.Count) Updates insgesamt."
 '@
     $fc.ucScanCode = $scanCode
