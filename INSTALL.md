@@ -1,8 +1,8 @@
-# SysPilot 0.9.5.1 — Installationsanleitung
+# SysPilot 0.9.5.2 — Installationsanleitung
 
 ## Schnellstart (empfohlen)
 
-1. **Installer herunterladen**: `SysPilot-Setup-0.9.5.1-x64.exe` von den
+1. **Installer herunterladen**: `SysPilot-Setup-0.9.5.2-x64.exe` von den
    [Releases](https://github.com/Habermann76/SysPilot/releases)
 2. **Doppelklick** → installiert nach `C:\Program Files\SysPilot`
 3. **Startmenü** → "SysPilot" öffnen
@@ -12,7 +12,7 @@ Fertig. SysPilot fragt beim ersten Start, ob es als Administrator laufen soll
 
 ## Portable Version (keine Installation)
 
-1. `SysPilot-0.9.5.1-beta-portable.zip` herunterladen
+1. `SysPilot-0.9.5.2-beta-portable.zip` herunterladen
 2. Entpacken (z. B. nach `C:\SysPilot`)
 3. `SysPilot.ps1` → Rechtsklick → "Mit PowerShell ausführen"
 
@@ -46,6 +46,11 @@ Installationsordner — kann manuell gelöscht werden).
 → [DEBUG.md](DEBUG.md) — Fehler melden, Vorschläge machen
 
 ---
+
+### Neue Features in 0.9.5.2
+
+- **Herbert-Ersteinrichtung**: echtes Installations-Log (Live-Fortschritt, Heartbeat, Progressbar) statt stillem schwarzen Bereich
+- **Megastore**: Checkbox-Dock-Bug im App-Store gefixt; README mit neuen Screenshots + aktualisiertem Camomile-Vergleich
 
 ### Neue Features in 0.9.5.1
 

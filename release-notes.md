@@ -1,3 +1,22 @@
+# SysPilot 0.9.5.2 beta
+
+## Fixes & Docs
+
+- **Herbert-Ersteinrichtung**: Installations-Log ist jetzt echte
+  Konsole (schwarz, gruener Consolas-Text, „INSTALLATIONS-LOG (Live)"),
+  mit Indeterminate-Progressbar, Schritt-Status (Installiere X [i/n]),
+  Live-Heartbeat („laeuft seit Xs, keine Ausgabe seit Ys") und
+  sofortiger Modul-Bereitschaftsmeldung — vorher 30-60s tote Zeit
+  beim stillen Import aller Module
+- **Megastore**: Checkbox-Dock-Bug gefixt (`Dock` ist attached
+  property -> `SetValue(DockPanel::DockProperty, ...)`) —
+  Batch-Auswahl-Checkboxen im App-Store saessen falsch
+- **README/screenshots**: neue Aufnahmen (Softwarecenter, Megastore,
+  Herbert-Chat), Toolbox-Alt-Text korrigiert (63 Tools/5 Kategorien),
+  Camomile-Vergleichstabelle aktualisiert (+12 Feature-Zeilen:
+  KI, Voice, MCP, Softwarecenter, Megastore, Extension-Manager,
+  Tweak-Studio, RSS, Security-Lab)
+
 # SysPilot 0.9.5.1 beta
 
 ## KI-Assistenz: Provider-Revolution (OmniRoute/FreeLLMAPI-Portierung)

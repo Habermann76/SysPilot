@@ -1,6 +1,17 @@
 # SysPilot — Roadmap
 
-## Version 0.9.5.1 (NEU)
+## Version 0.9.5.2
+
+- ✅ **Herbert-Ersteinrichtung**: echtes Installations-Log (schwarze
+  Konsole, gruener Consolas-Text), Indeterminate-Progressbar,
+  Schritt-Status + Heartbeat bei stillen Installern, sofortige
+  Modul-Bereitschaftsmeldung
+- ✅ **Megastore**: Checkbox-Dock-Bug gefixt (attached property
+  `DockPanel.Dock` via `SetValue`)
+- ✅ **README/Docs**: neue Screenshots (Softwarecenter, Megastore,
+  Herbert-Chat), Camomile-Tabelle +12 Zeilen, `version.txt` = 0.9.5.2
+
+## Version 0.9.5.1
 
 - ✅ **Provider-Katalog 134 Eintraege**: OmniRoute-Registry-Portierung
   (~60 Bezahl-Provider OpenAI-kompatibel + Free-Router + Keyless:

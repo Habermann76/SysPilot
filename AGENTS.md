@@ -96,7 +96,14 @@ Copy-Item -Path 'C:\Users\haber\SysPilot\<Datei>' -Destination 'C:\Program Files
 - Nicht verwenden: Simultanes $args +=-Füllen
 
 ## Aktuelle Version
-- **0.9.5.1** ist der aktuelle Stand (neu: **KI-Provider-
+- **0.9.5.2** ist der aktuelle Stand (Fix-Release: **Herbert-
+  Ersteinrichtung** = echtes Live-Installations-Log — schwarze
+  Konsole, `PgbInstall`-Progressbar, Schritt-Status + Heartbeat
+  „laeuft seit Xs" in `Show-SysPilotHerbertOnboarding`; **Megastore**
+  Checkbox-Dock-Fix (`DockPanel.Dock` ist attached property →
+  `SetValue(DockPanel::DockProperty,...)` in AppStore.psm1);
+  README-Screenshots + Camomile-Tabelle aktualisiert).
+- **0.9.5.1** (neu: **KI-Provider-
   Revolution** — Katalog 134 Einträge via OmniRoute-Registry-
   Analyse (~60 Bezahl-Provider OpenAI-kompatibel + Free-Router +
   Keyless Kilo/OVH); **`Get-SysPilotAiRankedModels`** = automatische

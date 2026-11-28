@@ -1,8 +1,19 @@
-# SysPilot 0.9.5.1 beta — Dein intelligenter PC-Autopilot
+# SysPilot 0.9.5.2 beta — Dein intelligenter PC-Autopilot
 
 Kostenlose, offene Alternative zu Camomile Pro — aber cleverer und mit mehr Funktionen.
 Reines PowerShell, bewusst keine Electron-App: klein und schlank, ohne Telemetrie,
 alles bleibt auf deinem PC.
+
+## Version 0.9.5.2 beta
+
+### Was ist neu? (Fixes & Docs)
+
+- **Herbert-Ersteinrichtung**: Installations-Log ist jetzt echte
+  Konsole mit Live-Fortschritt (Schritt-Status, Heartbeat,
+  Progressbar) — vorher 30-60s keine Ausgabe beim Module-Import
+- **Megastore**: Checkbox-Dock-Bug im App-Store gefixt
+- **README**: neue Screenshots (Softwarecenter, Megastore,
+  Herbert-Chat), Camomile-Vergleich aktualisiert
 
 ## Version 0.9.5.1 beta
 
