@@ -203,6 +203,11 @@ function Get-SysPilotAiProviderIntel {
         @{ Match='Pollinations';           Cost='kostenlos';  Content='gemischt';   Note='Free-Endpoint, kein Key noetig' },
         @{ Match='Numes';                  Cost='freemium';   Content='gemischt';   Note='Gateway mit :free-Varianten, Routing steuerbar' },
         @{ Match='Kaggle Models';          Cost='kostenlos';  Content='unzensiert'; Note='Kein Chat-Endpoint - Models-API + 30h/Woche Gratis-Compute (GPU/TPU). Unzensiert via eigene Modelle in Kernels' },
+        @{ Match='Kilo Gateway';           Cost='kostenlos';  Content='unzensiert'; Note='KEYLESS - kein Key noetig, OpenAI-kompatibel' },
+        @{ Match='OVH AI Endpoints';       Cost='kostenlos';  Content='unzensiert'; Note='KEYLESS - anonym ~2 req/min' },
+        @{ Match='LLM7';                   Cost='kostenlos';  Content='gemischt';   Note='Kostenlose Modelle, teils unzensierte' },
+        @{ Match='Agnes AI';               Cost='kostenlos';  Content='gemischt';   Note='Kostenlose Chat-Modelle' },
+        @{ Match='Aion Labs';              Cost='kostenlos';  Content='gemischt';   Note='Kostenlose Inference-Modelme' },
         # --- Guenstig (Pay-per-Token, guenstig) ---
         @{ Match='DeepSeek';               Cost='guenstig';   Content='zensiert';   Note='Guenig, stark' },
         @{ Match='SiliconFlow';            Cost='guenstig';   Content='gemischt';   Note='Viele Modelle guenstig/frei, teils unzensierte' },
@@ -218,6 +223,23 @@ function Get-SysPilotAiProviderIntel {
         @{ Match='ArliAI';                 Cost='abo';        Content='unzensiert'; Note='Abo - unzensierte Chat-Modelle' },
         @{ Match='Mancer';                 Cost='guenstig';   Content='unzensiert'; Note='Unzensierte Modelle, pay-per-use' },
         @{ Match='NanoGPT';                Cost='guenstig';   Content='gemischt';   Note='Guinige API, Modellvielfalt' },
+        @{ Match='Reka';                   Cost='freemium';   Content='zensiert';   Note='Reka-Modelle, Freitier' },
+        @{ Match='Routeway';               Cost='guenstig';   Content='gemischt';   Note='Router mit Freimodellen' },
+        @{ Match='BazaarLink';             Cost='gemischt';   Content='unzensiert'; Note='Aggregator - teils unzensierte Modelle' },
+        @{ Match='AINative';               Cost='freemium';   Content='gemischt';   Note='Freemium-Modelle' },
+        @{ Match='NaraRouter';             Cost='kostenlos';  Content='gemischt';   Note='Kostenloser Router' },
+        @{ Match='SEA-LION';               Cost='guenstig';   Content='zensiert';   Note='AIs SEA-LION Modelle' },
+        @{ Match='OrcaRouter';             Cost='guenstig';   Content='gemischt';   Note='Router, Freimodelle' },
+        @{ Match='UnoRouter';              Cost='guenstig';   Content='gemischt';   Note='Router, guenstig' },
+        @{ Match='xKiro';                  Cost='freemium';   Content='gemischt';   Note='Freemium-Gateway' },
+        @{ Match='LongCat';                Cost='guenstig';   Content='gemischt';   Note='Meituan LongCat Modelle' },
+        @{ Match='iFlytek Spark';          Cost='freemium';   Content='zensiert';   Note='Spark-Desk OpenAPI, Freikontingent' },
+        @{ Match='Volcengine Ark';         Cost='guenstig';   Content='zensiert';   Note='Doubao/Seed Modelle' },
+        @{ Match='cheapllm';               Cost='guenstig';   Content='gemischt';   Note='GuellsterAggregator' },
+        @{ Match='AnyAPI';                 Cost='gemischt';   Content='unzensiert'; Note='Multi-Provider-Gateway' },
+        @{ Match='PowerTokens';            Cost='guenstig';   Content='gemischt';   Note='Token-basiert, guenstig' },
+        @{ Match='AMD Radeon Cloud';       Cost='guenstig';   Content='unzensiert'; Note='AMD-hosted Inference' },
+        @{ Match='B.AI';                   Cost='gemischt';   Content='unzensiert'; Note='Aggregator mit Freimodellen' },
         # --- Gemischt (Free + Paid) ---
         @{ Match='OpenRouter';             Cost='gemischt';   Content='unzensiert'; Note='Enthaelt unzensierte Modelle (dolphin/hermes/abliterated) + :free-Modelle' },
         @{ Match='HuggingFace Router';     Cost='gemischt';   Content='abliterated';Note='Serverless-Inference - viele abliterated/heretic-Modelle auf HF, meist Paid' },
@@ -663,7 +685,31 @@ function Get-SysPilotAiProviderCatalog {
         @{ Name='OpenCode Zen';          BaseUrl='https://opencode.ai/zen/v1';                        Model='';                   Signup='https://opencode.ai/zen';                   Note='Kostenlose Zen-Modelle' },
         @{ Name='Together AI';           BaseUrl='https://api.together.xyz/v1';                       Model='';                   Signup='https://api.together.ai/settings/api-keys'; Note='Offene Modellvielfalt' },
         @{ Name='Fireworks AI';          BaseUrl='https://api.fireworks.ai/inference/v1';             Model='';                   Signup='https://fireworks.ai/account/api-keys';    Note='Schnelle Inference' },
-        @{ Name='Cohere (compat)';       BaseUrl='https://api.cohere.ai/compatibility/v1';            Model='command-r-plus';    Signup='https://dashboard.cohere.com/api-keys';     Note='OpenAI-kompatibler Endpoint' }
+        @{ Name='Cohere (compat)';       BaseUrl='https://api.cohere.ai/compatibility/v1';            Model='command-r-plus';    Signup='https://dashboard.cohere.com/api-keys';     Note='OpenAI-kompatibler Endpoint' },
+        # --- Keyless / anonym nutzbar (aus FreeLLMAPI-Analyse portiert) ---
+        @{ Name='Kilo Gateway';          BaseUrl='https://api.kilo.ai/api/gateway/v1';               Model='';                   Signup='';                                             Note='KEYLESS - kein Account noetig, OpenAI-kompatibel' },
+        @{ Name='OVH AI Endpoints';      BaseUrl='https://oai.endpoints.kepler.ai.cloud.ovh.net/v1'; Model='';                   Signup='';                                             Note='KEYLESS - anonym ~2 req/min, OpenAI-kompatibel' },
+        # --- Weitere Free-Tier-Aggregatoren (FreeLLMAPI-Katalog) ---
+        @{ Name='LLM7';                  BaseUrl='https://api.llm7.io/v1';                            Model='';                   Signup='https://api.llm7.io/';                        Note='Kostenlose Modelle, Key optional' },
+        @{ Name='Agnes AI';              BaseUrl='https://apihub.agnes-ai.com/v1';                   Model='';                   Signup='https://agnes-ai.com/';                       Note='Kostenlose Chat-Modelle' },
+        @{ Name='Reka';                  BaseUrl='https://api.reka.ai/v1';                           Model='';                   Signup='https://platform.reka.ai/';                   Note='Reka-Modelle, Freitier' },
+        @{ Name='Routeway';              BaseUrl='https://api.routeway.ai/v1';                        Model='';                   Signup='https://routeway.ai/';                        Note='Router mit Freimodellen' },
+        @{ Name='BazaarLink';            BaseUrl='https://bazaarlink.ai/api/v1';                     Model='';                   Signup='https://bazaarlink.ai/';                      Note='Aggregator, guenstige Modelle' },
+        @{ Name='AINative Studio';       BaseUrl='https://api.ainative.studio/api/v1';                Model='';                   Signup='https://ainative.studio/';                    Note='Freemium-Modelle' },
+        @{ Name='Aion Labs';             BaseUrl='https://api.aionlabs.ai/v1';                        Model='';                   Signup='https://www.aionlabs.ai/';                     Note='Kostenlose Inference-Modelle' },
+        @{ Name='NaraRouter';            BaseUrl='https://router.bynara.id/v1';                       Model='';                   Signup='https://bynara.id/';                           Note='Kostenloser Router' },
+        @{ Name='SEA-LION';              BaseUrl='https://api.sea-lion.ai/v1';                        Model='';                   Signup='https://sea-lion.ai/';                         Note='AIs SEA-LION Modelle' },
+        @{ Name='OrcaRouter';            BaseUrl='https://api.orcarouter.ai/v1';                      Model='';                   Signup='https://orcarouter.ai/';                      Note='Router, Freimodelle' },
+        @{ Name='UnoRouter';             BaseUrl='https://api.unorouter.com/v1';                      Model='';                   Signup='https://unorouter.com/';                      Note='Router, guenstig' },
+        @{ Name='xKiro';                 BaseUrl='https://api.xkiro.com/v1';                           Model='';                   Signup='https://xkiro.com/';                           Note='Freemium-Gateway' },
+        @{ Name='LongCat';               BaseUrl='https://api.longcat.chat/openai/v1';                Model='';                   Signup='https://longcat.chat/';                        Note='Meituan LongCat Modelle' },
+        @{ Name='iFlytek Spark';         BaseUrl='https://spark-api-open.xf-yun.com/v1';              Model='';                   Signup='https://xinghuo.xfyun.cn/';                   Note='Spark-Desk OpenAPI, Freikontingent' },
+        @{ Name='Volcengine Ark';        BaseUrl='https://ark.cn-beijing.volces.com/api/v3';          Model='';                   Signup='https://console.volcengine.com/ark';           Note='Doubao/Seed Modelle, guenstig' },
+        @{ Name='cheapllm';              BaseUrl='https://cheapllm.shop/v1';                          Model='';                   Signup='https://cheapllm.shop/';                      Note='GuellsterAggregator' },
+        @{ Name='AnyAPI';                BaseUrl='https://api.anyapi.ai/v1';                          Model='';                   Signup='https://anyapi.ai/';                           Note='Multi-Provider-Gateway' },
+        @{ Name='PowerTokens';           BaseUrl='https://api.powertokens.ai/v1';                     Model='';                   Signup='https://powertokens.ai/';                     Note='Token-basiert, guenstig' },
+        @{ Name='AMD Radeon Cloud';      BaseUrl='https://developer.amd.com.cn/radeon/api/v1';         Model='';                   Signup='https://developer.amd.com.cn/';                Note='AMD-hosted Inference' },
+        @{ Name='B.AI';                  BaseUrl='https://api.b.ai/v1';                               Model='';                   Signup='https://b.ai/';                                Note='Aggregator mit Freimodellen' }
     )
     foreach ($c in $curated) {
         $cat += [pscustomobject]@{
@@ -774,6 +820,7 @@ function Get-SysPilotAiProviders {
             ApiKey=(Unprotect-SysPilotSecret $p.ApiKeyCipher)
             Kind=$(if ($p.Kind) { $p.Kind } else { 'cloud' })
             Enabled=($null -eq $p.Enabled -or $p.Enabled -eq $true)
+            AllowedModels=@($p.AllowedModels)
             Configured=$true; Reachable=$null
         }
     }
@@ -954,6 +1001,59 @@ function Clear-SysPilotAiModelCooldown {
     }
 }
 
+function Get-SysPilotAiUsageFile {
+    return (Join-Path $env:LOCALAPPDATA 'SysPilot\ai-usage.json')
+}
+function Get-SysPilotAiUsage {
+    <# Monatliche Nutzungs-Zaehler pro Provider (FreeLLMAPI-Prinzip:
+       monthlyRequestCap/Usage). Schluessel "baseUrl|name", Wert
+       {month:'yyyy-MM', requests:N, tokens:N, last:'iso'}. #>
+    $f = Get-SysPilotAiUsageFile
+    if (Test-Path $f) {
+        try { return (Get-Content $f -Raw -Encoding UTF8 | ConvertFrom-Json) } catch {}
+    }
+    return $null
+}
+function Add-SysPilotAiUsageRecord {
+    <# Addiert einen erfolgreichen Request (+ optional Token-Verbrauch)
+       auf den Monats-Zaehler des Providers. Billig - nur bei Erfolg. #>
+    param([Parameter(Mandatory)]$Provider, [string]$Model = '', [int64]$Tokens = 0)
+    try {
+        $f = Get-SysPilotAiUsageFile
+        $j = Get-SysPilotAiUsage
+        $month = (Get-Date).ToString('yyyy-MM')
+        $key = "$($Provider.BaseUrl.ToLower().TrimEnd('/'))|$($Provider.Name)"
+        if (-not $j) { $j = [pscustomobject]@{} }
+        $cur = $j.$key
+        if (-not $cur -or $cur.month -ne $month) {
+            $cur = [pscustomobject]@{ month=$month; requests=0; tokens=[int64]0; last='' }
+        }
+        $cur.requests = [int64]$cur.requests + 1
+        $cur.tokens = [int64]$cur.tokens + $Tokens
+        $cur.last = (Get-Date).ToString('o')
+        $j | Add-Member -NotePropertyName $key -NotePropertyValue $cur -Force
+        $dir = Split-Path $f -Parent; if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+        ($j | ConvertTo-Json -Depth 4) | Set-Content $f -Encoding UTF8
+    } catch {}
+}
+function Get-SysPilotAiUsageSummary {
+    <# Monatliche Nutzung eines Providers als Textzeile,
+       z.B. 'Mai 2026: 42 Requests, 183k Tokens'. #>
+    param([Parameter(Mandatory)]$Provider)
+    $j = Get-SysPilotAiUsage
+    if (-not $j) { return '' }
+    $key = "$($Provider.BaseUrl.ToLower().TrimEnd('/'))|$($Provider.Name)"
+    $cur = $j.$key
+    if (-not $cur) { return '' }
+    $month = (Get-Date).ToString('yyyy-MM')
+    if ($cur.month -ne $month) {
+        $prev = $j.PSObject.Properties | Where-Object { $_.Value.month -ne $month } | Select-Object -First 1
+        return "letzter Monat: $($cur.requests) Requests, $([math]::Round([int64]$cur.tokens/1000))k Tokens"
+    }
+    $tk = [math]::Round([int64]$cur.tokens / 1000)
+    return "Monat ${month}: $($cur.requests) Requests, ${tk}k Tokens"
+}
+
 function Get-SysPilotAiRankedModels {
     <# Bewertet die /models-Liste eines Providers und liefert die IDs
        sortiert nach Eignung - 'best selection' automatisiert:
@@ -968,6 +1068,17 @@ function Get-SysPilotAiRankedModels {
     param([Parameter(Mandatory)]$Provider, [int]$TimeoutSec = 12, [int]$Top = 8)
     $ml = Get-SysPilotAiProviderModels -Provider $Provider -TimeoutSec $TimeoutSec
     if (-not $ml.Ok -or @($ml.Models).Count -eq 0) { return @() }
+    # Model-Scope (FreeLLMAPI-Prinzip): AllowedModels im Config limitiert
+    # den Pool - leere Liste = alle Modelle erlaubt.
+    $allowed = @($Provider.AllowedModels | ForEach-Object { "$_".Trim().ToLower() } | Where-Object { $_ })
+    if ($allowed.Count -gt 0) {
+        # Exakt oder Prefix-Match ('openai' deckt 'openai-fast' ab)
+        $ml.Models = @($ml.Models | Where-Object {
+            $id = ([string]$_.Id).Trim().ToLower()
+            ($allowed | Where-Object { $id -eq $_ -or $id.StartsWith("$_") }).Count -gt 0
+        })
+        if (@($ml.Models).Count -eq 0) { return @() }
+    }
     $intel = Get-SysPilotAiProviderIntel -Name $Provider.Name -BaseUrl $Provider.BaseUrl
     $cost = [string]$intel.Cost
     $freeish = $cost -in @('lokal','kostenlos','freemium','gemischt','unbekannt')
@@ -2072,6 +2183,7 @@ KI-PROVIDER / HERBERT:
 - Router-Sync (OmniRoute, FreeLLMAPI, freelm, 9router): uebernimmt automatisch Modus + Pin + Budget-Reihenfolge der Provider. Zusaetzlich schreibt jeder Sync das Artefakt %LOCALAPPDATA%\SysPilot\usable-providers.json mit geranktem Modell-Plan pro Provider (model = bestes Modell via Kostenklasse/Free-Varianten/Kontext, models = Fallback-Kette fuer Rate-Limit - Freikontingente gelten pro Modell). Custom-Provider in FreeLLMAPI bekommen dasselbe Ranking.
 - Kontext-Budget: History wird automatisch auf ~70% des Modell-Contexts gekuerzt - sehr lange Chats sind normal, aelteste Nachrichten fallen ggf. weg.
 - Bei instabilem Netz (Hotspot): SysPilot wartet kurz auf Wiederkehr statt sofort zu scheitern; Downloads sind resume-faehig (aria2/Segmente).
+- Provider-Details (SysPilot -> KI-Assistenz -> Provider): Key wird MASKIERT angezeigt (...letzte4), [API-Key anzeigen] gibt ihn frei; 'Modell-Scope' beschraenkt per Haken, welche /models-Modelle ein Key nutzen darf (Prefix-Match: 'openai' deckt 'openai-fast'); 'Nutzung' zeigt Monats-Requests+Tokens (ai-usage.json). Katalog enthaelt KEYLESS-Provider (Kilo Gateway, OVH AI Endpoints - kein Account noetig) und ~20 weitere Free-Router (LLM7, Agnes, Aion Labs, NaraRouter, OrcaRouter ...). Bei 429/Quota automatisch: 15min Modell-Cooldown + Wechsel zum naechsten Modell, dann Provider.
 '@
         @'
 BROWSER "VERWALTET" / EXTENSION-POLICY (Chrome, Edge, Brave, Vivaldi, Chromium):
@@ -2261,6 +2373,7 @@ function Invoke-SysPilotAiChat {
                             Arguments = [string]$tc.function.arguments
                         }
                     }
+                    try { Add-SysPilotAiUsageRecord -Provider $p -Model $model -Tokens ([int64]$(if ($resp.usage.total_tokens) { $resp.usage.total_tokens } else { 0 })) } catch {}
                     return @{ Ok=$true; Text=''; Provider=$p.Name; Model=$model; Error=''; ToolCalls=$calls }
                 }
                 $txt = $msg.content
@@ -2268,6 +2381,7 @@ function Invoke-SysPilotAiChat {
                 if ($txt) {
                     # Erfolg: Cooldown fuer dieses Modell aufheben
                     if (-not $Model) { try { Clear-SysPilotAiModelCooldown -Provider $p -Model $model } catch {} }
+                    try { Add-SysPilotAiUsageRecord -Provider $p -Model $model -Tokens ([int64]$(if ($resp.usage.total_tokens) { $resp.usage.total_tokens } else { 0 })) } catch {}
                     return @{ Ok=$true; Text=($txt -join "`n").Trim(); Provider=$p.Name; Model=$model; Error=''; ToolCalls=@() }
                 }
                 $providerErr = 'leere Antwort'
@@ -2320,7 +2434,7 @@ function Show-SysPilotAiProviderMenu {
         $items = @()
         foreach ($p in $providers) {
             $st = if ($p.Kind -eq 'local') { 'lokal' } else { 'cloud' }
-            $key = if ($p.ApiKey) { 'Key:Set' } else { 'Key:-' }
+            $key = if ($p.ApiKey) { "Key:…$(if($p.ApiKey.Length -gt 4){$p.ApiKey.Substring($p.ApiKey.Length - 4)}else{$p.ApiKey})" } else { 'Key:-' }
             $en  = if ($p.Enabled) { 'an' } else { 'aus' }
             $col = if ($p.Enabled) { 'Green' } else { 'DarkGray' }
             $items += @{ Label = ("{0}  [{1}] {2} {3} {4}" -f $p.Name, $st, $key, $en, $p.BaseUrl); Color=$col; Tag="p:$($p.Name)" }
@@ -2376,16 +2490,23 @@ function Show-SysPilotAiProviderDetail {
     $reach = $null
     if ($p.Configured) { $reach = Test-SysPilotAiProvider -Provider $p }
     Write-Host ""
+    $maskedKey = if ($p.ApiKey) { if ($p.ApiKey.Length -gt 8) { "…$($p.ApiKey.Substring($p.ApiKey.Length - 4))" } else { '…' } } else { '' }
     Write-Host "  --- $($p.Name) ---" -ForegroundColor Cyan
     Write-Host "  Endpoint: $($p.BaseUrl)" -ForegroundColor DarkGray
     Write-Host "  Modell:   $(if($p.Model){$p.Model}else{'auto (erstes aus /models)'})" -ForegroundColor DarkGray
-    Write-Host "  Key:      $(if($p.ApiKey){'gesetzt'}else{'-'})" -ForegroundColor DarkGray
+    Write-Host "  Key:      $(if($p.ApiKey){$maskedKey}else{'-'})" -ForegroundColor DarkGray
+    $allowedList = @($p.AllowedModels)
+    Write-Host "  Scope:    $(if($allowedList.Count -gt 0){"$($allowedList.Count) Modelle erlaubt"}else{'alle Modelle'})" -ForegroundColor DarkGray
+    $usage = Get-SysPilotAiUsageSummary -Provider $p
+    if ($usage) { Write-Host "  Nutzung:  $usage" -ForegroundColor DarkGray }
     if ($reach) { Write-Host "  Test:     $(if($reach.Ok){"OK ($($reach.Models) Modelle)"}else{"FEHLER: $($reach.Error)"})" -ForegroundColor $(if($reach.Ok){'Green'}else{'Red'}) }
     $acts = @(
         @{ Label = "Testen (/models)"; Color='Cyan'; Tag='test' },
         @{ Label = "Modelle anzeigen + waehlen ($(if($p.Model){'fest: '+$p.Model}else{'auto'}))"; Color='Cyan'; Tag='model' },
-        @{ Label = $(if ($p.Enabled) { 'Deaktivieren' } else { 'Aktivieren' }); Color='Yellow'; Tag='toggle' }
+        @{ Label = "Modell-Scope ($(if($allowedList.Count -gt 0){"$($allowedList.Count) erlaubt"}else{'alle'}))"; Color='Magenta'; Tag='scope' }
     )
+    if ($p.ApiKey) { $acts += @{ Label = 'API-Key anzeigen'; Color='DarkYellow'; Tag='key' } }
+    $acts += @{ Label = $(if ($p.Enabled) { 'Deaktivieren' } else { 'Aktivieren' }); Color='Yellow'; Tag='toggle' }
     if ($p.Configured) { $acts += @{ Label = 'Entfernen'; Color='Red'; Tag='del' } }
     $acts += @{ Label = 'Zurueck'; Color='DarkGray'; Tag='back' }
     $a = Show-SysPilotArrowMenu -Items $acts -Title $p.Name -Footer 'Enter = Aktion, Esc = zurueck'
@@ -2396,6 +2517,34 @@ function Show-SysPilotAiProviderDetail {
             # Provider-Objekt fuer Modellliste (ApiKey entschluesselt)
             $pp = [pscustomobject]@{ Name=$p.Name; BaseUrl=$p.BaseUrl; Model=$p.Model; ApiKey=$p.ApiKey; Kind=$p.Kind }
             [void](Select-SysPilotAiProviderModel -Provider $pp)
+            return
+        }
+        'key' {
+            Write-Host "`n  API-Key ($($p.Name)):`n  $($p.ApiKey)`n" -ForegroundColor Yellow
+            Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+        }
+        'scope' {
+            # Modell-Scope: welche /models-IDs darf dieser Key nutzen?
+            $ml = Get-SysPilotAiProviderModels -Provider $p -TimeoutSec 12
+            if (-not $ml.Ok -or @($ml.Models).Count -eq 0) {
+                Write-Host "  [!] Keine Modellliste - Provider erst testen." -ForegroundColor Red
+                Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+                return
+            }
+            $allowedLower = @($p.AllowedModels | ForEach-Object { "$_".ToLower() })
+            $items = @($ml.Models | ForEach-Object { @{ Label=[string]$_.Id; Tag=[string]$_.Id; Checked=($allowedLower -contains ([string]$_.Id).ToLower()) } })
+            $sel = @(Show-SysPilotMultiSelectMenu -Items $items -Title "Modell-Scope: $($p.Name)" -Footer 'Leertaste=an/aus, Enter=fertig, Esc=abbruch')
+            if ($null -ne $sel) {
+                $scope = @($sel | ForEach-Object { [string]$_ } | Where-Object { $_ })
+                foreach ($cp in @($cfg.Providers)) {
+                    if ($cp.Name -eq $Name) {
+                        if ($scope.Count -gt 0) { $cp | Add-Member -NotePropertyName AllowedModels -NotePropertyValue $scope -Force }
+                        else { $cp.PSObject.Properties.Remove('AllowedModels') }
+                    }
+                }
+                Write-SysPilotAiAssistConfig $cfg
+                Write-Host "  Scope gespeichert: $(if($scope.Count -gt 0){"$($scope.Count) Modelle"}else{'alle Modelle'})" -ForegroundColor Green
+            }
             return
         }
         'test' {
@@ -11852,6 +12001,7 @@ Export-ModuleMember -Function `
     Resolve-SysPilotAiModel, Get-SysPilotAiRankedModels, Invoke-SysPilotAiChat, `
     Get-SysPilotAiModelCooldowns, Set-SysPilotAiModelCooldown,
     Test-SysPilotAiModelCooledDown, Clear-SysPilotAiModelCooldown, `
+    Get-SysPilotAiUsage, Add-SysPilotAiUsageRecord, Get-SysPilotAiUsageSummary, `
     Get-SysPilotAiLastSelection, Set-SysPilotAiLastSelection, `
     Show-SysPilotAiAssist, Show-SysPilotAiChat, Show-SysPilotAiQuickAsk, `
     Show-SysPilotAiProviderMenu, Add-SysPilotAiProviderInteractive, `
