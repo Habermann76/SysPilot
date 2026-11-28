@@ -609,6 +609,13 @@ startet.
   (`ai-assist.json` → `Model`) — Resolve-SysPilotAiModel respektiert
   den Pin vor Auto-Wahl (verhindert Reasoning-Modelle mit leerer
   Antwort in der Fallback-Kette).
+- **Nutzerstimme / Projekt-Story**: README dokumentiert jetzt die
+  Entstehung aus echten Nutzer-Posts — Vibe-Coding-Praxis,
+  Miniflux aus einem gescheiterten Oracle-Free-Tier-Experiment,
+  Nutzer-Feedback an Devin (Kundenwunsch, Barrierefreiheits-
+  Ermaessigung) und die Umsetzung in Features (Netzwerk-Robustheit
+  fuer Hotspot/Freifunk, RSS-Installationsangebot, Herbert-Wissen
+  als Vibe-Coding-Kurs).
 
 # SysPilot 0.9.4.9 beta
 

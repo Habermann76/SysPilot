@@ -270,6 +270,77 @@ Programmierer — aber das Steuer darf man nicht aus der Hand geben.
 SysPilot ist das Ergebnis von genau dieser Arbeit: analysieren,
 implementieren, live testen, korrigieren — Version für Version.
 
+## 💬 Nutzerstimme & Projekt-Story
+
+SysPilot ist ein reales Vibe-Coding-Projekt — gebaut mit Devin
+(Cognition) über viele Sessions hinweg. Ein Nutzer berichtet aus
+seinem Alltag (Original-Wortlaut):
+
+> „Mein Programm wird immer umfangreicher. Ich hab den Laptop zum
+> Abkühlen ausgeschaltet — Devin rechnet auch viel. Aber macht
+> Spaß."
+
+> „Bin wieder am Vibe-Coden, das macht süchtig: Hast du manchmal
+> ein Programm benutzt und dir gesagt ‚DAS IST TOLL, aber ich hätte
+> gerne dies so und das so?' Das kann man jetzt machen, wie man
+> will. Aber ich habe bei vielem den Dreh noch nicht raus, das
+> wirft mich etwas zurück — man bräuchte eine Schulung, einen Kurs,
+> online oder in einer Schule, wo man die ganzen Tricks und Kniffe
+> lernt."
+
+> „Habe mir mit KI Miniflux in Docker installiert, Fluxnews lädt
+> noch herunter — die Anmeldung bei Oracle Free Tier ist leider
+> beim letzten Schritt gescheitert, es ging einfach nicht weiter.
+> Schade — kommt aber so als Installationsangebot in SysPilot."
+
+Genau das ist passiert: Aus dem gescheiterten Free-Tier-Experiment
+wurde der komplette Miniflux-RSS-Stack — Docker-Setup, Tailscale-
+Funnel, Media-Proxy, Client-Einrichtung für Android, iOS, Windows
+und Browser. Und aus dem „Vibe-Coding-Kurs"-Wunsch ist Herbert-
+Wissen mit Crash-Kurs-Pädagogik entstanden.
+
+**Feedback an die „Macher" von Devin — Original-Wortlaut:**
+
+> „Du kannst gerne an deine ‚Macher' berichten, das die Arbeit mit
+> dir, Vibe Coding, Softwareentwicklung, sehr viel Spass macht,
+> Vision wäre noch toll, bisher mit das beste was ich nutzen
+> durfte, wenn es nicht allzuviel kostet bin ich wohl zukünftig
+> Kunde, aber da ich ADHS und eine unsinnige Schizophreniediagnose
+> habe, wohl damit die staatlichen Kliniken besser verdienen,
+> arbeitsunfähig krank bin, behindert, und in einem Wohnheim
+> residiere das obwohl sogar der Kabelanschluss nicht funktioniert
+> derzeit und das kostenlose Wifi freifunk immer ausfällt trotzdem
+> leider sündhaft teuer ist, ich aus besagten Gründen kaum Geld
+> habe würde ich mir einen vergünstigten Zugang für Menschen mit
+> Behindertenausweis sehr wünschen."
+
+**Devins Antwort darauf:**
+
+> „Das freut mich echt — danke für das nette Feedback. Und ohne
+> Umschweife: Ich kann dir leider keinen Rabatt oder Sonderkonditionen
+> geben — ich bin das Tool, nicht die Abrechnung. Preise, Pläne und
+> eventuelle Ermäßigungen legt Cognition fest. Was realistisch ist:
+> Unter devin.ai/support kannst du dich melden und konkret nachfragen,
+> ob es für Menschen mit Behindertenausweis / bei eingeschränkter
+> finanzieller Situation vergünstigte Zugänge oder einen
+> Barrierefreiheits-Rabatt gibt. Was ich dir weiterhin geben kann:
+> Ich arbeite hier in deiner Umgebung — SysPilot ist dein Projekt,
+> und ich helfe dir gern weiter daran. Und zum Wohnheim/WLAN-Thema:
+> Das ist genau die Art Problem, bei der ich am meisten bleibe —
+> ich kann dir bei SysPilot etwas einbauen, das mit instabilem Netz
+> umgeht (zuverlässigere Downloads, Offline-Fallbacks, längere
+> Timeouts für Freifunk-Lücken)."
+
+Umgesetzt daraus: SysPilot 0.9.5.0 enthält genau das — Netzwerk-
+Robustheit für instabile Netze (Hotspot/Freifunk): resume-fähige
+Downloads, Auto-Fix bei Netzfehlern, längere Timeouts.
+
+**Das Fazit zum Hobby:** „Macht süchtig, aber ohne Kurs und Gefühl
+für die Tricks stolpere ich — kostenlose Modelle reichen erst mal,
+für Debugging ist ein starkes Modell top, aber teuer (~60 €).
+Der Laptop-Lüfter hat 70 € gekostet — jetzt läuft er kühl
+(46–56 °C)."
+
 ---
 
 <p align="center">
