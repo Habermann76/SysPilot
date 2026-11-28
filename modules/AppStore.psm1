@@ -1210,7 +1210,7 @@ function Show-SysPilotAppStoreWindow {
             # Kopf: Haekchen (Batch-Auswahl) + Icon + Name
             $head = New-Object Windows.Controls.DockPanel
             $chk = New-Object Windows.Controls.CheckBox
-            $chk.Dock='Right'; $chk.VerticalAlignment='Top'; $chk.Margin='0,0,4,0'
+            $chk.SetValue([Windows.Controls.DockPanel]::DockProperty,[Windows.Controls.Dock]::Right); $chk.VerticalAlignment='Top'; $chk.Margin='0,0,4,0'
             $chk.ToolTip='Fuer Batch-Installation vormerken'
             $selK = & $selKey $e
             $chk.IsChecked = $fc._stSel.ContainsKey($selK)

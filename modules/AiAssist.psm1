@@ -7447,6 +7447,7 @@ function Show-SysPilotHerbertOnboarding {
         <Button x:Name="BtnSkip" Content="Alles ueberspringen"/>
         <Button x:Name="BtnNever" Content="Nicht mehr fragen" ToolTip="Onboarding nie wieder anzeigen"/>
       </WrapPanel>
+      <ProgressBar x:Name="PgbInstall" Height="4" Margin="0,6,0,0" IsIndeterminate="True" Visibility="Collapsed"/>
     </StackPanel>
     <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel>
@@ -7459,9 +7460,14 @@ function Show-SysPilotHerbertOnboarding {
         <TextBlock Text="OPTIONALE ERWEITERUNGEN (Haeckchen = installieren):" FontWeight="Bold" Foreground="#FF9E9E9E" FontSize="10" Margin="0,0,0,4"/>
         <StackPanel x:Name="PnlExtras"/>
         <TextBlock x:Name="TxtStatus" FontSize="10" Foreground="#FF9CCC65" TextWrapping="Wrap" Margin="0,8,0,0" Text=""/>
-        <Border x:Name="LogBorder" Background="#FF14141E" BorderBrush="#FF4A4A6A" BorderThickness="1" CornerRadius="4" Margin="0,6,0,0" Padding="4">
-          <TextBox x:Name="TxtLog" Height="120" Background="Transparent" BorderThickness="0" IsReadOnly="True" VerticalScrollBarVisibility="Auto"
-                   Foreground="#FFB0B0C0" Text="(Installations-Log erscheint hier, sobald du 'Auswahl installieren' klickst)"/>
+        <Border x:Name="LogBorder" Background="#FF0A0A12" BorderBrush="#FF4A4A6A" BorderThickness="1" CornerRadius="4" Margin="0,6,0,0" Padding="4">
+          <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <TextBlock Text="INSTALLATIONS-LOG (Live)" FontSize="9" Foreground="#FF7A7A8C" Margin="2,0,0,2"/>
+            <TextBox x:Name="TxtLog" Grid.Row="1" Height="120" Background="#FF000000" BorderThickness="0" IsReadOnly="True" VerticalScrollBarVisibility="Auto"
+                     Foreground="#FF9FE89F" FontFamily="Consolas" FontSize="10"
+                     Text="(Installations-Log erscheint hier, sobald du 'Auswahl installieren' klickst)"/>
+          </Grid>
         </Border>
       </StackPanel>
     </ScrollViewer>
@@ -7471,7 +7477,7 @@ function Show-SysPilotHerbertOnboarding {
     $win = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader ([xml]$xaml)))
     if ($Owner) { try { $win.Owner = $Owner } catch {} }
     $fc = @{}
-    foreach ($n in 'BtnInstall','BtnSkip','BtnNever','PnlExtras','TxtStatus','TxtLog') {
+    foreach ($n in 'BtnInstall','BtnSkip','BtnNever','PnlExtras','TxtStatus','TxtLog','PgbInstall') {
         $fc[$n] = $win.FindName($n)
     }
 
@@ -7502,13 +7508,18 @@ function Show-SysPilotHerbertOnboarding {
         if ($keys.Count -eq 0) { $fc.TxtStatus.Text = 'Nichts ausgewaehlt.'; return }
         $busy = $true
         $fc.BtnInstall.IsEnabled = $false; $fc.BtnSkip.IsEnabled = $false; $fc.BtnNever.IsEnabled = $false
+        $fc.PgbInstall.Visibility = 'Visible'
         $fc.TxtStatus.Text = "Installiere $($keys.Count) Komponente(n) - bitte warten ..."
         $fc.TxtLog.Clear()
+        $script:_obStart = Get-Date
+        $script:_obLastLine = Get-Date
         $labels = @{ pwsh7='PowerShell 7'; git='Git'; bun='Bun (JS-Laufzeit)'; dotnet='.NET SDK'; wsl='WSL Ubuntu' }
         $script:_obTotal = $keys.Count; $script:_obDone = 0
         $job = Start-Job -ScriptBlock {
             param($md, $klist, $lbl)
+            Write-Output 'Initialisiere (lade benoetigte Module) ...'
             Get-ChildItem $md -Filter '*.psm1' | ForEach-Object { try { Import-Module $_.FullName -Force -ErrorAction SilentlyContinue } catch {} }
+            Write-Output 'Module bereit - starte Installationen.'
             $i = 0; $n = $klist.Count
             foreach ($k in $klist) {
                 $i++
@@ -7539,10 +7550,12 @@ function Show-SysPilotHerbertOnboarding {
         $pollT.Interval = [TimeSpan]::FromSeconds(1)
         $pollT.Add_Tick({
             if (-not $job) { return }
+            $elapsed = [int]((Get-Date) - $script:_obStart).TotalSeconds
             try {
                 $lines = Receive-Job $job -ErrorAction SilentlyContinue
                 foreach ($ln in @($lines)) {
                     if (-not $ln) { continue }
+                    $script:_obLastLine = Get-Date
                     $fc.TxtLog.AppendText("$ln`r`n"); try { $fc.TxtLog.ScrollToEnd() } catch {}
                     if ($ln -match '^>>> \[(\d+)/(\d+)\] Installiere (.+)') {
                         $fc.TxtStatus.Text = "Installiere $($Matches[3]) [$($Matches[1])/$($Matches[2])] - UAC-Abfragen koennen aufpoppen ..."
@@ -7551,9 +7564,22 @@ function Show-SysPilotHerbertOnboarding {
                         $fc.TxtStatus.Text = "Fortschritt: $($script:_obDone)/$($script:_obTotal) erledigt ..."
                     }
                 }
+                # Heartbeat: zeigt dass der Job lebt, auch ohne Ausgabe
+                $silent = [int]((Get-Date) - $script:_obLastLine).TotalSeconds
+                $cur = $fc.TxtStatus.Text
+                if ($silent -gt 25) {
+                    if ($cur -match '^(Installiere .+ \[\d+/\d+\].*|Fortschritt: \d+/\d+.*)') {
+                        $fc.TxtStatus.Text = "$cur  -  keine Ausgabe seit ${silent}s (Installer laufen oft still)"
+                    } else {
+                        $fc.TxtStatus.Text = "Laeuft seit ${elapsed}s - keine Ausgabe seit ${silent}s, bitte Geduld ..."
+                    }
+                } elseif ($cur -notmatch 'Installiere .+ \[\d+/\d+\]' -and $cur -notmatch 'Fortschritt: \d+/\d+') {
+                    $fc.TxtStatus.Text = "Laeuft seit ${elapsed}s ..."
+                }
                 if ($job.State -notin @('Running','NotStarted','Blocked')) {
                     $pollT.Stop()
-                    $fc.TxtStatus.Text = "Installation abgeschlossen ($($job.State)). Fenster kann geschlossen werden."
+                    $fc.TxtStatus.Text = "Installation abgeschlossen ($($job.State)) nach ${elapsed}s. Fenster kann geschlossen werden."
+                    $fc.PgbInstall.Visibility = 'Collapsed'
                     $fc.BtnInstall.IsEnabled = $true; $fc.BtnSkip.IsEnabled = $true; $fc.BtnNever.IsEnabled = $true
                     $busy = $false
                     try { Write-SysPilotLog "Herbert-Onboarding: Extras installiert ($($job.State))" } catch {}

@@ -389,6 +389,20 @@ Der Laptop-Lüfter hat 70 € gekostet — jetzt läuft er kühl
   <sub>Toolbox: 63 Werkzeuge nach Kategorie, jedes mit verständlicher Erklärung</sub>
 </p>
 
+<p align="center">
+  <img src="assets/screenshot-softwarecenter.png" alt="Softwarecenter — Update-Scan (winget+Chocolatey), Programm-Suche, Downloads" width="800">
+  <br>
+  <sub>Softwarecenter: Update-Scan über winget + Chocolatey, Smart-Downloads, Kataloge</sub>
+  <br><br>
+  <img src="assets/screenshot-megastore.png" alt="Megastore — lokaler App-Index mit 4000+ Apps, kategorisiert und installierbar" width="800">
+  <br>
+  <sub>Megastore: lokaler Index aus Paketmanagern, Katalogen, GitHub und Web-Portalen</sub>
+  <br><br>
+  <img src="assets/screenshot-herbert.png" alt="Pilot Herbert — KI-Assistent mit Chat, Provider-Menü, MCP-Werkzeugen" width="700">
+  <br>
+  <sub>Pilot Herbert: KI-Chat mit 134 Providern, Smart Budget, Voice, MCP-Tools</sub>
+</p>
+
 ---
 
 ## 💛 Spenden / Donate
@@ -467,6 +481,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\haber\SysPilot\SysP
 | Gaming-Tweaks (Game Mode, HAGS, Telemetrie) | ❌ | ❌ | ✅ |
 | Optik bleibt **hübsch** (kein Augenkrebs für 2 %) | ❌ | ❌ | ✅ |
 | Zeigt dir **warum** es umschaltet (Log) | ❌ | teilweise | ✅ |
+| **KI-Assistent „Pilot Herbert"** (Chat, lokal + Cloud) | ❌ | ❌ | ✅ |
+| **134 KI-Provider** inkl. kostenloser Keys + Smart Budget | ❌ | ❌ | ✅ |
+| **Voice-Chat** (Sprache rein → Antwort vorgelesen) | ❌ | ❌ | ✅ |
+| **MCP-Client** (KI-Tools anbinden) | ❌ | ❌ | ✅ |
+| **Softwarecenter** (Update-Scan, alle Paketmanager) | ❌ | ❌ | ✅ |
+| **Megastore** (lokaler Index, 4000+ Apps, installierbar) | ❌ | ❌ | ✅ |
+| **Toolbox** (63 Werkzeuge, 5 Kategorien) | ❌ | ❌ | ✅ |
+| **Extension-Manager** für Browser | ❌ | ❌ | ✅ |
+| **Registry-Tweak-Studio + .reg-Galerie** | ❌ | ❌ | ✅ |
+| **RSS-Center** (1400+ Feeds, Miniflux Self-Host) | ❌ | ❌ | ✅ |
+| **Security-Lab** (Kali WSL) + Task-Manager | ❌ | ❌ | ✅ |
+| **Open Source**, keine Abo-Falle, keine Telemetrie | ✅ | ⚠️ Abo | ✅ |
+
+> **Ehrlich:** Camomile ist ein fokussiertes Kühl-Tool — für *nur* Energiepläne + Autopilot
+> reicht es. SysPilot deckt das ab **und** ist inzwischen ein kompletter
+> Windows-Wartungs- und KI-Assistenten. Alles was Camomile Pro für ~52 €/Jahr
+> verkauft, ist hier kostenlos dabei.
 
 ## Wie die Kühlung funktioniert
 
