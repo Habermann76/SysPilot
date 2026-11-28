@@ -710,7 +710,7 @@ function Get-SysPilotBrowserExtensionInventory {
                             Name = $(if ($a.defaultLocale.name) { $a.defaultLocale.name } else { $a.id })
                             Id = $a.id; Version = $a.version; Aktiv = (-not $a.userDisabled)
                             Source = 'extensions.json'; ManifestPath = $null
-                            Engine = 'firefox'
+                            Engine = 'firefox'; Settings = $p.Settings
                         }
                     }
                 } catch { }
@@ -735,7 +735,7 @@ function Get-SysPilotBrowserExtensionInventory {
                         Aktiv = ($entry.state -ne 0)
                         Source = (Split-Path $prefFile -Leaf)
                         ManifestPath = $prefFile
-                        Engine = 'chromium'
+                        Engine = 'chromium'; Settings = $p.Settings
                     }
                 }
             } catch { }
@@ -907,6 +907,96 @@ function Get-SysPilotBrowserProcesses {
     return @(Get-Process -Name $m.Proc -ErrorAction SilentlyContinue | Where-Object {
         $null -eq $_.Path -or $_.Path -like $m.Path
     })
+}
+
+function Get-SysPilotBrowserExePath {
+    <# Sucht die ausfuehrbare Datei eines Browsers: erst der Pfad eines
+       laufenden Prozesses (zuverlaessigster Treffer), dann App Paths
+       in der Registry, dann uebliche Installationsverzeichnisse.
+       Liefert $null wenn nichts gefunden wird. #>
+    param([Parameter(Mandatory)][string]$Browser)
+    $proc = @(Get-SysPilotBrowserProcesses -Browser $Browser) | Where-Object { $_.Path } | Select-Object -First 1
+    if ($proc) { return $proc.Path }
+    $exeName = switch ($Browser) {
+        'Chrome'           { 'chrome.exe' }
+        'Edge'             { 'msedge.exe' }
+        'Brave'            { 'brave.exe' }
+        'Opera'            { 'opera.exe' }
+        'Vivaldi'          { 'vivaldi.exe' }
+        'Chromium'         { 'chrome.exe' }
+        'Perplexity Comet' { 'Comet.exe' }
+        'BrowserOS'        { 'BrowserOS.exe' }
+        'Firefox'          { 'firefox.exe' }
+        'Tor'              { 'firefox.exe' }
+        default            { "$Browser.exe" }
+    }
+    foreach ($root in @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths')) {
+        $ap = Join-Path $root $exeName
+        if (Test-Path $ap) {
+            try {
+                $p = (Get-Item $ap).GetValue('')
+                if ($p -and (Test-Path $p)) { return $p }
+            } catch { }
+        }
+    }
+    $candidates = switch ($Browser) {
+        'Chrome'    { @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe", "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") }
+        'Edge'      { @("$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe", "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe") }
+        'Brave'     { @("$env:ProgramFiles\BraveSoftware\Brave-Browser\Application\brave.exe", "${env:ProgramFiles(x86)}\BraveSoftware\Brave-Browser\Application\brave.exe", "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\Application\brave.exe") }
+        'Opera'     { @("$env:LOCALAPPDATA\Programs\Opera\opera.exe", "$env:ProgramFiles\Opera\opera.exe", "${env:ProgramFiles(x86)}\Opera\opera.exe") }
+        'Vivaldi'   { @("$env:LOCALAPPDATA\Vivaldi\Application\vivaldi.exe", "$env:ProgramFiles\Vivaldi\Application\vivaldi.exe", "${env:ProgramFiles(x86)}\Vivaldi\Application\vivaldi.exe") }
+        'Firefox'   { @("$env:ProgramFiles\Mozilla Firefox\firefox.exe", "${env:ProgramFiles(x86)}\Mozilla Firefox\firefox.exe") }
+        'Perplexity Comet' { @("$env:LOCALAPPDATA\Perplexity\Comet\Application\Comet.exe", "$env:LOCALAPPDATA\Programs\Comet\Comet.exe") }
+        'BrowserOS' { @("$env:LOCALAPPDATA\BrowserClaw\Application\BrowserOS.exe", "$env:LOCALAPPDATA\Programs\BrowserOS\BrowserOS.exe") }
+        default     { @() }
+    }
+    foreach ($c in $candidates) { if ($c -and (Test-Path $c)) { return $c } }
+    return $null
+}
+
+function Open-SysPilotExtensionPages {
+    <# Oeffnet fuer jede Extension die Detailseite im Browser
+       (<scheme>://extensions/?id=<id>). Der User klickt dort auf
+       'Entfernen' - der Browser selbst entfernt die Extension und
+       propagiert die Loeschung ueber den Account-Sync. Das ist der
+       sync-sichere Weg: kein Datei-Edit noetig, kein Policy-Block,
+       Browser bleibt nicht 'verwaltet'. #>
+    param([Parameter(Mandatory)][array]$Exts)
+    $opened = @{}
+    $manual = @()
+    foreach ($e in $Exts) {
+        $base = "$($e.Settings)"
+        if (-not $base) { $base = 'chrome://extensions/' }
+        if ($e.Engine -eq 'chromium') { $url = "$($base.TrimEnd('/'))/?id=$($e.Id)" }
+        else { $url = $base }   # Firefox: about:addons (kein Deep-Link pro Extension)
+        $exe = Get-SysPilotBrowserExePath -Browser $e.Browser
+        if ($exe) {
+            try {
+                Start-Process -FilePath $exe -ArgumentList $url -ErrorAction Stop
+                $opened[$e.Browser] = $true
+            } catch {
+                $manual += "  $($e.Browser): $url"
+            }
+        } else {
+            $manual += "  $($e.Browser): $url"
+        }
+    }
+    Write-Host ""
+    if ($opened.Count -gt 0) {
+        Write-Host "  Extension-Seiten geoeffnet: $(($opened.Keys | Sort-Object) -join ', ')" -ForegroundColor Green
+        Write-Host "  In JEDEM Tab Scrollen bis unten -> 'Entfernen' klicken." -ForegroundColor Green
+        Write-Host "  Der Browser entfernt die Extension dann auch aus den Sync-Daten -" -ForegroundColor DarkGray
+        Write-Host "  keine Policy noetig, der Browser bleibt NICHT 'verwaltet'." -ForegroundColor DarkGray
+    }
+    if ($manual.Count -gt 0) {
+        Write-Host "  Fuer diese Browser keine Exe gefunden - bitte manuell oeffnen:" -ForegroundColor Yellow
+        $manual | ForEach-Object { Write-Host "$_" -ForegroundColor Yellow }
+    }
+    Write-Host ""
+    Write-SysPilotLog "Extension-Seiten geoeffnet: $($Exts.Count) Extension(en) in $($opened.Count) Browser(n)"
 }
 
 function Get-SysPilotBrowserPolicyPath {
@@ -1273,12 +1363,24 @@ function Show-SysPilotExtensionRemoval {
         $title = if ($browser -eq '__all') { "Alle Browser ($($list.Count))" } else { "$browser - Erweiterungen ($($list.Count))" }
         $msActions = @(
             @{ Label = 'Markierte entfernen'; Tag = 'remove'; Color = 'Green' }
+            @{ Label = 'Im Browser oeffnen'; Tag = 'open'; Color = 'Cyan' }
             @{ Label = 'Abbrechen';         Tag = 'back';   Color = 'DarkGray' }
         )
-        $res = Show-SysPilotMultiSelectMenu -Items $menuItems -Title $title -Actions $msActions -Footer 'Klick = Haken, Enter = weiter, A = alle, 1/2 = Buttons, Esc = Browserwahl'
+        $res = Show-SysPilotMultiSelectMenu -Items $menuItems -Title $title -Actions $msActions -Footer 'Klick = Haken, Enter = weiter, A = alle, 1/2/3 = Buttons, Esc = Browserwahl'
         Write-SysPilotDebug "Multiselect $title : res=$(if($null -eq $res){'null'}else{"action=$($res.Action) sel=$($res.Selected.Count)"})"
         if ($null -eq $res) { continue }
         if ($res.Action -eq 'back') { continue }
+        if ($res.Action -eq 'open') {
+            $toOpen = @($res.Selected)
+            if ($toOpen.Count -eq 0) {
+                Write-Host "  Keine Extensions markiert - zuerst Haken setzen." -ForegroundColor Yellow
+                Read-SysPilotChoice 'Weiter mit Enter' | Out-Null
+                continue
+            }
+            Open-SysPilotExtensionPages -Exts $toOpen
+            Read-SysPilotChoice 'Weiter mit Enter (danach wird neu gescannt)' | Out-Null
+            continue
+        }
         if ($res.Selected.Count -eq 0) { continue }
 
         $chosen = @($res.Selected)
@@ -2020,6 +2122,7 @@ Export-ModuleMember -Function `
     Set-SysPilotExtensionPolicyBlock, Remove-SysPilotExtensionPolicyBlock, `
     Get-SysPilotBrowserExtensionPolicy, Show-SysPilotExtensionPolicyManager, `
     Test-SysPilotAiBrowser, Get-SysPilotBrowserProcesses, `
+    Get-SysPilotBrowserExePath, Open-SysPilotExtensionPages, `
     Get-SysPilotOrphanPrograms, Get-SysPilotBrokenUninstallEntries, `
     Invoke-SysPilotForceUninstall, `
     Get-SysPilotWindowsUpdates, Remove-SysPilotWindowsUpdate, `
