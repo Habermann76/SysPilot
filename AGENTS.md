@@ -1130,6 +1130,14 @@ Wenn GitHub MCP nicht funktioniert, nicht abbrechen: `scripts\github-fallback.ps
   zuordnet**: Module werden beim Prozessstart geladen - ein Langlaeufer
   kann monatelang ALTEN Code im Speicher haben (Fix wirkt erst nach
   Neustart des Tool-Prozesses, nicht nach Deploy).
+- **Lange Scans/Inventare brauchen Statuszeilen**: `Get-SysPilotBrowserExtensionInventory`
+  dauert ~15-20 s; ohne `[..] wird gescannt ...`-Zeile wirkt der
+  Rescan-Loop wie ein Haenger (User-Beschwerde 0.9.5.0). Regel: jeder
+  Block >3 s ohne UI-Feedback braucht eine Statusausgabe.
+- **`Get-SysPilotBackupDir` (Common.psm1)** prueft Schreibbarkeit und
+  faellt bei nicht-elevated Tool-Prozessen auf
+  `%LOCALAPPDATA%\SysPilot\backup` zurueck - niemals hardcodiert nach
+  `SysPilotRoot\backup` schreiben (Program Files = UnauthorizedAccessException).
 
 ### Aehnliche-Fehler-regel (verbindlich)
 - Bei jedem Bug in einem Console-/UI-Mechanismus: **repo-weit nach demselben
