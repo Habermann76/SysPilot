@@ -488,12 +488,15 @@ function Remove-SysPilotChromiumExtension {
         }
     }
 
-    # Extensions-Ordner loeschen
-    $extBase = Join-Path $ProfilePath "Extensions\$ExtId"
+    # Programm-/Datenuordner loeschen (Paritaet mit CleanSweep:
+    # Extensions\<id> + Local/Sync Extension Settings)
     $folderRemoved = $false
-    if (Test-Path $extBase) {
-        try { Remove-Item $extBase -Recurse -Force -ErrorAction Stop; $folderRemoved = $true }
-        catch { }
+    foreach ($rel in @("Extensions\$ExtId", "Local Extension Settings\$ExtId", "Sync Extension Settings\$ExtId")) {
+        $d = Join-Path $ProfilePath $rel
+        if (Test-Path $d) {
+            try { Remove-Item $d -Recurse -Force -ErrorAction Stop; $folderRemoved = $true }
+            catch { }
+        }
     }
 
     # Verifikation: Settings erneut lesen
@@ -1040,9 +1043,27 @@ $lines
             $stillRunning = @()
             foreach ($b in $running) { foreach ($pn in $browserProcs[$b]) { if (Get-Process -Name $pn -ErrorAction SilentlyContinue) { $stillRunning += $b; break } } }
             if ($stillRunning.Count -gt 0) {
-                $q = [System.Windows.MessageBox]::Show("$($stillRunning -join ', ') liess sich nicht automatisch schliessen.`n`nOhne geschlossenes Browser wird die Entfernung beim Beenden ueberschrieben (Secure Preferences aus dem Speicher).`n`nTrotzdem fortfahren?", 'Browser laeuft noch', 'YesNo', 'Warning')
-                if ($q -ne 'Yes') { return }
-                & $say "ACHTUNG: $($stillRunning -join ', ') laeuft noch - Entfernung kann ueberschrieben werden!"
+                $stillList = @($stillRunning | Sort-Object -Unique) -join ', '
+                $q = [System.Windows.MessageBox]::Show("$stillList liess sich nicht automatisch schliessen.`n`nEin laufender Browser ueberschreibt die Preferences-Aenderung beim Beenden - die Extension kommt dann ZURUECK.`n`n'Ja'     = Browser-Prozess jetzt beenden (offene Tabs gehen verloren)`n'Nein'   = trotzdem entfernen (Extension kann zurueckkommen)`n'Abbrechen' = nichts tun", 'Browser laeuft noch', 'YesNoCancel', 'Warning')
+                if ($q -eq 'Cancel') { return }
+                if ($q -eq 'Yes') {
+                    & $say "Beende $stillList hart (Stop-Process) ..."
+                    foreach ($b in @($stillRunning | Sort-Object -Unique)) {
+                        foreach ($pn in $browserProcs[$b]) {
+                            Get-Process -Name $pn -ErrorAction SilentlyContinue | ForEach-Object { try { Stop-Process -Id $_.Id -Force -ErrorAction Stop } catch {} }
+                        }
+                    }
+                    $deadline2 = (Get-Date).AddSeconds(5)
+                    while ((Get-Date) -lt $deadline2) {
+                        $left = $false
+                        foreach ($b in @($stillRunning | Sort-Object -Unique)) { foreach ($pn in $browserProcs[$b]) { if (Get-Process -Name $pn -ErrorAction SilentlyContinue) { $left = $true } } }
+                        if (-not $left) { break }
+                        Start-Sleep -Milliseconds 400
+                    }
+                    & $say "Browser beendet: $stillList"
+                } else {
+                    & $say "ACHTUNG: $stillList laeuft noch - Entfernung kann ueberschrieben werden!"
+                }
             } else {
                 & $say "Browser geschlossen: $($running -join ', ')"
             }
@@ -1092,7 +1113,7 @@ $lines
         # nicht erneut installiert ("im Account"-Schutz)
         $removedOk = @($removedList | Where-Object { "$($_.Id)" -match '^[a-p]{32}$' })
         if ($okCount -gt 0 -and $removedOk.Count -gt 0) {
-            $q = [System.Windows.MessageBox]::Show("$($removedOk.Count) Store-Extensions wurden entfernt.`n`nInstallations-Sperre in den Browser-Richtlinien setzen?`n`nDamit kann die Extension NICHT erneut installiert werden - auch nicht ueber Account-Sync oder den Store (Blocklist auf Browser-Ebene).", 'Install-Sperre', 'YesNo', 'Question')
+            $q = [System.Windows.MessageBox]::Show("$($removedOk.Count) Store-Extensions wurden entfernt.`n`nInstallations-Sperre in den Browser-Richtlinien setzen?`n`nDamit kann die Extension NICHT erneut installiert werden - auch nicht ueber Account-Sync oder den Store (Blocklist auf Browser-Ebene).`n`nOhne Sperre kann Sync die Extension beim naechsten Start wiederherstellen.", 'Install-Sperre', 'YesNo', 'Question', 'Yes')
             if ($q -eq 'Yes') {
                 foreach ($e in $removedOk) {
                     $br = Add-SysPilotExtensionInstallBlock -Browser $e.Browser -ExtId $e.Id
