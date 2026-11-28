@@ -384,9 +384,9 @@ Der Laptop-Lüfter hat 70 € gekostet — jetzt läuft er kühl
   <br>
   <sub>Automatic Checkup: 14 Bereiche, ehrlich erklärt, echt repariert — Fixes einzeln abwählbar</sub>
   <br><br>
-  <img src="assets/screenshot-toolbox.png" alt="Toolbox — 24 Werkzeuge in 4 Kategorien mit Erklärungen" width="700">
+  <img src="assets/screenshot-toolbox.png" alt="Toolbox — 63 Werkzeuge in 5 Kategorien mit Erklärungen" width="700">
   <br>
-  <sub>Toolbox: 24 Werkzeuge nach Kategorie, jedes mit verständlicher Erklärung</sub>
+  <sub>Toolbox: 63 Werkzeuge nach Kategorie, jedes mit verständlicher Erklärung</sub>
 </p>
 
 ---
