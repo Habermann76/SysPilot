@@ -1141,7 +1141,7 @@ $lines
         & $runAsync $loadScript @{ md=$modDir } $refreshList
     })
     # Herbert-Assistent + Statuskonsole
-    try { Add-SysPilotAssistantToWindow -Win $win -Context 'Browser-Erweiterungen (Sicherheits-Scan)' -Suggestions @('Welche Extensions sind riskant?','Was sind ressourcenfresser?','Hilf mir beim Aufraeumen') | Out-Null } catch {}
+    try { Add-SysPilotAssistantToWindow -Win $win -Context 'Browser-Erweiterungen (Sicherheits-Scan)' -Suggestions @('SysPilot Extension-Manager installieren?','Welche Extensions sind riskant?','Was sind ressourcenfresser?','Hilf mir beim Aufraeumen') | Out-Null } catch {}
 
     # Daten async laden (Timer tickt waehrend ShowDialog), dann modal zeigen
     & $say 'Lade Erweiterungen aller Browser-Profile ...'

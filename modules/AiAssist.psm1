@@ -1698,6 +1698,9 @@ function Get-SysPilotKiActions {
         @{ Id='extension-policy'; Label='Extension-Policy-Bloecke verwalten (Browser "verwaltet"?)'; Risk='medium'; NeedsAdmin=$false
            Desc='Listet ExtensionSettings-Policies (Sync-Schutz) pro Browser und erklaert den "organisationsverwaltet"-Effekt: gesperrte Browser-Einstellungen (DNS, Cookies, Tracking-Schutz). Erlaubt Aufheben - nur SysPilot-Blocks oder komplette Policy. Sync kann entfernte Extensions erneut installieren.'
            Run={ Show-SysPilotExtensionPolicyManager; 'Policy-Manager beendet.' } }
+        @{ Id='ext-manager'; Label='SysPilot Extension-Manager installieren'; Risk='low'; NeedsAdmin=$false
+           Desc='Installiert die eigene Browser-Extension (chrome.management): Suche, Enable/Disable, echtes Entfernen, Browser-Detailseite, HTML-Export/Import als Sync zwischen Browsern. Kopiert den Ordnerpfad und oeffnet chrome://extensions - danach nur noch "Entpackte Erweiterung laden" klicken.'
+           Run={ if (Get-Command Install-SysPilotExtManagerExtension -ErrorAction SilentlyContinue) { $r = Install-SysPilotExtManagerExtension; if ($r.Ok) { $r.Message } else { "Fehler: $($r.Message)" } } else { 'Extensions-Modul nicht geladen - bitte SysPilot neu starten oder den Ext-Manager-Button im Extension-Manager nutzen.' } } }
         @{ Id='herbert-interests'; Label='Herbert-Interessen einrichten'; Risk='low'; NeedsAdmin=$false
            Desc='Themen-Profil fuer den Assistenten: Gesundheit, Longevity, Psychosen/Schizophrenie, ADHS, Autismus, Politik, Krieg, Games (Steam/GOG/Epic), Linux/Windows, Deskmodder, Reddit, Aliens/UFO, Hobbies u.v.m. - Herbert praesentiert passende Infos/News proaktiv.'
            Run={ Show-SysPilotHerbertInterestsSetup; 'Interessen gespeichert.' } }
@@ -1984,6 +1987,14 @@ BROWSER "VERWALTET" / EXTENSION-POLICY (Chrome, Edge, Brave, Vivaldi, Chromium):
 - RISIKO beim Aufheben: Angemeldeter Browser-Sync kann entfernt geglaubte Extensions erneut installieren - vor dem Aufheben erwaehnen.
 - Policy-Registry-Keys (HKCU\...\Policies) koennen schreibgeschuetzt sein -> SysPilot elevated neu starten.
 - Bei Zahlungs-/Anmelde-Problemen in Chrome zunaechst pruefen: ist der Browser "verwaltet"? -> Policy-Bloecke pruefen/beheben.
+'@
+        @'
+SYS PILOT EXTENSION MANAGER (extension-manager/ - eigene MV3-Extension):
+- Was: eigener Extension-Manager MIT chrome.management - Extension-Liste + Suche, Enable/Disable pro Extension, echtes Entfernen (chrome.management.uninstall), Zahnrad oeffnet die Browser-Detailseite chrome://extensions/?id=<id> (fokussiert, wie Easy Extension Manager), HTML-Export/-Import als Sync zwischen Browsern (Edge/Brave/Comet).
+- Installieren: Button 'Ext-Manager' im SysPilot Extension-Manager (Browser-Erweiterungen), CleanSweep > Browser-Erweiterungen > gruener Eintrag, oder KiAction 'ext-manager'. Kopiert den Ordnerpfad in die Zwischenablage + oeffnet chrome://extensions -> 'Entwicklermodus' an -> 'Entpackte Erweiterung laden' -> Pfad einfuegen.
+- Wann vorschlagen (proaktiv!): User will viele Extensions aufraeumen, Extensions zwischen Browsern synchron halten, vermisst Funktionen eines Extension-Managers (Easy Extension Manager & Co.) oder hasst die Sync-Rueckhol-Falle - dann Ext-Manager + HTML-Export/Import erklaeren statt Policy-Bloecke.
+- Grenzen ehrlich nennen: uninstall kann KEINE policy-installierten oder geschuetzten Extensions entfernen (nur Browser-Detailseite hilft dort); HTML-Import installiert NICHT automatisch (Chrome-Schutz) - zeigt nur Store-Links fuer fehlende Extensions; Sync ist dateibasiert (Export -> Import), kein Live-Sync.
+- Stil: kurz, ein Absatz + 3-4 Bulletpoints, ein kleiner Scherz erlaubt (z.B. "dein Browser muss nicht mehr managen-undefined werden"), dann konkreter naechster Schritt.
 '@
         @'
 SKILLS / MCP / HERBERT-ERWEITERUNG:
