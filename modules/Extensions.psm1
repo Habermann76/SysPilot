@@ -1183,10 +1183,15 @@ function Get-SysPilotExtManagerUserDir {
     try {
         if (-not (Test-Path $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
         foreach ($f in @('manifest.json','popup.html','popup.css','popup.js','icon.png')) {
-            $s = Join-Path $src $f; $d = Join-Path $dst $f
-            if ((Test-Path $s) -and (-not (Test-Path $d) -or (Get-Item $s).LastWriteTime -gt (Get-Item $d).LastWriteTime -or (Get-FileHash $s).Hash -ne (Get-FileHash $d).Hash))) {
-                Copy-Item $s $d -Force
+            $s = Join-Path $src $f
+            $d = Join-Path $dst $f
+            $copy = $false
+            if (Test-Path $s) {
+                if (-not (Test-Path $d)) { $copy = $true }
+                elseif ((Get-Item $s).LastWriteTime -gt (Get-Item $d).LastWriteTime) { $copy = $true }
+                elseif ((Get-FileHash $s).Hash -ne (Get-FileHash $d).Hash) { $copy = $true }
             }
+            if ($copy) { Copy-Item $s $d -Force }
         }
         return @{ Ok=$true; Dir=$dst }
     } catch {
